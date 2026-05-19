@@ -1,3 +1,14 @@
 {
-  "asyncByDefault": true
+  "asyncByDefault": true,
+  "defaultSessionDir": "~/.pi/agent/sessions/subagent",
+  "control": {
+    "enabled": true,
+    "needsAttentionAfterMs": 60000,
+    "activeNoticeAfterMs": 120000,
+    "notifyOn": ["active_long_running", "needs_attention"],
+    "notifyChannels": ["event", "async", "intercom"]
+  },
+  "intercomBridge": {
+    "mode": "always"
+  }
 }

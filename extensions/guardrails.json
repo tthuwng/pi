@@ -13,43 +13,16 @@
       ":(){ :|:& };:",
       "dd if=/dev/",
       "mkfs",
-      "git add",
-      "git commit",
-      "git push",
-      "git checkout --",
-      "git reset --hard",
-      "git stash drop",
-      "git stash pop",
-      "git stash clear",
-      "git clean -f",
-      "git clean -d",
-      "git rebase",
-      "git merge",
-      "git cherry-pick",
-      "git revert",
-      "git branch -D",
-      "git stash push",
-      "git stash save",
-      "git stash apply",
-      "git restore",
-      "git switch",
-      "git tag",
-      "git push --force",
-      "git push -f",
       {
-        "pattern": "(^|[;&|()\\s])gs\\s+((upstack|downstack|branch|stack)\\s+)?(restack|submit|rebase|continue)\\b",
+        "pattern": "(^|[;&|()\\s])git\\s+(?:-[A-Za-z]+(?:=\\S+)?\\s+|--[A-Za-z0-9-]+(?:=\\S+)?\\s+)*(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|init|merge|mv|pull|push|rebase|reflog|remote|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\\b",
         "regex": true
       },
       {
-        "pattern": "(^|[;&|()\\s])gs\\s+(branch\\s+)?(create|delete|rename|checkout|onto|absorb)\\b",
+        "pattern": "(^|[;&|()\\s])git\\s+(?:-[A-Za-z]+(?:=\\S+)?\\s+|--[A-Za-z0-9-]+(?:=\\S+)?\\s+)*push\\s+.*(?:--force|-f)\\b",
         "regex": true
       },
       {
-        "pattern": "(^|[;&|()\\s])gs\\s+(commit\\s+)?(create|amend)\\b",
-        "regex": true
-      },
-      {
-        "pattern": "(^|[;&|()\\s])gs\\s+repo\\s+sync\\b",
+        "pattern": "(^|[;&|()\\s])gs\\s+(?:(?:upstack|downstack|branch|stack|repo|commit)\\s+)?(?:absorb|amend|checkout|continue|create|delete|onto|rename|rebase|restack|submit|sync)\\b",
         "regex": true
       },
       "sudo rm -rf",

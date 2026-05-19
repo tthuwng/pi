@@ -52,6 +52,8 @@ Accuracy is the success metric, not user approval.
 
 **One approval doesn't generalize.** Approving one push doesn't approve all pushes. Approving one architectural choice doesn't approve similar ones. Each action needs its own authorization for destructive or significant operations.
 
+**Information is not authorization.** When the user provides a fact, correction, preference, observation, or says something that is wrong, do not silently make changes. First acknowledge the implication, state what you would change or investigate, and wait for explicit approval unless the user clearly asked you to edit/fix/update now.
+
 **Try before asking.** Don't ask "do you have X installed?" — just run it. Don't ask "should I use Y?" when the codebase already uses Y.
 
 **Clean up.** Remove debugging artifacts (print statements, console.log, commented-out experiments) before every commit. Leave the code cleaner than you found it.
@@ -146,6 +148,21 @@ These tools and skills are available — use them proactively:
 
 - **pi-web-access**: General web search and content extraction. Use for non-library topics. For library/framework docs, use context7 instead.
 - **pi-memory-md**: Cross-session memory stored as markdown files. Persist important decisions, patterns, or context that should survive across sessions.
+  - **Read memory first** for any nontrivial work involving these trigger words or concepts: debug, failure, failing test, CI, benchmark, bench-run, LegalBench, Valkyrie, model-proxy, gateway, platform, Dramatiq, Redis, Postgres, AWS, Docker, deploy, migration, refactor, architecture, setup, command, runbook, workflow, flaky, rate limit, token retry, queue, cancellation, or “how does this repo work”.
+  - **Write memory aggressively** after discovering reusable repo knowledge, command flows, debugging flows, root causes, gotchas, environment setup, successful verification commands, failed approaches, or user preferences. Do not wait for the user to say “remember this”.
+  - **Common memory root:** `/home/orestes/.pi/memory-md/common`. Prefer this shared directory for durable knowledge that should transfer across repos or sessions. Use project memory only for narrow, repo-local notes that should not appear globally.
+  - Since `memory_write` is project-scoped, write common memories directly with `write` under `/home/orestes/.pi/memory-md/common/core/project/...` using normal YAML frontmatter. Use `memory_write` for project-scoped memories.
+  - Before writing, search/list first to update an existing focused file instead of creating duplicates. Use `memory_list`, `memory_search`, and targeted `grep` over `/home/orestes/.pi/memory-md/common/core`.
+  - Maintain memory as curated runbooks, not a dump. If new facts supersede old ones, edit the existing memory to be current, specific, and shorter; do not append contradictions.
+  - Do not duplicate authoritative behavioral rules from `AGENTS.md` into memory. Keep enforcement in config; memory may store repo/debug/runbook knowledge and short pointers only when useful.
+  - **Metadata quality is mandatory, not clerical. Future agents see metadata before body content, so bad metadata makes good memory effectively invisible or actively misleading.** When creating or touching a memory file, update metadata in the same edit.
+  - Every memory file must have useful frontmatter because startup memory delivery indexes metadata, not full content. Include: `description`, `category`, `status`, `load_priority`, `scope`, `repos`, `prs`, `last_verified`, `staleness_risk`, `evidence`, `tags`, `created`, `updated`.
+  - `description` must name the repo/system plus symptom/workflow/value; `tags` must include likely future search terms, exact error strings, commands, subsystems, and category/status/priority mirror tags.
+  - `staleness_risk` must explain what can make the memory wrong; never leave it as just `low`, `medium`, or `high`.
+  - Reflect `category`, `status`, and `load_priority` in tags too, using tags like `category-runbook`, `status-current`, and `priority-high`, because the current memory index visibly exposes descriptions/tags.
+  - Use status honestly: `current`, `resolved`, `partial`, `abandoned`, `superseded`, `historical`, or `unknown`. If status is not current/resolved, make the caveat explicit before the runbook details. Mark stale duplicates `superseded` and point to the replacement.
+  - Store sanitized reusable procedure, not raw logs or secrets. Capture exact working commands, cwd, required env vars, prerequisite services, failure symptoms, diagnosis steps, root cause, fix, and verification.
+  - At the end of debugging/running sessions, ask: “What would save 30+ minutes next time?” Write that to memory before final response when non-sensitive; if no memory is written after a substantial debug/run session, say why.
 - **pi-rewind**: Per-turn file checkpoints. Use `/rewind` to restore files to a previous state if changes go wrong.
 - **self-improve**: End-of-session retrospective. Invoke with `/skill:self-improve` to analyze what went well/poorly and update config.
 - **session-reader**: Parse and analyze previous session JSONL files. Use when reviewing past work or debugging agent behavior.
@@ -178,6 +195,8 @@ Use these skills as routing points:
 Subagent roles are operational contracts, not documentation: use **scout** for read-only recon, **worker** for single-thread implementation, and **reviewer** for evidence-backed code/spec review.
 
 Workers write results to `.scratch/` files, not back to main context. Parent agents verify worker claims from diffs/output before reporting completion.
+
+Async subagent discipline: track every async run id you start. If the async result is relevant to the user's request, do not give a final answer while it is still running unless you explicitly say the result is pending. If there is no independent work to do, end the turn and wait for Pi's async completion notification instead of polling. When continuing after a completion/needs-attention notice, call `subagent({ action: "status", id })` or read the saved output before summarizing, and use `resume`/intercom only for blocked decisions or follow-up work. Do not ignore completed async runs.
 
 ## Git Rules
 
