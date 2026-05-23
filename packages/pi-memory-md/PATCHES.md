@@ -12,6 +12,9 @@ This directory is a local path package copied from the npm `pi-memory-md` packag
 - Let `/memory-status` and `memory_sync { action: "status" }` recognize global-only local memory instead of reporting uninitialized.
 - Avoid non-null assertions around `settings.localPath` in sync/status paths.
 - Add regression tests for global-only delivery, search, check, and status behavior.
+- Tolerate malformed frontmatter with a best-effort fallback so one bad memory file does not break delivery.
+- Write `memory_write` output with JSON-compatible frontmatter via `JSON.stringify` to avoid ambiguous YAML scalars.
+- Add regression tests for malformed frontmatter fallback and JSON frontmatter output containing YAML-hostile evidence strings.
 - Add the missing runtime `@sinclair/typebox` dependency and align local Pi core dev/peer dependencies with the installed Pi version to avoid shadowing an older core package.
 - Replace the broken upstream `tsgo` check script with a working `tsc` command.
 

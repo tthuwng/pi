@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import memoryMdExtension from "../index.js";
+import {
+	type MemoryFrontmatter,
+	readMemoryFileAsync,
+	writeMemoryFile,
+} from "../memory-core.js";
 
 type MockContext = {
 	cwd: string;
@@ -291,4 +296,66 @@ test("status surfaces global-only local memory instead of reporting uninitialize
 		assert.equal(syncStatus?.details?.gitBacked, false);
 		assert.match(syncStatus?.content?.[0]?.text ?? "", /not git-backed/);
 	});
+});
+
+test("readMemoryFileAsync tolerates malformed frontmatter", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "pi-memory-md-test-"));
+
+	try {
+		const filePath = path.join(root, "bad-frontmatter.md");
+		await writeFile(
+			filePath,
+			[
+				"---",
+				"description: Crash runbook",
+				"evidence:",
+				"  - Current boot kernel reported `BERT: [Hardware Error]: Skipped 1 error records`.",
+				"tags:",
+				"  - boot",
+				"  - bert",
+				"---",
+				"",
+				"# Body",
+				"",
+				"Body survives.",
+			].join("\n"),
+		);
+
+		const memory = await readMemoryFileAsync(filePath);
+
+		assert.ok(memory);
+		assert.equal(memory.frontmatter.description, "Crash runbook");
+		assert.deepEqual(memory.frontmatter.tags, ["boot", "bert"]);
+		assert.equal(memory.content.trim(), "# Body\n\nBody survives.");
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("writeMemoryFile uses JSON frontmatter for YAML-hostile evidence", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "pi-memory-md-test-"));
+	const evidenceEntry =
+		"Current boot kernel reported `BERT: [Hardware Error]: Skipped 1 error records`.";
+
+	try {
+		const filePath = path.join(root, "json-frontmatter.md");
+		const frontmatter: MemoryFrontmatter & { evidence: string[] } = {
+			description: "Crash runbook",
+			evidence: [evidenceEntry],
+			tags: ["boot", "bert"],
+		};
+
+		writeMemoryFile(filePath, "# Body\n", frontmatter);
+
+		const raw = await readFile(filePath, "utf-8");
+		assert.match(raw, /"evidence"/);
+		const memory = await readMemoryFileAsync(filePath);
+		const parsedEvidence = (
+			memory?.frontmatter as MemoryFrontmatter & { evidence?: string[] }
+		).evidence;
+
+		assert.deepEqual(parsedEvidence, [evidenceEntry]);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
 });

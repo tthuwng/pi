@@ -328,8 +328,107 @@ function validateFrontmatter(data: ParsedFrontmatter): {
 	return { valid: true };
 }
 
+function unquoteFrontmatterScalar(value: string): string {
+	const trimmed = value.trim();
+	if (
+		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+		(trimmed.startsWith("'") && trimmed.endsWith("'"))
+	) {
+		return trimmed.slice(1, -1);
+	}
+	return trimmed;
+}
+
+function splitFrontmatter(content: string): {
+	frontmatter: string;
+	body: string;
+} | null {
+	const lines = content.split(/\r?\n/);
+	if (lines[0] !== "---") {
+		return null;
+	}
+
+	const endIndex = lines.findIndex(
+		(line, index) => index > 0 && line === "---",
+	);
+	if (endIndex === -1) {
+		return null;
+	}
+
+	return {
+		frontmatter: lines.slice(1, endIndex).join("\n"),
+		body: lines.slice(endIndex + 1).join("\n"),
+	};
+}
+
+function readFrontmatterScalar(block: string, key: string): string | undefined {
+	const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const match = block.match(new RegExp(`^${escapedKey}:\\s*(.*)$`, "m"));
+	return match?.[1] ? unquoteFrontmatterScalar(match[1]) : undefined;
+}
+
+function readFrontmatterStringArray(
+	block: string,
+	key: string,
+): string[] | undefined {
+	const lines = block.split(/\r?\n/);
+	const startIndex = lines.findIndex((line) => line.trim() === `${key}:`);
+	if (startIndex === -1) {
+		return undefined;
+	}
+
+	const values: string[] = [];
+	for (const line of lines.slice(startIndex + 1)) {
+		if (line.trim() === "") {
+			continue;
+		}
+		if (!/^\s/.test(line)) {
+			break;
+		}
+
+		const item = line.match(/^\s*-\s*(.*)$/);
+		if (item?.[1]) {
+			values.push(unquoteFrontmatterScalar(item[1]));
+		}
+	}
+
+	return values.length > 0 ? values : undefined;
+}
+
+function parseInvalidFrontmatterMemoryFile(
+	filePath: string,
+	content: string,
+): MemoryFile {
+	const split = splitFrontmatter(content);
+	if (!split) {
+		return {
+			path: filePath,
+			frontmatter: { description: "No description" },
+			content,
+		};
+	}
+
+	return {
+		path: filePath,
+		frontmatter: {
+			description:
+				readFrontmatterScalar(split.frontmatter, "description") ??
+				"Invalid frontmatter",
+			created: readFrontmatterScalar(split.frontmatter, "created"),
+			updated: readFrontmatterScalar(split.frontmatter, "updated"),
+			tags: readFrontmatterStringArray(split.frontmatter, "tags"),
+		},
+		content: split.body,
+	};
+}
+
 function parseMemoryFileContent(filePath: string, content: string): MemoryFile {
-	const parsed = matter(content);
+	let parsed: ReturnType<typeof matter>;
+	try {
+		parsed = matter(content);
+	} catch {
+		return parseInvalidFrontmatterMemoryFile(filePath, content);
+	}
 
 	if (
 		!parsed.data ||
@@ -399,13 +498,21 @@ export async function listMemoryFilesAsync(
 	return files;
 }
 
+function stringifyMemoryFile(
+	content: string,
+	frontmatter: MemoryFrontmatter,
+): string {
+	const normalizedContent = content.startsWith("\n") ? content : `\n${content}`;
+	return `---\n${JSON.stringify(frontmatter, null, 2)}\n---${normalizedContent}`;
+}
+
 export function writeMemoryFile(
 	filePath: string,
 	content: string,
 	frontmatter: MemoryFrontmatter,
 ): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, matter.stringify(content, frontmatter));
+	fs.writeFileSync(filePath, stringifyMemoryFile(content, frontmatter));
 }
 
 // Deprecated after migrating initialization to memory-init skill.

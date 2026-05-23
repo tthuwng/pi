@@ -40,14 +40,17 @@ description: Core memory operations guide for pi-memory-md - create, read, updat
 ### Fixed by `memory-init`
 
 These are the only directories `memory-init` guarantees for a project:
+
 - `core/project/`
 
 If `globalMemory` is enabled, it also ensures:
+
 - `{globalMemory}/`
 
 ### Common optional files
 
 These files are common, but created only if the user chooses templates or imports preferences:
+
 - `core/USER.md`
 - `core/MEMORY.md`
 - `core/TASK.md`
@@ -58,6 +61,7 @@ These files are common, but created only if the user chooses templates or import
 ### Flexible root-level organization
 
 Everything outside `core/` is flexible. Common examples:
+
 - `docs/`
 - `archive/`
 - `research/`
@@ -69,17 +73,20 @@ Everything outside `core/` is flexible. Common examples:
 ### Does this need to be in EVERY conversation?
 
 **Yes** → Place under `core/`
+
 - User profile and preferences → `core/USER.md`
 - Durable project notes, conventions, and lessons learned → `core/MEMORY.md`
 - Project tasks/plans → `core/TASK.md`
 - General project knowledge → `core/project/`
 
 **Maybe shared across ALL projects?** → Place under `{globalMemory}/` when `globalMemory` is enabled
+
 - Shared user profile and preferences → `{globalMemory}/USER.md`
 - Shared durable notes, conventions, and lessons learned → `{globalMemory}/MEMORY.md`
 - Shared tasks/plans → `{globalMemory}/TASK.md`
 
 **No** → Place at project root level (same level as `core/`)
+
 - Reference docs → `docs/`
 - Historical → `archive/`
 - Research → `research/`
@@ -88,23 +95,29 @@ Everything outside `core/` is flexible. Common examples:
 
 **Important:** `core/project/` is a fixed subdirectory under `core/`. Always use `core/project/` for project-specific memory files, never create a `project/` folder at the root level.
 
-## YAML Frontmatter Schema
+## Frontmatter Schema
 
-Every memory file MUST have YAML frontmatter:
+Every memory file MUST have frontmatter between `---` delimiters. `memory_write` writes JSON-compatible frontmatter because JSON is valid YAML and avoids ambiguous unquoted scalars. Prefer this form for manual rich metadata too:
 
 ```yaml
 ---
-description: "Human-readable description of this memory file"
-tags: ["user", "identity"]
-created: "2026-02-14"
-updated: "2026-02-14"
+{
+  "description": "Human-readable description of this memory file",
+  "tags": ["user", "identity"],
+  "created": "2026-02-14",
+  "updated": "2026-02-14",
+}
 ---
 ```
 
+Plain YAML frontmatter is still readable, but quote any string containing `: `, brackets, braces, backticks, or shell commands. Malformed frontmatter is read with a best-effort fallback so one bad file does not block memory delivery.
+
 **Required fields:**
+
 - `description` (string) - Human-readable description
 
 **Optional fields:**
+
 - `tags` (array of strings) - For searching and categorization
 - `created` (date) - File creation date (auto-added on create)
 - `updated` (date) - Last modification date (auto-updated on update)
@@ -200,10 +213,12 @@ The extension preserves existing `created` date and updates `updated` automatica
 ### core/ directory - partially fixed structure
 
 **Directories guaranteed by `memory-init`:**
+
 - `project/` - Project-specific information
 - `TASK.md` - Task and planning file
 
 **Common optional files at `core/` root:**
+
 - `USER.md` - User profile and preferences
 - `MEMORY.md` - Durable notes, conventions, and lessons learned
 
@@ -227,6 +242,7 @@ Avoid inventing extra `core/` subfolders unless there is a clear reason and the 
 ## Best Practices
 
 ### DO:
+
 - Use `core/USER.md` for user profile and preferences
 - Use `core/MEMORY.md` for durable notes, conventions, and lessons learned
 - Use `core/TASK.md` for task and planning memory
@@ -237,6 +253,7 @@ Avoid inventing extra `core/` subfolders unless there is a clear reason and the 
 - Organize root level folders by content type
 
 ### DON'T:
+
 - Create a `project/` folder at root level (use `core/project/` instead)
 - Assume `core/USER.md`, `core/MEMORY.md`, or task files already exist unless templates were created
 - Put reference docs in `core/` when they are not part of recurring context
@@ -268,6 +285,7 @@ memory_write(
 ## When to Use This Skill
 
 Use `memory-management` when:
+
 - User asks to remember something for future sessions
 - Creating or updating project documentation
 - Setting preferences or guidelines
@@ -295,4 +313,3 @@ memory_sync(action="push")
 - `memory-init` - Initial repository setup
 - `memory-search` - Finding specific information
 - `memory-check` - Validate folder structure before syncing
-
