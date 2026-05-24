@@ -8,5 +8,5 @@
     "typeRoots": ["./node_modules/@types"],
     "types": ["node"]
   },
-  "include": ["index.ts"]
+  "include": ["index.ts", "core.ts", "ansi.ts", "bounded-cache.ts"]
 }
