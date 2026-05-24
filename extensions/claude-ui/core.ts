@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -99,21 +100,127 @@ type PatchableCompactionSummaryPrototype = {
 };
 
 type PatchedToolExecutionPrototype = {
+	render: RenderFn;
+	updateDisplay: () => void;
 	getCallRenderer: () => unknown;
 	getResultRenderer: () => unknown;
 	getRenderShell: () => unknown;
+	__claudeToolExecutionOriginalRender?: RenderFn;
+	__claudeToolExecutionOriginalUpdateDisplay?: () => void;
 	__claudeToolExecutionOriginalGetCallRenderer?: () => unknown;
 	__claudeToolExecutionOriginalGetResultRenderer?: () => unknown;
 	__claudeToolExecutionOriginalGetRenderShell?: () => unknown;
 	__claudeToolExecutionPatched?: boolean;
 };
 
+const assistantMessageRenderCache = new WeakMap<
+	object,
+	{ version: number; width: number; lines: string[] }
+>();
+const assistantMessageRenderVersion = new WeakMap<object, number>();
+const toolExecutionRenderCache = new WeakMap<
+	object,
+	{ version: number; width: number; lines: string[] }
+>();
+const toolExecutionRenderVersion = new WeakMap<object, number>();
+
+function bumpRenderVersion(
+	store: WeakMap<object, number>,
+	key: object,
+): number {
+	const version = (store.get(key) ?? 0) + 1;
+	store.set(key, version);
+	return version;
+}
+
 type MarkdownLike = {
 	text?: unknown;
 };
 
 const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024;
+const CLIPBOARD_IMAGE_LIST_TIMEOUT_MS = 1000;
+const CLIPBOARD_IMAGE_READ_TIMEOUT_MS = 3000;
+const CLIPBOARD_IMAGE_MAX_BYTES = 50 * 1024 * 1024;
+const STATUS_ANIMATION_INTERVAL_MS = 500;
 const execFileAsync = promisify(execFile);
+
+const CLIPBOARD_IMAGE_EXTENSIONS: Record<string, string> = {
+	"image/gif": "gif",
+	"image/jpeg": "jpg",
+	"image/png": "png",
+	"image/webp": "webp",
+};
+
+function isWaylandSession(): boolean {
+	return (
+		Boolean(process.env.WAYLAND_DISPLAY) ||
+		process.env.XDG_SESSION_TYPE === "wayland"
+	);
+}
+
+function baseMimeType(mimeType: string): string {
+	return (
+		mimeType.split(";", 1)[0]?.trim().toLowerCase() || mimeType.toLowerCase()
+	);
+}
+
+function selectClipboardImageType(types: string[]): string | undefined {
+	const normalized = types
+		.map((type) => ({ raw: type, base: baseMimeType(type) }))
+		.filter((type) => type.raw.length > 0);
+	for (const supported of Object.keys(CLIPBOARD_IMAGE_EXTENSIONS)) {
+		const match = normalized.find((type) => type.base === supported);
+		if (match) return match.raw;
+	}
+	return normalized.find((type) => type.base.startsWith("image/"))?.raw;
+}
+
+async function readWaylandClipboardImage(): Promise<
+	{ bytes: Uint8Array; mimeType: string } | undefined
+> {
+	if (!isWaylandSession()) return undefined;
+	let listStdout: string;
+	try {
+		const result = await execFileAsync("wl-paste", ["--list-types"], {
+			timeout: CLIPBOARD_IMAGE_LIST_TIMEOUT_MS,
+			maxBuffer: 64 * 1024,
+		});
+		listStdout = result.stdout;
+	} catch {
+		return undefined;
+	}
+	const selectedType = selectClipboardImageType(listStdout.split(/\r?\n/));
+	if (!selectedType) return undefined;
+	try {
+		const result = await execFileAsync(
+			"wl-paste",
+			["--type", selectedType, "--no-newline"],
+			{
+				timeout: CLIPBOARD_IMAGE_READ_TIMEOUT_MS,
+				maxBuffer: CLIPBOARD_IMAGE_MAX_BYTES,
+				encoding: "buffer",
+			},
+		);
+		const stdout = result.stdout;
+		const bytes = stdout instanceof Uint8Array ? stdout : Buffer.from(stdout);
+		if (bytes.byteLength === 0) return undefined;
+		return { bytes, mimeType: baseMimeType(selectedType) };
+	} catch {
+		return undefined;
+	}
+}
+
+async function pasteWaylandClipboardImage(
+	insert: (path: string) => void,
+): Promise<boolean> {
+	const image = await readWaylandClipboardImage();
+	if (!image) return false;
+	const ext = CLIPBOARD_IMAGE_EXTENSIONS[image.mimeType] ?? "png";
+	const filePath = resolve(tmpdir(), `pi-clipboard-${randomUUID()}.${ext}`);
+	await writeFile(filePath, image.bytes);
+	insert(filePath);
+	return true;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1015,6 +1122,9 @@ function patchAssistantMessageRender(): void {
 	prototype.updateContent = function updateContentWithClaudeMarkdown(
 		message: unknown,
 	): void {
+		const cacheKey = this as object;
+		assistantMessageRenderCache.delete(cacheKey);
+		bumpRenderVersion(assistantMessageRenderVersion, cacheKey);
 		this.markdownTheme = createClaudeMarkdownTheme();
 		const original =
 			prototype.__claudeAssistantMessageOriginalUpdateContent ??
@@ -1026,20 +1136,47 @@ function patchAssistantMessageRender(): void {
 	): string[] {
 		const original =
 			prototype.__claudeAssistantMessageOriginalRender ?? prototype.render;
-		const lines = expandLocalImageLines(original.call(this, width), width);
+		const cacheKey = this as object;
+		const version = assistantMessageRenderVersion.get(cacheKey) ?? 0;
+		const cached = assistantMessageRenderCache.get(cacheKey);
+		if (cached && cached.version === version && cached.width === width) {
+			return cached.lines;
+		}
+
+		const originalLines = original.call(this, width);
+		const lines = expandLocalImageLines(originalLines, width);
+		let rendered: string[];
 		if (
 			lines.length === 0 ||
 			(this as { hasToolCalls?: boolean }).hasToolCalls
 		) {
-			return lines;
+			rendered = lines;
+		} else {
+			const prefixIndex = lines.findIndex(
+				(line) => visibleWidth(line.trim()) > 0,
+			);
+			rendered =
+				prefixIndex === -1
+					? lines
+					: lines.map((line, index) =>
+							index === prefixIndex
+								? fitLine(addAssistantPrefix(line), width)
+								: line,
+						);
 		}
-		const prefixIndex = lines.findIndex(
-			(line) => visibleWidth(line.trim()) > 0,
-		);
-		if (prefixIndex === -1) return lines;
-		return lines.map((line, index) =>
-			index === prefixIndex ? fitLine(addAssistantPrefix(line), width) : line,
-		);
+
+		if (
+			!originalLines.some((line) =>
+				Boolean(extractLocalImagePath(detachImageLineMarkers(line).line)),
+			)
+		) {
+			assistantMessageRenderCache.set(cacheKey, {
+				version,
+				width,
+				lines: rendered,
+			});
+		}
+		return rendered;
 	};
 	prototype.__claudeAssistantMessagePatched = true;
 }
@@ -1070,12 +1207,42 @@ function patchToolExecutionRenderers(): void {
 		ToolExecutionComponent.prototype as unknown as PatchedToolExecutionPrototype;
 	if (prototype.__claudeToolExecutionPatched) return;
 
+	prototype.__claudeToolExecutionOriginalRender = prototype.render;
+	prototype.__claudeToolExecutionOriginalUpdateDisplay =
+		prototype.updateDisplay;
 	prototype.__claudeToolExecutionOriginalGetCallRenderer =
 		prototype.getCallRenderer;
 	prototype.__claudeToolExecutionOriginalGetResultRenderer =
 		prototype.getResultRenderer;
 	prototype.__claudeToolExecutionOriginalGetRenderShell =
 		prototype.getRenderShell;
+
+	prototype.updateDisplay =
+		function updateDisplayWithClaudeRenderCache(): void {
+			const original =
+				prototype.__claudeToolExecutionOriginalUpdateDisplay ??
+				prototype.updateDisplay;
+			original.call(this);
+			const cacheKey = this as object;
+			toolExecutionRenderCache.delete(cacheKey);
+			bumpRenderVersion(toolExecutionRenderVersion, cacheKey);
+		};
+
+	prototype.render = function renderWithClaudeToolCache(
+		width: number,
+	): string[] {
+		const original =
+			prototype.__claudeToolExecutionOriginalRender ?? prototype.render;
+		const cacheKey = this as object;
+		const version = toolExecutionRenderVersion.get(cacheKey) ?? 0;
+		const cached = toolExecutionRenderCache.get(cacheKey);
+		if (cached && cached.version === version && cached.width === width) {
+			return cached.lines;
+		}
+		const lines = original.call(this, width);
+		toolExecutionRenderCache.set(cacheKey, { version, width, lines });
+		return lines;
+	};
 
 	prototype.getCallRenderer = function getClaudeToolCallRenderer(this: {
 		toolName?: string;
@@ -1192,17 +1359,31 @@ function patchToolExecutionRenderers(): void {
 	prototype.__claudeToolExecutionPatched = true;
 }
 
+const statusLabelFramesCache = new Map<string, string[]>();
+
+function statusLabelFrames(label: string): string[] {
+	let frames = statusLabelFramesCache.get(label);
+	if (!frames) {
+		frames = [
+			...Array.from({ length: label.length }, (_, index) =>
+				label.slice(0, index + 1),
+			),
+			`${label}.`,
+			`${label}..`,
+			`${label}...`,
+		];
+		statusLabelFramesCache.set(label, frames);
+	}
+	return frames;
+}
+
 function animatedStatusLabel(label: string): string {
-	const frames = [
-		...Array.from({ length: label.length }, (_, index) =>
-			label.slice(0, index + 1),
-		),
-		label,
-		`${label}.`,
-		`${label}..`,
-		`${label}...`,
-	];
-	return frames[Math.floor(Date.now() / 140) % frames.length] ?? label;
+	const frames = statusLabelFrames(label);
+	return (
+		frames[
+			Math.floor(Date.now() / STATUS_ANIMATION_INTERVAL_MS) % frames.length
+		] ?? label
+	);
 }
 
 class ClaudeEditor extends CustomEditor {
@@ -1210,6 +1391,8 @@ class ClaudeEditor extends CustomEditor {
 	private readonly getWorkingState: GetWorkingState;
 	private readonly appKeybindings: KeybindingsManager;
 	private readonly onQuitCommand: () => void;
+	private readonly tuiRef: TUI;
+	private clipboardPasteInFlight = false;
 
 	constructor(
 		tui: TUI,
@@ -1223,6 +1406,25 @@ class ClaudeEditor extends CustomEditor {
 		this.getWorkingState = getWorkingState;
 		this.appKeybindings = keybindings;
 		this.onQuitCommand = onQuitCommand;
+		this.tuiRef = tui;
+		if (isWaylandSession()) {
+			this.onPasteImage = () => {
+				void this.pasteClipboardImage();
+			};
+		}
+	}
+
+	private async pasteClipboardImage(): Promise<void> {
+		if (this.clipboardPasteInFlight) return;
+		this.clipboardPasteInFlight = true;
+		try {
+			await pasteWaylandClipboardImage((filePath) => {
+				this.insertTextAtCursor?.(filePath);
+				this.tuiRef.requestRender();
+			});
+		} finally {
+			this.clipboardPasteInFlight = false;
+		}
 	}
 
 	private workingLine(width: number): string | undefined {
@@ -3363,9 +3565,12 @@ function renderFindResult(
 			"result",
 		)}${extra ? ` · ${extra}` : ""}`,
 	);
+	const previewOutput = output.includes("No files found matching pattern")
+		? `${output}\nRespects .gitignore; use an explicit non-ignored path or a different tool if needed.`
+		: output;
 	return setText(
 		context.lastComponent,
-		`${summary}${previewBlock(output, theme, options.expanded, 20)}`,
+		`${summary}${previewBlock(previewOutput, theme, options.expanded, 20)}`,
 	);
 }
 
@@ -4209,9 +4414,13 @@ export default function (pi: ExtensionAPI) {
 	let activeTui: TUI | undefined;
 	let workingState: WorkingState = "inactive";
 	let statusAnimationTimer: ReturnType<typeof setInterval> | undefined;
+	let footerRenderRevision = 0;
 	const footerDisposers = new Set<() => void>();
 
 	const getWorkingState = () => workingState;
+	const bumpFooterRenderRevision = () => {
+		footerRenderRevision += 1;
+	};
 	const requestRender = () => activeTui?.requestRender();
 	const stopStatusAnimation = () => {
 		if (!statusAnimationTimer) return;
@@ -4220,7 +4429,11 @@ export default function (pi: ExtensionAPI) {
 	};
 	const startStatusAnimation = () => {
 		if (statusAnimationTimer) return;
-		statusAnimationTimer = setInterval(requestRender, 140);
+		statusAnimationTimer = setInterval(
+			requestRender,
+			STATUS_ANIMATION_INTERVAL_MS,
+		);
+		(statusAnimationTimer as { unref?: () => void }).unref?.();
 	};
 	const setWorkingState = (state: WorkingState, ctx?: ExtensionContext) => {
 		if (ctx?.hasUI) hideBuiltInWorking(ctx);
@@ -4229,6 +4442,16 @@ export default function (pi: ExtensionAPI) {
 		else startStatusAnimation();
 		workingState = state;
 		requestRender();
+	};
+	const reconcileIdleState = (ctx = activeCtx) => {
+		if (!ctx) return;
+		if (pendingToolCalls.size === 0 && ctx.isIdle()) {
+			setWorkingState("inactive", ctx);
+		}
+	};
+	const scheduleIdleReconcile = (ctx = activeCtx) => {
+		const timer = setTimeout(() => reconcileIdleState(ctx), 50);
+		(timer as { unref?: () => void }).unref?.();
 	};
 
 	patchToolExecutionRenderers();
@@ -4241,6 +4464,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerMessageRenderer("intercom_message", renderIntercomMessage);
 
 	pi.on("session_start", (_event, ctx) => {
+		bumpFooterRenderRevision();
 		writeSnapshots.clear();
 		inlineImageCache.clear();
 		restoreExternalDiffs(ctx);
@@ -4261,9 +4485,20 @@ export default function (pi: ExtensionAPI) {
 
 		ctx.ui.setFooter((tui, theme, footerData) => {
 			activeTui = tui;
-			const disposeBranch = footerData.onBranchChange(() =>
-				tui.requestRender(),
-			);
+			let footerCache:
+				| {
+						revision: number;
+						ctx: ExtensionContext;
+						width: number;
+						branch: string | undefined;
+						thinkingLevel: string;
+						lines: string[];
+				  }
+				| undefined;
+			const disposeBranch = footerData.onBranchChange(() => {
+				bumpFooterRenderRevision();
+				tui.requestRender();
+			});
 			const dispose = () => {
 				footerDisposers.delete(dispose);
 				disposeBranch();
@@ -4272,21 +4507,42 @@ export default function (pi: ExtensionAPI) {
 			return {
 				dispose,
 				invalidate() {
+					footerCache = undefined;
+					bumpFooterRenderRevision();
 					tui.requestRender();
 				},
 				render(width: number): string[] {
 					const currentCtx = activeCtx ?? ctx;
 					const branch = footerData.getGitBranch() ?? undefined;
+					const thinkingLevel = pi.getThinkingLevel();
+					if (
+						footerCache &&
+						footerCache.revision === footerRenderRevision &&
+						footerCache.ctx === currentCtx &&
+						footerCache.width === width &&
+						footerCache.branch === branch &&
+						footerCache.thinkingLevel === thinkingLevel
+					) {
+						return footerCache.lines;
+					}
+
 					const raw = footerLine(
 						currentCtx,
 						width,
 						branch,
 						theme,
-						pi.getThinkingLevel(),
+						thinkingLevel,
 					);
-
-					if (!raw) return [];
-					return [fitLine(raw, width), fitLine("", width)];
+					const lines = raw ? [fitLine(raw, width), fitLine("", width)] : [];
+					footerCache = {
+						revision: footerRenderRevision,
+						ctx: currentCtx,
+						width,
+						branch,
+						thinkingLevel,
+						lines,
+					};
+					return lines;
 				},
 			};
 		});
@@ -4294,19 +4550,29 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("before_agent_start", (_event, ctx) => {
 		activeCtx = ctx;
+		bumpFooterRenderRevision();
 		setWorkingState("working", ctx);
 		patchUserMessageRender();
 	});
 
 	pi.on("agent_start", (_event, ctx) => {
 		activeCtx = ctx;
+		bumpFooterRenderRevision();
 		setWorkingState("working", ctx);
 	});
 
 	pi.on("message_update", (event, ctx) => {
 		activeCtx = ctx;
+		bumpFooterRenderRevision();
 		sessionCostCache.delete(ctx);
-		if (event.message.role === "assistant") setWorkingState("streaming", ctx);
+		if (event.message.role === "assistant") {
+			if (ctx.isIdle() && pendingToolCalls.size === 0) {
+				setWorkingState("inactive", ctx);
+			} else {
+				setWorkingState("streaming", ctx);
+				scheduleIdleReconcile(ctx);
+			}
+		}
 	});
 
 	pi.on("tool_execution_start", (event, ctx) => {
@@ -4324,11 +4590,17 @@ export default function (pi: ExtensionAPI) {
 	pi.on("tool_execution_end", (event, ctx) => {
 		pendingToolCalls.delete(event.toolCallId);
 		activeCtx = ctx;
-		setWorkingState("working", ctx);
+		if (pendingToolCalls.size === 0 && ctx.isIdle()) {
+			setWorkingState("inactive", ctx);
+		} else {
+			setWorkingState("working", ctx);
+			scheduleIdleReconcile(ctx);
+		}
 	});
 
 	pi.on("agent_end", (_event, ctx) => {
 		activeCtx = ctx;
+		bumpFooterRenderRevision();
 		sessionCostCache.delete(ctx);
 		setWorkingState("inactive", ctx);
 	});
