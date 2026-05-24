@@ -83,6 +83,10 @@ For async subagent reporting details, load and follow the `pi-subagents` skill. 
 
 ## Tool Preferences
 
+### tmux for interactive/long-running commands
+
+Prefer `tmux` for interactive, long-running, or monitor-worthy terminal commands instead of opaque background PIDs. Use named sessions/windows, capture panes for exact screen text, and avoid polling tight loops. This is especially useful for running Pi itself, TUI checks, servers, watchers, and commands the user may want to inspect or steer.
+
 ### Tree-sitter first
 
 Always prefer tree-sitter MCP tools over raw file reads:

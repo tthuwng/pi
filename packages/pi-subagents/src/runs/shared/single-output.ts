@@ -8,6 +8,15 @@ export interface SingleOutputSnapshot {
 	size?: number;
 }
 
+export function normalizeSingleOutputOverride(
+	output: string | boolean | undefined,
+	defaultOutput?: string,
+): string | false | undefined {
+	if (output === true) return defaultOutput;
+	if (output === false || output === "false") return false;
+	return output;
+}
+
 export function resolveSingleOutputPath(
 	output: string | false | undefined,
 	runtimeCwd: string,
@@ -16,12 +25,17 @@ export function resolveSingleOutputPath(
 	if (typeof output !== "string" || !output) return undefined;
 	if (path.isAbsolute(output)) return output;
 	const baseCwd = requestedCwd
-		? (path.isAbsolute(requestedCwd) ? requestedCwd : path.resolve(runtimeCwd, requestedCwd))
+		? path.isAbsolute(requestedCwd)
+			? requestedCwd
+			: path.resolve(runtimeCwd, requestedCwd)
 		: runtimeCwd;
 	return path.resolve(baseCwd, output);
 }
 
-export function injectSingleOutputInstruction(task: string, outputPath: string | undefined): string {
+export function injectSingleOutputInstruction(
+	task: string,
+	outputPath: string | undefined,
+): string {
 	if (!outputPath) return task;
 	return `${task}\n\n---\n**Output:** Write your findings to: ${outputPath}`;
 }
@@ -44,7 +58,10 @@ function formatByteSize(bytes: number): string {
 	return `${value.toFixed(1)} ${units[unitIndex]}`;
 }
 
-export function formatSavedOutputReference(savedPath: string, fullOutput: string): SavedOutputReference {
+export function formatSavedOutputReference(
+	savedPath: string,
+	fullOutput: string,
+): SavedOutputReference {
 	const absolutePath = path.resolve(savedPath);
 	const bytes = Buffer.byteLength(fullOutput, "utf-8");
 	const lines = countLines(fullOutput);
@@ -56,14 +73,20 @@ export function formatSavedOutputReference(savedPath: string, fullOutput: string
 	};
 }
 
-export function validateFileOnlyOutputMode(outputMode: OutputMode | undefined, outputPath: string | undefined, context: string): string | undefined {
+export function validateFileOnlyOutputMode(
+	outputMode: OutputMode | undefined,
+	outputPath: string | undefined,
+	context: string,
+): string | undefined {
 	if (outputMode === "file-only" && !outputPath) {
 		return `${context} sets outputMode: "file-only" but does not configure an output file. Set output to a path or use outputMode: "inline".`;
 	}
 	return undefined;
 }
 
-export function captureSingleOutputSnapshot(outputPath: string | undefined): SingleOutputSnapshot | undefined {
+export function captureSingleOutputSnapshot(
+	outputPath: string | undefined,
+): SingleOutputSnapshot | undefined {
 	if (!outputPath) return undefined;
 	try {
 		const stat = fs.statSync(outputPath);
@@ -98,11 +121,15 @@ export function resolveSingleOutput(
 	let changedSinceStart = false;
 	try {
 		const stat = fs.statSync(outputPath);
-		changedSinceStart = !beforeRun?.exists
-			|| stat.mtimeMs !== beforeRun.mtimeMs
-			|| stat.size !== beforeRun.size;
+		changedSinceStart =
+			!beforeRun?.exists ||
+			stat.mtimeMs !== beforeRun.mtimeMs ||
+			stat.size !== beforeRun.size;
 	} catch (error) {
-		const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : undefined;
+		const code =
+			error && typeof error === "object" && "code" in error
+				? (error as { code?: unknown }).code
+				: undefined;
 		if (code !== "ENOENT" && code !== "ENOTDIR") {
 			return {
 				fullOutput: fallbackOutput,
@@ -113,7 +140,10 @@ export function resolveSingleOutput(
 
 	if (changedSinceStart) {
 		try {
-			return { fullOutput: fs.readFileSync(outputPath, "utf-8"), savedPath: outputPath };
+			return {
+				fullOutput: fs.readFileSync(outputPath, "utf-8"),
+				savedPath: outputPath,
+			};
 		} catch (error) {
 			return {
 				fullOutput: fallbackOutput,
@@ -123,7 +153,8 @@ export function resolveSingleOutput(
 	}
 
 	const save = persistSingleOutput(outputPath, fallbackOutput);
-	if (save.savedPath) return { fullOutput: fallbackOutput, savedPath: save.savedPath };
+	if (save.savedPath)
+		return { fullOutput: fallbackOutput, savedPath: save.savedPath };
 	return { fullOutput: fallbackOutput, saveError: save.error };
 }
 
@@ -136,12 +167,23 @@ export function finalizeSingleOutput(params: {
 	savedPath?: string;
 	outputReference?: SavedOutputReference;
 	saveError?: string;
-}): { displayOutput: string; savedPath?: string; outputReference?: SavedOutputReference; saveError?: string } {
+}): {
+	displayOutput: string;
+	savedPath?: string;
+	outputReference?: SavedOutputReference;
+	saveError?: string;
+} {
 	let displayOutput = params.truncatedOutput || params.fullOutput;
 	if (params.exitCode === 0 && params.savedPath) {
-		const outputReference = params.outputReference ?? formatSavedOutputReference(params.savedPath, params.fullOutput);
+		const outputReference =
+			params.outputReference ??
+			formatSavedOutputReference(params.savedPath, params.fullOutput);
 		if (params.outputMode === "file-only") {
-			return { displayOutput: outputReference.message, savedPath: params.savedPath, outputReference };
+			return {
+				displayOutput: outputReference.message,
+				savedPath: params.savedPath,
+				outputReference,
+			};
 		}
 		displayOutput += `\n\n${outputReference.message}`;
 		return { displayOutput, savedPath: params.savedPath, outputReference };

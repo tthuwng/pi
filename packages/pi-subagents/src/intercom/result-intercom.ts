@@ -21,14 +21,18 @@ export function resolveSubagentResultStatus(input: {
 }): SubagentResultStatus {
 	if (input.detached) return "detached";
 	if (input.interrupted || input.state === "paused") return "paused";
-	if (typeof input.success === "boolean") return input.success ? "completed" : "failed";
+	if (typeof input.success === "boolean")
+		return input.success ? "completed" : "failed";
 	if (input.state === "complete") return "completed";
 	if (input.state === "failed") return "failed";
-	if (typeof input.exitCode === "number") return input.exitCode === 0 ? "completed" : "failed";
+	if (typeof input.exitCode === "number")
+		return input.exitCode === 0 ? "completed" : "failed";
 	return "failed";
 }
 
-function countStatuses(children: SubagentResultIntercomChild[]): Record<SubagentResultStatus, number> {
+function countStatuses(
+	children: SubagentResultIntercomChild[],
+): Record<SubagentResultStatus, number> {
 	const counts: Record<SubagentResultStatus, number> = {
 		completed: 0,
 		failed: 0,
@@ -41,7 +45,9 @@ function countStatuses(children: SubagentResultIntercomChild[]): Record<Subagent
 	return counts;
 }
 
-function formatStatusCounts(counts: Record<SubagentResultStatus, number>): string {
+function formatStatusCounts(
+	counts: Record<SubagentResultStatus, number>,
+): string {
 	const parts = [
 		counts.completed ? `${counts.completed} completed` : undefined,
 		counts.failed ? `${counts.failed} failed` : undefined,
@@ -51,7 +57,9 @@ function formatStatusCounts(counts: Record<SubagentResultStatus, number>): strin
 	return parts.length ? parts.join(", ") : "0 results";
 }
 
-function resolveGroupedStatus(children: SubagentResultIntercomChild[]): SubagentResultStatus {
+function resolveGroupedStatus(
+	children: SubagentResultIntercomChild[],
+): SubagentResultStatus {
 	const counts = countStatuses(children);
 	if (counts.failed > 0) return "failed";
 	if (counts.paused > 0) return "paused";
@@ -77,15 +85,28 @@ function asyncResumeGuidance(input: {
 	asyncId?: string;
 }): string | undefined {
 	if (input.source !== "async" || !input.asyncId) return undefined;
-	const resumable = input.children.filter((child) => typeof child.sessionPath === "string" && fs.existsSync(child.sessionPath));
+	const resumable = input.children.filter(
+		(child) =>
+			typeof child.sessionPath === "string" && fs.existsSync(child.sessionPath),
+	);
 	if (input.children.length === 1 && resumable.length === 1) {
 		return `Revive: subagent({ action: "resume", id: "${input.asyncId}", message: "..." })`;
 	}
 	if (resumable.length > 0) {
-		const firstIndex = resumable[0]?.index ?? input.children.indexOf(resumable[0]!);
+		const firstIndex =
+			resumable[0]?.index ?? input.children.indexOf(resumable[0]!);
 		return `Revive child: subagent({ action: "resume", id: "${input.asyncId}", index: ${firstIndex}, message: "..." })`;
 	}
 	return "Resume: unavailable; no child session file was persisted.";
+}
+
+const MAX_INTERCOM_CHILDREN = 5;
+const MAX_INTERCOM_SUMMARY_CHARS = 180;
+
+function compactLine(text: string, maxChars: number): string {
+	const compacted = text.replace(/\s+/g, " ").trim();
+	if (compacted.length <= maxChars) return compacted || "(no output)";
+	return `${compacted.slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`;
 }
 
 function formatSubagentResultIntercomMessage(input: {
@@ -114,28 +135,35 @@ function formatSubagentResultIntercomMessage(input: {
 	if (input.asyncDir) lines.push(`Async dir: ${input.asyncDir}`);
 	const resumeGuidance = asyncResumeGuidance(input);
 	if (resumeGuidance) lines.push(resumeGuidance);
-	if (input.children.some((child) => child.intercomTarget)) {
-		lines.push("");
-		lines.push(input.source === "async"
-			? "Previous intercom targets below identify child sessions used while they were running. Inspect artifacts or session logs if resume is unavailable."
-			: "Intercom targets below identify child sessions used while they were running; completed child sessions may no longer be reachable. Inspect artifacts or session logs for follow-up.");
-	}
 
-	for (let index = 0; index < input.children.length; index++) {
-		const child = input.children[index]!;
+	const visibleChildren = input.children.slice(0, MAX_INTERCOM_CHILDREN);
+	for (let index = 0; index < visibleChildren.length; index++) {
+		const child = visibleChildren[index]!;
 		lines.push("");
 		lines.push(`${index + 1}. ${child.agent} — ${child.status}`);
-		if (child.intercomTarget) lines.push(`${input.source === "async" ? "Previous intercom target" : "Run intercom target"}: ${child.intercomTarget}`);
-		if (child.artifactPath) lines.push(`Output artifact: ${child.artifactPath}`);
+		if (child.intercomTarget)
+			lines.push(`Intercom target: ${child.intercomTarget}`);
+		if (child.artifactPath)
+			lines.push(`Output artifact: ${child.artifactPath}`);
 		if (child.sessionPath) lines.push(`Session: ${child.sessionPath}`);
 		lines.push("Summary:");
-		lines.push(child.summary);
+		lines.push(compactLine(child.summary, MAX_INTERCOM_SUMMARY_CHARS));
+	}
+
+	const hiddenChildren = input.children.length - visibleChildren.length;
+	if (hiddenChildren > 0) {
+		lines.push("");
+		lines.push(
+			`… ${hiddenChildren} more children. Inspect subagent status, artifacts, or session logs for full output.`,
+		);
 	}
 
 	return lines.join("\n");
 }
 
-export function buildSubagentResultIntercomPayload(input: GroupedResultIntercomMessageInput): SubagentResultIntercomPayload {
+export function buildSubagentResultIntercomPayload(
+	input: GroupedResultIntercomMessageInput,
+): SubagentResultIntercomPayload {
 	const children = input.children.map((child) => ({
 		...child,
 		summary: child.summary.trim() || "(no output)",
@@ -153,10 +181,14 @@ export function buildSubagentResultIntercomPayload(input: GroupedResultIntercomM
 		children,
 		...(input.asyncId ? { asyncId: input.asyncId } : {}),
 		...(input.asyncDir ? { asyncDir: input.asyncDir } : {}),
-		...(typeof input.chainSteps === "number" ? { chainSteps: input.chainSteps } : {}),
+		...(typeof input.chainSteps === "number"
+			? { chainSteps: input.chainSteps }
+			: {}),
 		...(firstChild?.agent ? { agent: firstChild.agent } : {}),
 		...(firstChild?.index !== undefined ? { index: firstChild.index } : {}),
-		...(firstChild?.artifactPath ? { artifactPath: firstChild.artifactPath } : {}),
+		...(firstChild?.artifactPath
+			? { artifactPath: firstChild.artifactPath }
+			: {}),
 		...(firstChild?.sessionPath ? { sessionPath: firstChild.sessionPath } : {}),
 		message: "",
 	};
@@ -169,7 +201,13 @@ export async function deliverSubagentResultIntercomEvent(
 	payload: SubagentResultIntercomPayload,
 	timeoutMs = 500,
 ): Promise<boolean> {
-	return deliverSubagentIntercomMessageEvent(events, payload.to, payload.message, timeoutMs, payload);
+	return deliverSubagentIntercomMessageEvent(
+		events,
+		payload.to,
+		payload.message,
+		timeoutMs,
+		payload,
+	);
 }
 
 export async function deliverSubagentIntercomMessageEvent(
@@ -179,8 +217,10 @@ export async function deliverSubagentIntercomMessageEvent(
 	timeoutMs = 500,
 	extra: Record<string, unknown> = {},
 ): Promise<boolean> {
-	if (typeof events.on !== "function" || typeof events.emit !== "function") return false;
-	const requestId = typeof extra.requestId === "string" ? extra.requestId : randomUUID();
+	if (typeof events.on !== "function" || typeof events.emit !== "function")
+		return false;
+	const requestId =
+		typeof extra.requestId === "string" ? extra.requestId : randomUUID();
 	return new Promise((resolve) => {
 		let settled = false;
 		let unsubscribe: (() => void) | undefined;
@@ -200,7 +240,12 @@ export async function deliverSubagentIntercomMessageEvent(
 		});
 		timer = setTimeout(() => finish(false), timeoutMs);
 		try {
-			events.emit(SUBAGENT_RESULT_INTERCOM_EVENT, { ...extra, to, message, requestId });
+			events.emit(SUBAGENT_RESULT_INTERCOM_EVENT, {
+				...extra,
+				to,
+				message,
+				requestId,
+			});
 		} catch {
 			finish(false);
 		}
@@ -216,7 +261,9 @@ function stripSingleResultOutputs(result: SingleResult): SingleResult {
 	};
 }
 
-export function stripDetailsOutputsForIntercomReceipt(details: Details): Details {
+export function stripDetailsOutputsForIntercomReceipt(
+	details: Details,
+): Details {
 	return {
 		...details,
 		results: details.results.map(stripSingleResultOutputs),
@@ -229,18 +276,21 @@ export function formatSubagentResultReceipt(input: {
 	payload: SubagentResultIntercomPayload;
 }): string {
 	const counts = countStatuses(input.payload.children);
-	const modeLabel = input.mode === "single"
-		? "single subagent result"
-		: input.mode === "parallel"
-			? "parallel subagent results"
-			: "chain subagent results";
+	const modeLabel =
+		input.mode === "single"
+			? "single subagent result"
+			: input.mode === "parallel"
+				? "parallel subagent results"
+				: "chain subagent results";
 	const lines = [
 		`Delivered ${modeLabel} via intercom.`,
 		`Run: ${input.runId}`,
 		`Children: ${formatStatusCounts(counts)}`,
 	];
 
-	const artifacts = input.payload.children.filter((child) => typeof child.artifactPath === "string");
+	const artifacts = input.payload.children.filter(
+		(child) => typeof child.artifactPath === "string",
+	);
 	if (artifacts.length > 0) {
 		lines.push("Artifacts:");
 		for (const child of artifacts) {
@@ -248,7 +298,9 @@ export function formatSubagentResultReceipt(input: {
 		}
 	}
 
-	const intercomTargets = input.payload.children.filter((child) => typeof child.intercomTarget === "string");
+	const intercomTargets = input.payload.children.filter(
+		(child) => typeof child.intercomTarget === "string",
+	);
 	if (intercomTargets.length > 0) {
 		lines.push("Run intercom targets (may be inactive after completion):");
 		for (const child of intercomTargets) {
@@ -256,7 +308,9 @@ export function formatSubagentResultReceipt(input: {
 		}
 	}
 
-	const sessions = input.payload.children.filter((child) => typeof child.sessionPath === "string");
+	const sessions = input.payload.children.filter(
+		(child) => typeof child.sessionPath === "string",
+	);
 	if (sessions.length > 0) {
 		lines.push("Sessions:");
 		for (const child of sessions) {

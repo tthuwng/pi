@@ -62,6 +62,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
+	wrapTextWithAnsi,
 } from "@mariozechner/pi-tui";
 
 type RenderFn = (width: number) => string[];
@@ -1358,6 +1359,7 @@ type SpawnHookContributor = {
 
 const BASH_SPAWN_HOOK_REQUEST_EVENT = "ad:bash:spawn-hook:request";
 const COLLAPSED_PREVIEW_LINES = 4;
+const READ_PREVIEW_LINES = 6;
 const COLLAPSED_EDIT_DIFF_LINES = 80;
 const COLLAPSED_WRITE_DIFF_LINES = 40;
 const EXPANDED_PREVIEW_LINES = 20;
@@ -1545,19 +1547,7 @@ async function renderExternalDiff(
 		]);
 
 		const script = `
-if command -v difft >/dev/null 2>&1; then
-	stdout=$(difft --color=always --display=inline "$1" "$2" 2>/dev/null) && status=$? || status=$?
-	if [ -n "$stdout" ]; then
-		printf '%s' "$stdout"
-		exit 0
-	fi
-	stdout=$(difft --color=always "$1" "$2" 2>/dev/null) && status=$? || status=$?
-	if [ -n "$stdout" ]; then
-		printf '%s' "$stdout"
-		exit 0
-	fi
-	exit "$status"
-elif command -v delta >/dev/null 2>&1; then
+if command -v delta >/dev/null 2>&1; then
 	diff -u --label "a/$3" --label "b/$3" "$1" "$2" | delta --color-only --line-numbers --dark --side-by-side=false
 else
 	diff -u --label "a/$3" --label "b/$3" "$1" "$2" || true
@@ -3289,7 +3279,7 @@ function renderReadResult(
 	);
 	return setText(
 		context.lastComponent,
-		`${summary}${previewBlock(output, theme, options.expanded, EXPANDED_PREVIEW_LINES, 120, 0)}`,
+		`${summary}${previewBlock(output, theme, options.expanded, EXPANDED_PREVIEW_LINES, 120, READ_PREVIEW_LINES)}`,
 	);
 }
 
@@ -4135,6 +4125,85 @@ function hideSlashCompletions(ctx: ExtensionContext): void {
 	}));
 }
 
+type IntercomMessageDetails = {
+	from?: { id?: string; name?: string; cwd?: string };
+	message?: { content?: { text?: string } };
+	bodyText?: string;
+	replyCommand?: string;
+};
+
+function compactSubagentResultMessage(text: string): string | undefined {
+	if (!/^Run:/m.test(text) || !/^Status:/m.test(text)) return undefined;
+	const run = text.match(/^Run:\s*(.+)$/m)?.[1]?.trim();
+	const status = text.match(/^Status:\s*(.+)$/m)?.[1]?.trim();
+	const children = text.match(/^Children:\s*(.+)$/m)?.[1]?.trim();
+	const child = text.match(/^1\.\s+(.+)$/m)?.[1]?.trim();
+	const summary = text
+		.match(/^Summary:\s*\n([\s\S]*?)(?:\n\n|$)/m)?.[1]
+		?.trim();
+	return [
+		`subagent result${status ? ` · ${status}` : ""}${children ? ` · ${children}` : ""}`,
+		run ? `run: ${run}` : undefined,
+		child,
+		summary
+			? `summary: ${compactOneLine(summary.split("\n", 1)[0] ?? "", 100)}`
+			: undefined,
+	]
+		.filter((line): line is string => Boolean(line))
+		.join("\n");
+}
+
+function renderIntercomMessage(
+	message: { content?: unknown; details?: unknown },
+	_options: { expanded: boolean },
+	theme: Theme,
+): Component | undefined {
+	const details = message.details as IntercomMessageDetails | undefined;
+	const from = details?.from;
+	const sender = from?.name || from?.id?.slice(0, 8) || "intercom";
+	const cwd = from?.cwd ?? "";
+	const rawText =
+		details?.bodyText ??
+		details?.message?.content?.text ??
+		(typeof message.content === "string" ? message.content : "");
+	const body =
+		sender === "subagent-result"
+			? (compactSubagentResultMessage(rawText) ?? rawText)
+			: rawText;
+
+	return {
+		invalidate() {},
+		render(width: number): string[] {
+			if (width < 3) return [truncateToWidth(`From ${sender}`, width)];
+			const bodyWidth = Math.max(1, width - 2);
+			const header = ` 📨 From: ${sender}${cwd ? ` (${cwd})` : ""} `;
+			const headerText = truncateToWidth(header, bodyWidth, "");
+			const headerPadding = Math.max(0, bodyWidth - visibleWidth(headerText));
+			const lines = [
+				theme.fg("accent", `╭${headerText}${"─".repeat(headerPadding)}╮`),
+			];
+			for (const line of wrapTextWithAnsi(body, bodyWidth)) {
+				const text = truncateToWidth(line, bodyWidth, "");
+				const padding = Math.max(0, bodyWidth - visibleWidth(text));
+				lines.push(theme.fg("accent", `│${text}${" ".repeat(padding)}│`));
+			}
+			if (details?.replyCommand) {
+				lines.push(theme.fg("accent", `│${" ".repeat(bodyWidth)}│`));
+				for (const line of wrapTextWithAnsi(
+					theme.fg("dim", ` ↩ To reply: ${details.replyCommand}`),
+					bodyWidth,
+				)) {
+					const text = truncateToWidth(line, bodyWidth, "");
+					const padding = Math.max(0, bodyWidth - visibleWidth(text));
+					lines.push(theme.fg("accent", `│${text}${" ".repeat(padding)}│`));
+				}
+			}
+			lines.push(theme.fg("accent", `╰${"─".repeat(bodyWidth)}╯`));
+			return lines;
+		},
+	};
+}
+
 export default function (pi: ExtensionAPI) {
 	let activeCtx: ExtensionContext | undefined;
 	let activeTui: TUI | undefined;
@@ -4169,6 +4238,7 @@ export default function (pi: ExtensionAPI) {
 	installToolRenderInterceptor(pi);
 	registerClaudeToolRenderers(pi);
 	registerContextCommand(pi);
+	pi.registerMessageRenderer("intercom_message", renderIntercomMessage);
 
 	pi.on("session_start", (_event, ctx) => {
 		writeSnapshots.clear();

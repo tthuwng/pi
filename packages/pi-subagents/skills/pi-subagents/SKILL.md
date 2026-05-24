@@ -513,7 +513,7 @@ Message conventions:
 
 - `reason: "need_decision"` waits for the parent reply and returns it to the child.
 - `reason: "progress_update"` is non-blocking and should stay concise.
-- Child-side routine completion handoffs are not expected. With the intercom bridge active, parent-side `pi-subagents` sends grouped completion results through `pi-intercom`: one grouped message per foreground parent run and one per completed async result file. Acknowledged foreground delivery returns a compact receipt with artifact/session paths; if unacknowledged, the normal full output is preserved. Grouped messages include child intercom targets and full child summaries.
+- Child-side routine completion handoffs are not expected. With the intercom bridge active, parent-side `pi-subagents` sends grouped completion results through `pi-intercom`: one grouped message per foreground parent run and one per completed async result file. Acknowledged foreground delivery returns a compact receipt with artifact/session paths; if unacknowledged, the normal full output is preserved. Grouped messages include child intercom targets, artifact/session paths, and compact child summaries; inspect artifacts or session logs for full output.
 
 If bridge instructions provide the child-facing tool, a child can ask:
 
