@@ -39,6 +39,7 @@ type ExtensionState = {
 	initialMemoryContext: CachedContext | null;
 	initialTapeContext: CachedContext | null;
 	hasDeliveredInitialContext: boolean;
+	hasNotifiedInitialContext: boolean;
 	pendingHandoffMatch: PendingHandoffMatch | null;
 	tapeGate: TapeGateResult | null;
 	activeTapeRuntime: {
@@ -56,6 +57,7 @@ function createExtensionState(): ExtensionState {
 		initialMemoryContext: null,
 		initialTapeContext: null,
 		hasDeliveredInitialContext: false,
+		hasNotifiedInitialContext: false,
 		pendingHandoffMatch: null,
 		tapeGate: null,
 		activeTapeRuntime: null,
@@ -228,6 +230,7 @@ function initDeliveryContent(
 		!!globalMemoryDir && fs.existsSync(getMemoryCoreDir(globalMemoryDir));
 
 	state.hasDeliveredInitialContext = false;
+	state.hasNotifiedInitialContext = false;
 	state.initialMemoryContext = null;
 	state.initialTapeContext = null;
 
@@ -407,7 +410,10 @@ function registerLifecycleHandlers(
 		if (state.initialMemoryContext && shouldDeliverInitialContext) {
 			const { content, fileCount } = state.initialMemoryContext;
 
-			ctx.ui.notify(`Memory delivered: ${fileCount} files (${mode})`, "info");
+			if (!state.hasNotifiedInitialContext) {
+				ctx.ui.notify(`Memory delivered: ${fileCount} files (${mode})`, "info");
+				state.hasNotifiedInitialContext = true;
+			}
 
 			if (mode === "message-append") {
 				state.hasDeliveredInitialContext = true;
@@ -572,6 +578,7 @@ function registerMemoryCommands(
 			}
 
 			state.hasDeliveredInitialContext = false;
+			state.hasNotifiedInitialContext = false;
 
 			const mode = settings.delivery ?? settings.injection ?? "message-append";
 
