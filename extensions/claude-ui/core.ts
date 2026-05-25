@@ -4281,11 +4281,11 @@ function suppressSubagentWidget(ctx: ExtensionContext): void {
 	ui.__claudeUiOriginalSetWidget = originalSetWidget;
 	ui.setWidget = (key, value, options) => {
 		if (key === "agents" && value !== undefined) return;
-		originalSetWidget.call(ctx.ui, key, value, options);
+		originalSetWidget.call(ui, key, value, options);
 	};
 	ui.__claudeUiWidgetPatch = true;
 	patchedWidgetUis.add(ui);
-	originalSetWidget.call(ctx.ui, "agents", undefined);
+	originalSetWidget.call(ui, "agents", undefined);
 }
 
 function restoreSubagentWidgetPatches(): void {
@@ -4435,6 +4435,17 @@ export default function (pi: ExtensionAPI) {
 	const clearStaleContext = (ctx: ExtensionContext) => {
 		if (activeCtx === ctx) activeCtx = undefined;
 	};
+	const safeHasUI = (ctx: ExtensionContext): boolean => {
+		try {
+			return ctx.hasUI;
+		} catch (error) {
+			if (!isStaleContextError(error)) throw error;
+			const wasActive = activeCtx === ctx;
+			clearStaleContext(ctx);
+			if (wasActive) setWorkingState("inactive");
+			return false;
+		}
+	};
 	const safeIdleState = (ctx: ExtensionContext): "idle" | "busy" | "stale" => {
 		try {
 			return ctx.isIdle() ? "idle" : "busy";
@@ -4447,7 +4458,7 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	const setWorkingState = (state: WorkingState, ctx?: ExtensionContext) => {
-		if (ctx?.hasUI) hideBuiltInWorking(ctx);
+		if (ctx && safeHasUI(ctx)) hideBuiltInWorking(ctx);
 		if (workingState === state) return;
 		if (state === "inactive") stopStatusAnimation();
 		else startStatusAnimation();
@@ -4476,92 +4487,112 @@ export default function (pi: ExtensionAPI) {
 	pi.registerMessageRenderer("intercom_message", renderIntercomMessage);
 
 	pi.on("session_start", (_event, ctx) => {
-		bumpFooterRenderRevision();
-		writeSnapshots.clear();
-		inlineImageCache.clear();
-		toolExecutionExpandedById.clear();
-		restoreExternalDiffs(ctx);
-		if (!ctx.hasUI) return;
+		try {
+			bumpFooterRenderRevision();
+			writeSnapshots.clear();
+			inlineImageCache.clear();
+			toolExecutionExpandedById.clear();
+			pendingToolCalls.clear();
+			setWorkingState("inactive");
+			restoreExternalDiffs(ctx);
+			if (!safeHasUI(ctx)) return;
 
-		activeCtx = ctx;
-		hideBuiltInWorking(ctx);
-		suppressSubagentWidget(ctx);
-		hideSlashCompletions(ctx);
-		patchUserMessageRender();
+			activeCtx = ctx;
+			hideBuiltInWorking(ctx);
+			suppressSubagentWidget(ctx);
+			hideSlashCompletions(ctx);
+			patchUserMessageRender();
 
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
-			activeTui = tui;
-			return new ClaudeEditor(tui, theme, keybindings, getWorkingState, () =>
-				ctx.shutdown(),
-			);
-		});
-
-		ctx.ui.setFooter((tui, theme, footerData) => {
-			activeTui = tui;
-			let footerCache:
-				| {
-						revision: number;
-						ctx: ExtensionContext;
-						width: number;
-						branch: string | undefined;
-						thinkingLevel: string;
-						lines: string[];
-				  }
-				| undefined;
-			const disposeBranch = footerData.onBranchChange(() => {
-				bumpFooterRenderRevision();
-				tui.requestRender();
+			ctx.ui.setEditorComponent((tui, theme, keybindings) => {
+				activeTui = tui;
+				return new ClaudeEditor(
+					tui,
+					theme,
+					keybindings,
+					getWorkingState,
+					() => {
+						try {
+							ctx.shutdown();
+						} catch (error) {
+							if (!isStaleContextError(error)) throw error;
+							clearStaleContext(ctx);
+						}
+					},
+				);
 			});
-			const dispose = () => {
-				footerDisposers.delete(dispose);
-				disposeBranch();
-			};
-			footerDisposers.add(dispose);
-			return {
-				dispose,
-				invalidate() {
-					footerCache = undefined;
+
+			ctx.ui.setFooter((tui, theme, footerData) => {
+				activeTui = tui;
+				let footerCache:
+					| {
+							revision: number;
+							ctx: ExtensionContext;
+							width: number;
+							branch: string | undefined;
+							thinkingLevel: string;
+							lines: string[];
+					  }
+					| undefined;
+				const disposeBranch = footerData.onBranchChange(() => {
 					bumpFooterRenderRevision();
 					tui.requestRender();
-				},
-				render(width: number): string[] {
-					const currentCtx = activeCtx ?? ctx;
-					const branch = footerData.getGitBranch() ?? undefined;
-					const thinkingLevel = pi.getThinkingLevel();
-					if (
-						footerCache &&
-						footerCache.revision === footerRenderRevision &&
-						footerCache.ctx === currentCtx &&
-						footerCache.width === width &&
-						footerCache.branch === branch &&
-						footerCache.thinkingLevel === thinkingLevel
-					) {
-						return footerCache.lines;
-					}
+				});
+				const dispose = () => {
+					footerDisposers.delete(dispose);
+					disposeBranch();
+				};
+				footerDisposers.add(dispose);
+				return {
+					dispose,
+					invalidate() {
+						footerCache = undefined;
+						bumpFooterRenderRevision();
+						tui.requestRender();
+					},
+					render(width: number): string[] {
+						const currentCtx = activeCtx ?? ctx;
+						const branch = footerData.getGitBranch() ?? undefined;
+						const thinkingLevel = pi.getThinkingLevel();
+						if (
+							footerCache &&
+							footerCache.revision === footerRenderRevision &&
+							footerCache.ctx === currentCtx &&
+							footerCache.width === width &&
+							footerCache.branch === branch &&
+							footerCache.thinkingLevel === thinkingLevel
+						) {
+							return footerCache.lines;
+						}
 
-					const raw = footerLine(
-						currentCtx,
-						width,
-						branch,
-						theme,
-						thinkingLevel,
-					);
-					const lines = raw ? [fitLine(raw, width), fitLine("", width)] : [];
-					footerCache = {
-						revision: footerRenderRevision,
-						ctx: currentCtx,
-						width,
-						branch,
-						thinkingLevel,
-						lines,
-					};
-					return lines;
-				},
-			};
-		});
+						let raw: string | undefined;
+						try {
+							raw = footerLine(currentCtx, width, branch, theme, thinkingLevel);
+						} catch (error) {
+							if (!isStaleContextError(error)) throw error;
+							clearStaleContext(currentCtx);
+							raw = undefined;
+						}
+						const lines = raw ? [fitLine(raw, width), fitLine("", width)] : [];
+						footerCache = {
+							revision: footerRenderRevision,
+							ctx: currentCtx,
+							width,
+							branch,
+							thinkingLevel,
+							lines,
+						};
+						return lines;
+					},
+				};
+			});
+		} catch (error) {
+			if (!isStaleContextError(error)) throw error;
+			clearStaleContext(ctx);
+		}
 	});
 
 	pi.on("before_agent_start", (_event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		activeCtx = ctx;
 		bumpFooterRenderRevision();
 		setWorkingState("working", ctx);
@@ -4569,12 +4600,14 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_start", (_event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		activeCtx = ctx;
 		bumpFooterRenderRevision();
 		setWorkingState("working", ctx);
 	});
 
 	pi.on("message_update", (event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		activeCtx = ctx;
 		bumpFooterRenderRevision();
 		sessionCostCache.delete(ctx);
@@ -4594,12 +4627,14 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_execution_start", (event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		pendingToolCalls.add(event.toolCallId);
 		activeCtx = ctx;
 		setWorkingState("working", ctx);
 	});
 
 	pi.on("tool_execution_update", (event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		pendingToolCalls.add(event.toolCallId);
 		activeCtx = ctx;
 		setWorkingState("working", ctx);
@@ -4607,6 +4642,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_execution_end", (event, ctx) => {
 		pendingToolCalls.delete(event.toolCallId);
+		if (!safeHasUI(ctx)) return;
 		activeCtx = ctx;
 		const idleState = safeIdleState(ctx);
 		if (idleState === "stale") {
@@ -4622,6 +4658,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_end", (_event, ctx) => {
+		if (!safeHasUI(ctx)) return;
 		activeCtx = ctx;
 		bumpFooterRenderRevision();
 		sessionCostCache.delete(ctx);
