@@ -79,6 +79,12 @@ For async subagent reporting details, load and follow the `pi-subagents` skill. 
 
 **No guessing.** Never guess values, configs, API behavior, library usage, user intent, product requirements, or architectural preferences. Look them up from source code, config files, docs, or context7. If evidence does not settle it, stop and ask.
 
+**Failure-loop discipline.** If a tool call fails because a file/path/pattern is stale, ambiguous, too broad, or exact-match sensitive, do not repeat the same call. Re-read the smallest relevant source region, narrow the path/pattern, and state the corrected hypothesis before retrying. After two failures on the same operation, switch strategy or ask for targeted input unless the user explicitly told you to continue autonomously.
+
+**Path and environment verification.** Before analyzing logs, generated files, MCP config, package resolution, or cross-repo paths, verify the working directory and the exact file paths that exist. Do not assume shell `~` expansion inside JSON/config fields; prefer absolute paths when a tool receives the value directly.
+
+**Stale context/tool errors are bugs, not noise.** Errors mentioning stale extension context, session replacement/reload, interrupted tool state, or invalid captured context should be investigated as agent-harness failure modes. Do not blindly retry; preserve the artifact path, inspect the session/log, and fix or report the underlying lifecycle issue.
+
 **Defer decisions to the user.** When multiple reasonable paths exist, when scope is unclear, or when a choice affects behavior, architecture, data, security, UX, tests, or workflow, do not pick silently. Present the smallest useful decision with a recommendation and wait for approval. Prefer pausing too early over doing a large batch the user may need to interrupt.
 
 ## Tool Preferences

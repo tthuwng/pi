@@ -105,8 +105,12 @@ type PatchedToolExecutionPrototype = {
 	getCallRenderer: () => unknown;
 	getResultRenderer: () => unknown;
 	getRenderShell: () => unknown;
+	setExpanded: (expanded: boolean) => void;
+	toolCallId?: string;
+	result?: unknown;
 	__claudeToolExecutionOriginalRender?: RenderFn;
 	__claudeToolExecutionOriginalUpdateDisplay?: () => void;
+	__claudeToolExecutionOriginalSetExpanded?: (expanded: boolean) => void;
 	__claudeToolExecutionOriginalGetCallRenderer?: () => unknown;
 	__claudeToolExecutionOriginalGetResultRenderer?: () => unknown;
 	__claudeToolExecutionOriginalGetRenderShell?: () => unknown;
@@ -123,6 +127,7 @@ const toolExecutionRenderCache = new WeakMap<
 	{ version: number; width: number; lines: string[] }
 >();
 const toolExecutionRenderVersion = new WeakMap<object, number>();
+const toolExecutionExpandedById = new Map<string, boolean>();
 
 function bumpRenderVersion(
 	store: WeakMap<object, number>,
@@ -141,7 +146,6 @@ const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024;
 const CLIPBOARD_IMAGE_LIST_TIMEOUT_MS = 1000;
 const CLIPBOARD_IMAGE_READ_TIMEOUT_MS = 3000;
 const CLIPBOARD_IMAGE_MAX_BYTES = 50 * 1024 * 1024;
-const STATUS_ANIMATION_INTERVAL_MS = 500;
 const execFileAsync = promisify(execFile);
 
 const CLIPBOARD_IMAGE_EXTENSIONS: Record<string, string> = {
@@ -800,6 +804,7 @@ function footerLine(
 		thinking,
 		context,
 		cost ? theme.fg("muted", cost) : undefined,
+		theme.fg("dim", "/ commands"),
 	].filter((part): part is string => Boolean(part));
 	const left = `  ${parts.join(theme.fg("dim", " · "))}`;
 	const right = theme.fg(
@@ -1210,6 +1215,7 @@ function patchToolExecutionRenderers(): void {
 	prototype.__claudeToolExecutionOriginalRender = prototype.render;
 	prototype.__claudeToolExecutionOriginalUpdateDisplay =
 		prototype.updateDisplay;
+	prototype.__claudeToolExecutionOriginalSetExpanded = prototype.setExpanded;
 	prototype.__claudeToolExecutionOriginalGetCallRenderer =
 		prototype.getCallRenderer;
 	prototype.__claudeToolExecutionOriginalGetResultRenderer =
@@ -1227,6 +1233,25 @@ function patchToolExecutionRenderers(): void {
 			toolExecutionRenderCache.delete(cacheKey);
 			bumpRenderVersion(toolExecutionRenderVersion, cacheKey);
 		};
+
+	prototype.setExpanded = function setExpandedWithClaudeState(
+		expanded: boolean,
+	): void {
+		const original =
+			prototype.__claudeToolExecutionOriginalSetExpanded ??
+			prototype.setExpanded;
+		if (typeof this.toolCallId === "string") {
+			if (this.result === undefined) {
+				toolExecutionExpandedById.delete(this.toolCallId);
+			} else {
+				toolExecutionExpandedById.set(this.toolCallId, expanded);
+			}
+		}
+		original.call(this, expanded);
+		const cacheKey = this as object;
+		toolExecutionRenderCache.delete(cacheKey);
+		bumpRenderVersion(toolExecutionRenderVersion, cacheKey);
+	};
 
 	prototype.render = function renderWithClaudeToolCache(
 		width: number,
@@ -1359,31 +1384,8 @@ function patchToolExecutionRenderers(): void {
 	prototype.__claudeToolExecutionPatched = true;
 }
 
-const statusLabelFramesCache = new Map<string, string[]>();
-
-function statusLabelFrames(label: string): string[] {
-	let frames = statusLabelFramesCache.get(label);
-	if (!frames) {
-		frames = [
-			...Array.from({ length: label.length }, (_, index) =>
-				label.slice(0, index + 1),
-			),
-			`${label}.`,
-			`${label}..`,
-			`${label}...`,
-		];
-		statusLabelFramesCache.set(label, frames);
-	}
-	return frames;
-}
-
-function animatedStatusLabel(label: string): string {
-	const frames = statusLabelFrames(label);
-	return (
-		frames[
-			Math.floor(Date.now() / STATUS_ANIMATION_INTERVAL_MS) % frames.length
-		] ?? label
-	);
+function statusLabel(label: string): string {
+	return label;
 }
 
 class ClaudeEditor extends CustomEditor {
@@ -1430,15 +1432,9 @@ class ClaudeEditor extends CustomEditor {
 	private workingLine(width: number): string | undefined {
 		switch (this.getWorkingState()) {
 			case "working":
-				return fitLine(
-					this.ruleColor(`⏺ ${animatedStatusLabel("Thinking")}`),
-					width,
-				);
+				return fitLine(this.ruleColor(`⏺ ${statusLabel("Thinking")}`), width);
 			case "streaming":
-				return fitLine(
-					this.ruleColor(`⏺ ${animatedStatusLabel("Streaming")}`),
-					width,
-				);
+				return fitLine(this.ruleColor(`⏺ ${statusLabel("Streaming")}`), width);
 			case "inactive":
 				return undefined;
 		}
@@ -3479,9 +3475,10 @@ function renderReadResult(
 		"Read",
 		`${plural(countLines(output), "line")}${suffix}`,
 	);
+	const expanded = toolExecutionExpandedById.get(context.toolCallId) === true;
 	return setText(
 		context.lastComponent,
-		`${summary}${previewBlock(output, theme, options.expanded, EXPANDED_PREVIEW_LINES, 120, READ_PREVIEW_LINES)}`,
+		`${summary}${previewBlock(output, theme, expanded, EXPANDED_PREVIEW_LINES, 120, READ_PREVIEW_LINES)}`,
 	);
 }
 
@@ -4428,12 +4425,26 @@ export default function (pi: ExtensionAPI) {
 		statusAnimationTimer = undefined;
 	};
 	const startStatusAnimation = () => {
-		if (statusAnimationTimer) return;
-		statusAnimationTimer = setInterval(
-			requestRender,
-			STATUS_ANIMATION_INTERVAL_MS,
+		requestRender();
+	};
+	const isStaleContextError = (error: unknown) =>
+		error instanceof Error &&
+		error.message.includes(
+			"extension ctx is stale after session replacement or reload",
 		);
-		(statusAnimationTimer as { unref?: () => void }).unref?.();
+	const clearStaleContext = (ctx: ExtensionContext) => {
+		if (activeCtx === ctx) activeCtx = undefined;
+	};
+	const safeIdleState = (ctx: ExtensionContext): "idle" | "busy" | "stale" => {
+		try {
+			return ctx.isIdle() ? "idle" : "busy";
+		} catch (error) {
+			if (isStaleContextError(error)) {
+				clearStaleContext(ctx);
+				return "stale";
+			}
+			throw error;
+		}
 	};
 	const setWorkingState = (state: WorkingState, ctx?: ExtensionContext) => {
 		if (ctx?.hasUI) hideBuiltInWorking(ctx);
@@ -4443,14 +4454,15 @@ export default function (pi: ExtensionAPI) {
 		workingState = state;
 		requestRender();
 	};
-	const reconcileIdleState = (ctx = activeCtx) => {
+	const reconcileIdleState = () => {
+		const ctx = activeCtx;
 		if (!ctx) return;
-		if (pendingToolCalls.size === 0 && ctx.isIdle()) {
+		if (pendingToolCalls.size === 0 && safeIdleState(ctx) === "idle") {
 			setWorkingState("inactive", ctx);
 		}
 	};
-	const scheduleIdleReconcile = (ctx = activeCtx) => {
-		const timer = setTimeout(() => reconcileIdleState(ctx), 50);
+	const scheduleIdleReconcile = () => {
+		const timer = setTimeout(reconcileIdleState, 50);
 		(timer as { unref?: () => void }).unref?.();
 	};
 
@@ -4467,6 +4479,7 @@ export default function (pi: ExtensionAPI) {
 		bumpFooterRenderRevision();
 		writeSnapshots.clear();
 		inlineImageCache.clear();
+		toolExecutionExpandedById.clear();
 		restoreExternalDiffs(ctx);
 		if (!ctx.hasUI) return;
 
@@ -4566,11 +4579,16 @@ export default function (pi: ExtensionAPI) {
 		bumpFooterRenderRevision();
 		sessionCostCache.delete(ctx);
 		if (event.message.role === "assistant") {
-			if (ctx.isIdle() && pendingToolCalls.size === 0) {
+			const idleState = safeIdleState(ctx);
+			if (idleState === "stale") {
+				setWorkingState("inactive");
+				return;
+			}
+			if (idleState === "idle" && pendingToolCalls.size === 0) {
 				setWorkingState("inactive", ctx);
 			} else {
 				setWorkingState("streaming", ctx);
-				scheduleIdleReconcile(ctx);
+				scheduleIdleReconcile();
 			}
 		}
 	});
@@ -4590,11 +4608,16 @@ export default function (pi: ExtensionAPI) {
 	pi.on("tool_execution_end", (event, ctx) => {
 		pendingToolCalls.delete(event.toolCallId);
 		activeCtx = ctx;
-		if (pendingToolCalls.size === 0 && ctx.isIdle()) {
+		const idleState = safeIdleState(ctx);
+		if (idleState === "stale") {
+			setWorkingState("inactive");
+			return;
+		}
+		if (pendingToolCalls.size === 0 && idleState === "idle") {
 			setWorkingState("inactive", ctx);
 		} else {
 			setWorkingState("working", ctx);
-			scheduleIdleReconcile(ctx);
+			scheduleIdleReconcile();
 		}
 	});
 
@@ -4607,6 +4630,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", () => {
 		stopStatusAnimation();
+		toolExecutionExpandedById.clear();
 		for (const dispose of footerDisposers) dispose();
 		footerDisposers.clear();
 		restoreSubagentWidgetPatches();

@@ -12,7 +12,7 @@
     },
     "tree-sitter": {
       "command": "node",
-      "cwd": "~/.pi/agent",
+      "cwd": "/home/orestes/.pi/agent",
       "args": ["mcp-servers/tree-sitter/index.mjs"],
       "directTools": ["search_symbols", "document_symbols", "symbol_definition", "pattern_search", "codebase_overview", "codebase_map"],
       "lifecycle": "keep-alive"
