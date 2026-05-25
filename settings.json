@@ -64,17 +64,7 @@
     "npm:pi-intercom"
   ],
   "subagents": {
-    "agentOverrides": {
-      "scout": {
-        "disabled": true
-      },
-      "worker": {
-        "disabled": true
-      },
-      "reviewer": {
-        "disabled": true
-      }
-    }
+    "disableBuiltins": false
   },
   "autocompleteMaxVisible": 10,
   "doubleEscapeAction": "tree"
