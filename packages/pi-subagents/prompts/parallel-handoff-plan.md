@@ -20,6 +20,7 @@ Use the `subagent` tool in chain mode:
 2. Second step: a synthesis `context-builder` that reads the parallel findings and writes the final handoff plan and meta-prompt.
 
 Use distinct output paths under the chain directory. Example outputs:
+
 - `handoff/external-reference.md`
 - `handoff/local-context.md`
 - `handoff/implementation-strategy.md`
@@ -30,27 +31,33 @@ Do not write these artifacts into the repository unless I explicitly ask for per
 Role guidance:
 
 External reference researcher:
+
 - Study linked projects, docs, issues, examples, source code, or prompt guidance.
+- For library/framework documentation, prefer context7 through `mcp` when available; use web/code search only when context7/local source is insufficient or the source is not covered by context7.
 - Identify the behavior, API, implementation files, constraints, and transferable ideas.
-- Conduct web research if needed. Use `web_search` if it is available; otherwise use whatever equivalent research capability is available.
+- Conduct web research for non-library external evidence when needed. Use `web_search` if it is available; otherwise use whatever equivalent research capability is available.
 - Return source links, repo paths, key evidence, risks, and what matters for this implementation.
 
 Local context-builder:
+
 - Read all files needed to fully understand the local issue, not just the first match.
 - Follow imports, callers, tests, fixtures, configuration, docs, and adjacent patterns until the local problem, solution space, and validation path are clear.
 - Return relevant file paths and line ranges, current architecture, constraints, tests, risks, and open questions.
 
 Implementation-strategy context-builder, when used:
+
 - Compare the external evidence against the local architecture.
 - Propose the safest implementation shape, files likely to change, edge cases, validation commands, and decisions that need approval.
 - Stay review/planning-only unless I explicitly ask for implementation.
 
 Final synthesis context-builder:
+
 - Read the parallel outputs and produce one concise handoff plan.
 - Include what the feature/change should do, what the external reference teaches, what the local codebase implies, the recommended approach, likely files to change, constraints, non-goals, validation, risks, and unresolved questions.
 - End with a compact implementation-ready meta-prompt for the next worker/planner.
 
 After the chain returns, synthesize the result for me with:
+
 - the recommended approach;
 - artifact paths;
 - the final meta-prompt;

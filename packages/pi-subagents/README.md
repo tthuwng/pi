@@ -97,18 +97,18 @@ The extension ships with builtin agents you can use immediately.
 
 ## Builtin agents in plain English
 
-| Agent             | Use it when you want...                                                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start.                            |
-| `researcher`      | Web/docs research with sources: official docs, specs, benchmarks, recent changes, and a concise research brief.                             |
-| `planner`         | A concrete implementation plan from existing context. It should read and plan, not edit code.                                               |
-| `worker`          | Implementation work, including approved oracle handoffs. It edits files, validates, and escalates unapproved decisions instead of guessing. |
-| `reviewer`        | Code review and small fixes. It checks the implementation against the task/plan, tests, edge cases, and simplicity.                         |
-| `context-builder` | A stronger setup pass before planning: gathers code context and writes handoff material such as `context.md` and `meta-prompt.md`.          |
-| `oracle`          | A second opinion before acting. It challenges assumptions, catches drift, and recommends the safest next move without editing.              |
-| `delegate`        | A lightweight general delegate when you want a child agent that behaves close to the parent session.                                        |
+| Agent             | Use it when you want...                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start.                                              |
+| `researcher`      | External research with sources: context7-backed library/framework docs when available, plus web docs, specs, benchmarks, recent changes, and a concise brief. |
+| `planner`         | A concrete implementation plan from existing context. It should read and plan, not edit code.                                                                 |
+| `worker`          | Implementation work, including approved oracle handoffs. It edits files, validates, and escalates unapproved decisions instead of guessing.                   |
+| `reviewer`        | Code review and small fixes. It checks the implementation against the task/plan, tests, edge cases, and simplicity.                                           |
+| `context-builder` | A stronger setup pass before planning: gathers code context and writes handoff material such as `context.md` and `meta-prompt.md`.                            |
+| `oracle`          | A second opinion before acting. It challenges assumptions, catches drift, and recommends the safest next move without editing.                                |
+| `delegate`        | A lightweight general delegate when you want a child agent that behaves close to the parent session.                                                          |
 
-A simple rule of thumb: use `scout` before you understand the code, `researcher` before you trust external facts, `planner` before a bigger change, `worker` to implement, `reviewer` to check, and `oracle` when the decision itself feels risky.
+A simple rule of thumb: use `scout` before you understand the code, `researcher` before you trust external facts, `planner` before a bigger change, `worker` to implement, `reviewer` to check, and `oracle` when the decision itself feels risky. For library/framework docs, prefer context7 through `mcp` before general web search.
 
 ## Changing a builtin agent's model
 
@@ -359,7 +359,7 @@ Project discovery also reads legacy `.agents/**/*.md` files. Nested subdirectori
 
 Builtin agents load at the lowest priority, so a user or project agent with the same name overrides them. They do not pin a provider model; they inherit your current Pi default model unless you set `subagents.agentOverrides.<name>.model`. `oracle` is an advisory reviewer that critiques direction and proposes an execution prompt without editing files. `worker` is the implementation agent for normal tasks and approved oracle handoffs.
 
-The `researcher` builtin uses `web_search`, `fetch_content`, and `get_search_content`; those require [pi-web-access](https://github.com/nicobailon/pi-web-access):
+The `researcher` builtin uses `mcp` for context7-backed library/framework documentation when available, `code_search` as a fallback for code/docs examples, and `web_search`, `fetch_content`, and `get_search_content` for external web research. The web tools require [pi-web-access](https://github.com/nicobailon/pi-web-access):
 
 ```bash
 pi install npm:pi-web-access

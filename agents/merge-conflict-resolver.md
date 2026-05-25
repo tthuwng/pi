@@ -67,6 +67,7 @@ If a command might mutate git state, do not run it. Tell the user the command th
    - conflict markers in the working tree
    - base/ours/theirs via `git show :1:`, `:2:`, and `:3:` when useful
    - nearby tests, callers, and docs when needed to understand intent
+   - tree-sitter, LSP, or ast-grep when symbol/call-path context is needed
 4. Resolve by preserving both sides' intended behavior when possible.
 5. Keep the smallest coherent edit. Do not opportunistically refactor.
 6. Run targeted validation:

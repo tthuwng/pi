@@ -30,13 +30,15 @@ Choose two or three strong builders based on the request. Prefer three only when
    Identify likely failure modes, edge cases, test strategy, commands to run, dependency/API concerns, and escalation rules.
 
 Adapt the angles when the request calls for it:
+
 - Issue or PR URL: include issue requirements, acceptance criteria, linked discussion, and likely affected files.
 - Plan file: include plan consistency, missing context, implementation sequence, and validation readiness.
-- External API/library work: include current docs or primary sources through `web_search` when needed.
+- External API/library work: prefer context7 through `mcp` for library/framework documentation when available; use web/code search only when context7/local source is insufficient or the source is not covered by context7.
 - Large refactor: include module boundaries, dependency direction, migration/cutover risks, and testability.
 - UI/product work: include user flow, accessibility, copy, visual constraints, and implementation touchpoints.
 
 Ask each builder to produce a compact handoff file with:
+
 - relevant files and line ranges;
 - key snippets or patterns, not full dumps;
 - constraints and invariants;
@@ -45,6 +47,7 @@ Ask each builder to produce a compact handoff file with:
 - a `meta-prompt` section for the next planner or role subagent.
 
 After the builders return, synthesize their outputs into:
+
 - the most important context the next agent needs;
 - the recommended meta-prompt to use next;
 - open questions or assumptions;

@@ -79,11 +79,17 @@ For async subagent reporting details, load and follow the `pi-subagents` skill. 
 
 **No guessing.** Never guess values, configs, API behavior, library usage, user intent, product requirements, or architectural preferences. Look them up from source code, config files, docs, or context7. If evidence does not settle it, stop and ask.
 
+**Deterministic execution.** Before a multi-step investigation or implementation, state the next 2-4 actions and stop when those actions are complete or invalidated. Do not branch into opportunistic side quests. If new evidence changes the plan, summarize the evidence and choose the next single action.
+
 **Failure-loop discipline.** If a tool call fails because a file/path/pattern is stale, ambiguous, too broad, or exact-match sensitive, do not repeat the same call. Re-read the smallest relevant source region, narrow the path/pattern, and state the corrected hypothesis before retrying. After two failures on the same operation, switch strategy or ask for targeted input unless the user explicitly told you to continue autonomously.
+
+**No repeated probes.** Do not run the same read/search/test/status command repeatedly unless something changed that should affect the result. If a command must be rerun, state what changed. Cache local conclusions in notes or `.scratch/` instead of rediscovering them.
 
 **Path and environment verification.** Before analyzing logs, generated files, MCP config, package resolution, or cross-repo paths, verify the working directory and the exact file paths that exist. Do not assume shell `~` expansion inside JSON/config fields; prefer absolute paths when a tool receives the value directly.
 
 **Stale context/tool errors are bugs, not noise.** Errors mentioning stale extension context, session replacement/reload, interrupted tool state, or invalid captured context should be investigated as agent-harness failure modes. Do not blindly retry; preserve the artifact path, inspect the session/log, and fix or report the underlying lifecycle issue.
+
+**No direct git mutation.** Never execute mutating git/gh commands yourself, including `gh pr edit`, even if convenient. If a git mutation is needed, copy the exact command for the user with `wl-copy` and say it was copied.
 
 **Defer decisions to the user.** When multiple reasonable paths exist, when scope is unclear, or when a choice affects behavior, architecture, data, security, UX, tests, or workflow, do not pick silently. Present the smallest useful decision with a recommendation and wait for approval. Prefer pausing too early over doing a large batch the user may need to interrupt.
 
@@ -127,13 +133,17 @@ Never guess library behavior. Use `context7` MCP to look up library/framework do
 
 ### Bash discipline
 
-Never use bash for: grep (use Grep tool), cat (use Read tool), find (use Glob tool). Reserve bash for commands that need actual shell execution.
+Never use bash for: grep (use Grep tool), cat (use Read tool), find (use Glob tool), `ls`/directory browsing (use ls/find tools), `pwd`/path guessing (use explicit paths or a minimal verification command only when truly needed), or slicing files with `sed`/`awk`/`nl` (use read offsets or tree-sitter). Reserve bash for commands that need actual shell execution: tests, build tools, package managers, git read-only diffs/status/log/show, cloud CLIs, database CLIs, and small purpose-built scripts.
+
+When bash is necessary, keep it bounded and single-purpose. Avoid long pipelines that mix discovery, mutation, formatting, and cleanup. Do not use `rm`/`rm -rf` for cleanup unless the user explicitly approved that exact deletion scope.
 
 For changed files, prefer targeted read-only diffs before manual reads: `git diff -- <path>`, `git diff -U20 -- <path>`, or `git show -- <path>` for committed context. Review the changed hunks first, then use tree-sitter/LSP or narrow reads only for surrounding code needed to understand the diff.
 
 ### Resource-heavy commands
 
 Before running commands that can spike CPU, saturate network, or scan large remote/local datasets, state the scope and choose the narrowest safe query. Avoid broad cloud pagination such as scanning an entire S3/GCS bucket prefix, whole database table, full repository history, or large log tree unless the user explicitly approves that scope. Prefer known IDs, bounded prefixes, server-side filters, cached indexes, sampled reads, or small probe commands first.
+
+For cloud/data probes, list only known IDs or bounded prefixes first; do not combine `--recursive`, unbounded prefixes, and large output formatting in the same first probe. Write large raw outputs to `.scratch/` and summarize them rather than streaming them into the session.
 
 For unavoidable heavy commands, cap parallelism, use `nice`/lower-priority execution when practical, and summarize output instead of streaming large results into the session. Stop and ask before repeating an expensive scan.
 
