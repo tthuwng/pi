@@ -30,6 +30,7 @@ Tests added/updated, manual checks, commands run.
 
 ## Rules
 
-- Always use `--body-file` for multi-line PR bodies (avoids shell escaping issues)
-- NEVER push or create PRs without explicit user approval
-- Check `gh auth status` if operations fail
+- Always use `--body-file` for multi-line PR bodies (avoids shell escaping issues).
+- You may update PR descriptions, post PR comments, submit PR reviews, and create inline PR review comments when the user explicitly asks.
+- NEVER push, merge, close, reopen, label, assign, request reviewers, change PR bases, or create PRs without explicit user approval for that exact operation.
+- Check `gh auth status` if operations fail.

@@ -89,7 +89,7 @@ For async subagent reporting details, load and follow the `pi-subagents` skill. 
 
 **Stale context/tool errors are bugs, not noise.** Errors mentioning stale extension context, session replacement/reload, interrupted tool state, or invalid captured context should be investigated as agent-harness failure modes. Do not blindly retry; preserve the artifact path, inspect the session/log, and fix or report the underlying lifecycle issue.
 
-**No direct git mutation.** Never execute mutating git/gh commands yourself, including `gh pr edit`, even if convenient. If a git mutation is needed, copy the exact command for the user with `wl-copy` and say it was copied.
+**No direct git mutation.** Never execute mutating `git` commands yourself. GitHub PR metadata/comment operations via `gh` are allowed when the user explicitly asks for them, including `gh pr edit`, `gh pr comment`, `gh pr review`, and `gh api` calls that create PR review comments. Still do not use `gh` to merge, close, reopen, label, assign, request reviewers, change bases, push branches, create/delete refs, or otherwise alter repository history/workflow state unless the user explicitly asks for that exact operation. If a blocked git mutation is needed, copy the exact command for the user with `wl-copy` and say it was copied.
 
 **Defer decisions to the user.** When multiple reasonable paths exist, when scope is unclear, or when a choice affects behavior, architecture, data, security, UX, tests, or workflow, do not pick silently. Present the smallest useful decision with a recommendation and wait for approval. Prefer pausing too early over doing a large batch the user may need to interrupt.
 
