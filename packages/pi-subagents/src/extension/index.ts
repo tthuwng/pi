@@ -16,23 +16,58 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import { type ExtensionAPI, type ExtensionContext, type ToolDefinition } from "@mariozechner/pi-coding-agent";
-import { Box, Container, Spacer, Text, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@mariozechner/pi-tui";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	ToolDefinition,
+} from "@mariozechner/pi-coding-agent";
+import {
+	Box,
+	Container,
+	Spacer,
+	Text,
+	truncateToWidth,
+	visibleWidth,
+	wrapTextWithAnsi,
+	type Component,
+} from "@mariozechner/pi-tui";
 import { discoverAgents } from "../agents/agents.ts";
-import { cleanupAllArtifactDirs, cleanupOldArtifacts, getArtifactsDir } from "../shared/artifacts.ts";
+import { cleanupOldAsyncRunDirs } from "../shared/async-cleanup.ts";
+import {
+	cleanupAllArtifactDirs,
+	cleanupOldArtifacts,
+	getArtifactsDir,
+} from "../shared/artifacts.ts";
 import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import { cleanupOldChainDirs } from "../shared/settings.ts";
-import { renderWidget, renderSubagentResult, stopResultAnimations, stopWidgetAnimation, syncResultAnimation } from "../tui/render.ts";
+import {
+	renderWidget,
+	renderSubagentResult,
+	stopResultAnimations,
+	stopWidgetAnimation,
+	syncResultAnimation,
+} from "../tui/render.ts";
 import { SubagentParams } from "./schemas.ts";
-import { createSubagentExecutor, type SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
+import {
+	createSubagentExecutor,
+	type SubagentParamsLike,
+} from "../runs/foreground/subagent-executor.ts";
 import { createAsyncJobTracker } from "../runs/background/async-job-tracker.ts";
 import { createResultWatcher } from "../runs/background/result-watcher.ts";
 import { registerSlashCommands } from "../slash/slash-commands.ts";
 import { registerPromptTemplateDelegationBridge } from "../slash/prompt-template-bridge.ts";
 import { registerSlashSubagentBridge } from "../slash/slash-bridge.ts";
-import { clearSlashSnapshots, getSlashRenderableSnapshot, resolveSlashMessageDetails, restoreSlashFinalSnapshots, type SlashMessageDetails } from "../slash/slash-live-state.ts";
+import {
+	clearSlashSnapshots,
+	getSlashRenderableSnapshot,
+	resolveSlashMessageDetails,
+	restoreSlashFinalSnapshots,
+	type SlashMessageDetails,
+} from "../slash/slash-live-state.ts";
 import { inspectSubagentStatus } from "../runs/background/run-status.ts";
-import registerSubagentNotify, { type SubagentNotifyDetails } from "../runs/background/notify.ts";
+import registerSubagentNotify, {
+	type SubagentNotifyDetails,
+} from "../runs/background/notify.ts";
 import { SUBAGENT_CHILD_ENV } from "../runs/shared/pi-args.ts";
 import { formatDuration, shortenPath } from "../shared/formatters.ts";
 import {
@@ -73,13 +108,25 @@ function getSubagentSessionRoot(parentSessionFile: string | null): string {
 }
 
 function loadConfig(): ExtensionConfig {
-	const configPath = path.join(os.homedir(), ".pi", "agent", "extensions", "subagent", "config.json");
+	const configPath = path.join(
+		os.homedir(),
+		".pi",
+		"agent",
+		"extensions",
+		"subagent",
+		"config.json",
+	);
 	try {
 		if (fs.existsSync(configPath)) {
-			return JSON.parse(fs.readFileSync(configPath, "utf-8")) as ExtensionConfig;
+			return JSON.parse(
+				fs.readFileSync(configPath, "utf-8"),
+			) as ExtensionConfig;
 		}
 	} catch (error) {
-		console.error(`Failed to load subagent config from '${configPath}':`, error);
+		console.error(
+			`Failed to load subagent config from '${configPath}':`,
+			error,
+		);
 	}
 	return {};
 }
@@ -111,17 +158,28 @@ function ensureAccessibleDir(dirPath: string): void {
 }
 
 function isSlashResultRunning(result: { details?: Details }): boolean {
-	return result.details?.progress?.some((entry) => entry.status === "running")
-		|| result.details?.results.some((entry) => entry.progress?.status === "running")
-		|| false;
+	return (
+		result.details?.progress?.some((entry) => entry.status === "running") ||
+		result.details?.results.some(
+			(entry) => entry.progress?.status === "running",
+		) ||
+		false
+	);
 }
 
 function isSlashResultError(result: { details?: Details }): boolean {
-	return result.details?.results.some((entry) => entry.exitCode !== 0 && entry.progress?.status !== "running") || false;
+	return (
+		result.details?.results.some(
+			(entry) => entry.exitCode !== 0 && entry.progress?.status !== "running",
+		) || false
+	);
 }
 
 function isStaleExtensionContextError(error: unknown): boolean {
-	return error instanceof Error && error.message.includes("Extension context no longer active");
+	return (
+		error instanceof Error &&
+		error.message.includes("Extension context no longer active")
+	);
 }
 
 function rebuildSlashResultContainer(
@@ -132,7 +190,11 @@ function rebuildSlashResultContainer(
 ): void {
 	container.clear();
 	container.addChild(new Spacer(1));
-	const boxTheme = isSlashResultRunning(result) ? "toolPendingBg" : isSlashResultError(result) ? "toolErrorBg" : "toolSuccessBg";
+	const boxTheme = isSlashResultRunning(result)
+		? "toolPendingBg"
+		: isSlashResultError(result)
+			? "toolErrorBg"
+			: "toolSuccessBg";
 	const box = new Box(1, 1, (text: string) => theme.bg(boxTheme, text));
 	box.addChild(renderSubagentResult(result, options, theme));
 	container.addChild(box);
@@ -145,12 +207,20 @@ function createSlashResultComponent(
 	requestRender: () => void,
 ): Container {
 	const container = new Container();
-	const animationState: { subagentResultAnimationTimer?: ReturnType<typeof setInterval> } = {};
+	const animationState: {
+		subagentResultAnimationTimer?: ReturnType<typeof setInterval>;
+	} = {};
 	let lastVersion = -1;
 	container.render = (width: number): string[] => {
 		const snapshot = getSlashRenderableSnapshot(details);
-		syncResultAnimation(snapshot.result, { state: animationState, invalidate: requestRender });
-		if (snapshot.version !== lastVersion || isSlashResultRunning(snapshot.result)) {
+		syncResultAnimation(snapshot.result, {
+			state: animationState,
+			invalidate: requestRender,
+		});
+		if (
+			snapshot.version !== lastVersion ||
+			isSlashResultRunning(snapshot.result)
+		) {
 			lastVersion = snapshot.version;
 			rebuildSlashResultContainer(container, snapshot.result, options, theme);
 		}
@@ -159,15 +229,22 @@ function createSlashResultComponent(
 	return container;
 }
 
-function parseSubagentNotifyContent(content: string): SubagentNotifyDetails | undefined {
+function parseSubagentNotifyContent(
+	content: string,
+): SubagentNotifyDetails | undefined {
 	const lines = content.split("\n");
 	const header = lines[0] ?? "";
-	const match = header.match(/^Background task (completed|failed|paused): \*\*(.+?)\*\*(?:\s+(\([^)]*\)))?$/);
+	const match = header.match(
+		/^Background task (completed|failed|paused): \*\*(.+?)\*\*(?:\s+(\([^)]*\)))?$/,
+	);
 	if (!match) return undefined;
 	const body = lines.slice(2);
 	let sessionIndex = -1;
 	for (let i = body.length - 1; i >= 1; i--) {
-		if (body[i - 1]?.trim() === "" && /^(Session|Session file|Session share error):\s+/.test(body[i]!)) {
+		if (
+			body[i - 1]?.trim() === "" &&
+			/^(Session|Session file|Session share error):\s+/.test(body[i]!)
+		) {
 			sessionIndex = i;
 			break;
 		}
@@ -207,9 +284,17 @@ class SubagentControlNoticeComponent implements Component {
 		const header = ` ⚠ Subagent ${eventLabel}: ${this.details.event.agent} `;
 		const headerText = truncateToWidth(header, bodyWidth, "");
 		const headerPadding = Math.max(0, bodyWidth - visibleWidth(headerText));
-		const lines = [this.theme.fg("accent", `╭${headerText}${borderChar.repeat(headerPadding)}╮`)];
+		const lines = [
+			this.theme.fg(
+				"accent",
+				`╭${headerText}${borderChar.repeat(headerPadding)}╮`,
+			),
+		];
 
-		for (const line of wrapTextWithAnsi(formatSubagentControlNotice(this.details), bodyWidth)) {
+		for (const line of wrapTextWithAnsi(
+			formatSubagentControlNotice(this.details),
+			bodyWidth,
+		)) {
 			const text = truncateToWidth(line, bodyWidth, "");
 			const padding = Math.max(0, bodyWidth - visibleWidth(text));
 			lines.push(this.theme.fg("accent", `│${text}${" ".repeat(padding)}│`));
@@ -235,6 +320,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	ensureAccessibleDir(RESULTS_DIR);
 	ensureAccessibleDir(ASYNC_DIR);
 	cleanupOldChainDirs();
+	cleanupOldAsyncRunDirs();
 
 	const config = loadConfig();
 	const asyncByDefault = config.asyncByDefault === true;
@@ -261,12 +347,8 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		},
 	};
 
-	const { startResultWatcher, primeExistingResults, stopResultWatcher } = createResultWatcher(
-		pi,
-		state,
-		RESULTS_DIR,
-		10 * 60 * 1000,
-	);
+	const { startResultWatcher, primeExistingResults, stopResultWatcher } =
+		createResultWatcher(pi, state, RESULTS_DIR, 10 * 60 * 1000);
 	startResultWatcher();
 	primeExistingResults();
 
@@ -282,7 +364,8 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	};
 	globalStore[runtimeCleanupStoreKey] = runtimeCleanup;
 
-	const { ensurePoller, handleStarted, handleComplete, resetJobs } = createAsyncJobTracker(pi, state, ASYNC_DIR);
+	const { ensurePoller, handleStarted, handleComplete, resetJobs } =
+		createAsyncJobTracker(pi, state, ASYNC_DIR);
 	const executor = createSubagentExecutor({
 		pi,
 		state,
@@ -294,50 +377,86 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		discoverAgents,
 	});
 
-	pi.registerMessageRenderer<SlashMessageDetails>(SLASH_RESULT_TYPE, (message, options, theme) => {
-		const details = resolveSlashMessageDetails(message.details);
-		if (!details) return undefined;
-		return createSlashResultComponent(details, options, theme, () => state.lastUiContext?.ui.requestRender?.());
-	});
+	pi.registerMessageRenderer<SlashMessageDetails>(
+		SLASH_RESULT_TYPE,
+		(message, options, theme) => {
+			const details = resolveSlashMessageDetails(message.details);
+			if (!details) return undefined;
+			return createSlashResultComponent(details, options, theme, () =>
+				state.lastUiContext?.ui.requestRender?.(),
+			);
+		},
+	);
 
-	pi.registerMessageRenderer<SubagentNotifyDetails>("subagent-notify", (message, options, theme) => {
-		const content = typeof message.content === "string" ? message.content : "";
-		const details = (message.details as SubagentNotifyDetails | undefined) ?? parseSubagentNotifyContent(content);
-		if (!details) return new Text(content, 0, 0);
-		const icon = details.status === "completed"
-			? theme.fg("success", "✓")
-			: details.status === "paused"
-				? theme.fg("warning", "■")
-				: theme.fg("error", "✗");
-		const parts: string[] = [];
-		if (details.taskInfo) parts.push(details.taskInfo);
-		if (details.durationMs !== undefined) parts.push(formatDuration(details.durationMs));
-		let text = `${icon} ${theme.bold(details.agent)} ${theme.fg("dim", details.status)}`;
-		if (parts.length > 0) text += ` ${theme.fg("dim", "·")} ${parts.map((part) => theme.fg("dim", part)).join(` ${theme.fg("dim", "·")} `)}`;
-		const trimmedPreview = details.resultPreview.trim();
-		const previewLines = options.expanded
-			? trimmedPreview.split("\n").filter((line) => line.trim())
-			: [trimmedPreview.split("\n", 1)[0] ?? ""].filter((line) => line.trim());
-		for (const line of previewLines.length > 0 ? previewLines : ["(no output)"]) {
-			text += `\n  ${theme.fg("dim", `⎿  ${line}`)}`;
-		}
-		if (!options.expanded && trimmedPreview.includes("\n")) {
-			text += `\n  ${theme.fg("dim", "Ctrl+O full notification")}`;
-		}
-		if (details.sessionLabel && details.sessionValue) {
-			text += `\n  ${theme.fg("muted", `${details.sessionLabel}: ${shortenPath(details.sessionValue)}`)}`;
-		}
-		return new Text(text, 0, 0);
-	});
+	pi.registerMessageRenderer<SubagentNotifyDetails>(
+		"subagent-notify",
+		(message, options, theme) => {
+			const content =
+				typeof message.content === "string" ? message.content : "";
+			const details =
+				(message.details as SubagentNotifyDetails | undefined) ??
+				parseSubagentNotifyContent(content);
+			if (!details) return new Text(content, 0, 0);
+			const icon =
+				details.status === "completed"
+					? theme.fg("success", "✓")
+					: details.status === "paused"
+						? theme.fg("warning", "■")
+						: theme.fg("error", "✗");
+			const parts: string[] = [];
+			if (details.taskInfo) parts.push(details.taskInfo);
+			if (details.durationMs !== undefined)
+				parts.push(formatDuration(details.durationMs));
+			let text = `${icon} ${theme.bold(details.agent)} ${theme.fg("dim", details.status)}`;
+			if (parts.length > 0)
+				text += ` ${theme.fg("dim", "·")} ${parts.map((part) => theme.fg("dim", part)).join(` ${theme.fg("dim", "·")} `)}`;
+			const trimmedPreview = details.resultPreview.trim();
+			const previewLines = options.expanded
+				? trimmedPreview.split("\n").filter((line) => line.trim())
+				: [trimmedPreview.split("\n", 1)[0] ?? ""].filter((line) =>
+						line.trim(),
+					);
+			for (const line of previewLines.length > 0
+				? previewLines
+				: ["(no output)"]) {
+				text += `\n  ${theme.fg("dim", `⎿  ${line}`)}`;
+			}
+			if (!options.expanded && trimmedPreview.includes("\n")) {
+				text += `\n  ${theme.fg("dim", "Ctrl+O full notification")}`;
+			}
+			if (details.sessionLabel && details.sessionValue) {
+				text += `\n  ${theme.fg("muted", `${details.sessionLabel}: ${shortenPath(details.sessionValue)}`)}`;
+			}
+			return new Text(text, 0, 0);
+		},
+	);
 
-	pi.registerMessageRenderer<SubagentControlMessageDetails>(SUBAGENT_CONTROL_MESSAGE_TYPE, (message, _options, theme) => {
-		const details = message.details as SubagentControlMessageDetails | undefined;
-		if (!details?.event) return undefined;
-		const content = typeof message.content === "string" ? message.content : undefined;
-		return new SubagentControlNoticeComponent({ ...details, noticeText: formatSubagentControlNotice(details, content) }, theme);
-	});
+	pi.registerMessageRenderer<SubagentControlMessageDetails>(
+		SUBAGENT_CONTROL_MESSAGE_TYPE,
+		(message, _options, theme) => {
+			const details = message.details as
+				| SubagentControlMessageDetails
+				| undefined;
+			if (!details?.event) return undefined;
+			const content =
+				typeof message.content === "string" ? message.content : undefined;
+			return new SubagentControlNoticeComponent(
+				{
+					...details,
+					noticeText: formatSubagentControlNotice(details, content),
+				},
+				theme,
+			);
+		},
+	);
 
-	const executeSubagentCollapsed = (id: string, params: SubagentParamsLike, signal: AbortSignal, onUpdate: ((result: AgentToolResult<Details>) => void) | undefined, ctx: ExtensionContext) => {
+	const executeSubagentCollapsed = (
+		id: string,
+		params: SubagentParamsLike,
+		signal: AbortSignal,
+		onUpdate: ((result: AgentToolResult<Details>) => void) | undefined,
+		ctx: ExtensionContext,
+	) => {
 		if (ctx.hasUI) ctx.ui.setToolsExpanded(false);
 		return executor.execute(id, params, signal, onUpdate, ctx);
 	};
@@ -387,10 +506,17 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		},
 	});
 
-	function effectiveParallelTaskCount(tasks: Array<{ count?: unknown }> | undefined): number {
+	function effectiveParallelTaskCount(
+		tasks: Array<{ count?: unknown }> | undefined,
+	): number {
 		if (!tasks || tasks.length === 0) return 0;
 		return tasks.reduce((total, task) => {
-			const count = typeof task.count === "number" && Number.isInteger(task.count) && task.count >= 1 ? task.count : 1;
+			const count =
+				typeof task.count === "number" &&
+				Number.isInteger(task.count) &&
+				task.count >= 1
+					? task.count
+					: 1;
 			return total + count;
 		}, 0);
 	}
@@ -440,12 +566,18 @@ DIAGNOSTICS:
 				const target = args.agent || args.chainName || "";
 				return new Text(
 					`${theme.fg("toolTitle", theme.bold("subagent "))}${args.action}${target ? ` ${theme.fg("accent", target)}` : ""}`,
-					0, 0,
+					0,
+					0,
 				);
 			}
 			const isParallel = (args.tasks?.length ?? 0) > 0;
-			const parallelCount = effectiveParallelTaskCount(args.tasks as Array<{ count?: unknown }> | undefined);
-			const asyncLabel = args.async === true && !isParallel ? theme.fg("warning", " [async]") : "";
+			const parallelCount = effectiveParallelTaskCount(
+				args.tasks as Array<{ count?: unknown }> | undefined,
+			);
+			const asyncLabel =
+				args.async === true && !isParallel
+					? theme.fg("warning", " [async]")
+					: "";
 			if (args.chain?.length)
 				return new Text(
 					`${theme.fg("toolTitle", theme.bold("subagent "))}chain (${args.chain.length})${asyncLabel}`,
@@ -469,7 +601,6 @@ DIAGNOSTICS:
 			syncResultAnimation(result, context);
 			return renderSubagentResult(result, options, theme);
 		},
-
 	};
 
 	pi.registerTool(tool);
@@ -491,7 +622,10 @@ DIAGNOSTICS:
 	registerSubagentNotify(pi);
 
 	const existingVisibleControlNotices = globalStore[controlNoticeSeenStoreKey];
-	const visibleControlNotices = existingVisibleControlNotices instanceof Set ? existingVisibleControlNotices as Set<string> : new Set<string>();
+	const visibleControlNotices =
+		existingVisibleControlNotices instanceof Set
+			? (existingVisibleControlNotices as Set<string>)
+			: new Set<string>();
 	globalStore[controlNoticeSeenStoreKey] = visibleControlNotices;
 	const controlEventHandler = (payload: unknown) => {
 		handleSubagentControlNotice({
@@ -522,7 +656,10 @@ DIAGNOSTICS:
 		try {
 			const sessionFile = ctx.sessionManager.getSessionFile();
 			if (sessionFile) {
-				cleanupOldArtifacts(getArtifactsDir(sessionFile), DEFAULT_ARTIFACT_CONFIG.cleanupDays);
+				cleanupOldArtifacts(
+					getArtifactsDir(sessionFile),
+					DEFAULT_ARTIFACT_CONFIG.cleanupDays,
+				);
 			}
 		} catch {
 			// Cleanup failures should not block session lifecycle events.
