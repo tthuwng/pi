@@ -93,6 +93,20 @@ For async subagent reporting details, load and follow the `pi-subagents` skill. 
 
 **Defer decisions to the user.** When multiple reasonable paths exist, when scope is unclear, or when a choice affects behavior, architecture, data, security, UX, tests, or workflow, do not pick silently. Present the smallest useful decision with a recommendation and wait for approval. Prefer pausing too early over doing a large batch the user may need to interrupt.
 
+## Google Docs/Drive MCP Safety
+
+The `google_docs` MCP has write-capable and destructive Google Docs/Drive tools. Treat it as sensitive.
+
+Do not call any `google_docs_*` tool unless the user explicitly asks for Google Docs/Drive work in the current task. Before the first `google_docs_*` tool call in a task, state the exact tool, target document/file/folder if known, and whether the call is read-only or mutating, then wait for explicit user approval. Inspecting a `google_docs_*` tool schema is allowed without approval.
+
+Reading document contents is privacy-sensitive. Ask for explicit approval before reading contents unless the user provided the exact Google Doc URL/ID and asked to inspect it.
+
+Mutations require explicit per-action approval before every call, including creating, editing, appending, replacing, commenting, renaming, moving, copying, downloading, or changing permissions. Approval for one Google Docs/Drive action does not authorize subsequent actions.
+
+Destructive operations require exact per-action confirmation naming the target and operation before every call. This includes `deleteFile`, whole-document replacement, range deletion, table-row deletion, comment deletion, folder deletion/trashing, and any irreversible or bulk operation.
+
+Do not use Gmail or Calendar capabilities from the Google MCP package unless the user explicitly asks for Gmail or Calendar work in the current task.
+
 ## Tool Preferences
 
 ### tmux for interactive/long-running commands

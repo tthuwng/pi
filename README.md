@@ -113,13 +113,16 @@ Git mutations are intentionally blocked by guardrails. Staging, committing, push
 
 ## MCP Servers
 
-| Server       | Mode                     | Purpose                                             |
-| ------------ | ------------------------ | --------------------------------------------------- |
-| tree-sitter  | Direct tools, keep-alive | Code symbols, definitions, patterns, and maps       |
-| context7     | Lazy                     | Library/framework documentation lookup              |
-| nvim         | Lazy                     | Neovim buffers, cursor, selections, and diagnostics |
-| context-mode | Lazy                     | Large-output analysis and indexing                  |
-| notion       | Lazy remote OAuth        | Notion workspace access via official remote MCP     |
+| Server       | Mode                     | Purpose                                                           |
+| ------------ | ------------------------ | ----------------------------------------------------------------- |
+| tree-sitter  | Direct tools, keep-alive | Code symbols, definitions, patterns, and maps                     |
+| context7     | Lazy                     | Library/framework documentation lookup                            |
+| nvim         | Lazy                     | Neovim buffers, cursor, selections, and diagnostics               |
+| context-mode | Lazy                     | Large-output analysis and indexing                                |
+| notion       | Lazy remote OAuth        | Notion workspace access via official remote MCP                   |
+| google_docs  | Lazy local OAuth         | Google Docs/Drive read/write via local `@a-bonus/google-docs-mcp` |
+
+`google_docs` is sensitive. `AGENTS.md` requires explicit user approval before any `google_docs_*` tool call other than schema inspection, and per-action approval for every mutation or destructive operation.
 
 ## Setup
 

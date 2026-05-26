@@ -24,6 +24,14 @@
     "notion": {
       "url": "https://mcp.notion.com/mcp",
       "lifecycle": "lazy"
+    },
+    "google_docs": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -a; source /home/orestes/.config/pi/mcp-oauth/google_docs/env.sh; set +a; export npm_config_ignore_scripts=true; exec npx -y @a-bonus/google-docs-mcp@1.10.0"
+      ],
+      "lifecycle": "lazy"
     }
   }
 }

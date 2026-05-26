@@ -16,6 +16,7 @@ pi-crash.log
 # Pi onboarding/runtime state
 mcp-onboarding.json
 /mcp-oauth/notion
+/mcp-oauth/google_docs
 /intercom
 /.cache
 /compact-backups
