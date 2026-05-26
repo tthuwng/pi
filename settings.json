@@ -62,7 +62,6 @@
     "packages/pi-memory-md",
     "npm:@aliou/pi-guardrails",
     "npm:@aliou/pi-toolchain",
-    "packages/pi-rewind",
     "npm:pi-ask-user",
     {
       "source": "npm:context-mode",
