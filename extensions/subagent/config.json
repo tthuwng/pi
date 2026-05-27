@@ -1,14 +1,21 @@
 {
   "asyncByDefault": true,
+  "forceTopLevelAsync": false,
   "defaultSessionDir": "~/.pi/agent/sessions/subagent",
+  "maxSubagentDepth": 2,
   "control": {
     "enabled": true,
     "needsAttentionAfterMs": 60000,
     "activeNoticeAfterMs": 120000,
+    "failedToolAttemptsBeforeAttention": 3,
     "notifyOn": ["active_long_running", "needs_attention"],
     "notifyChannels": ["event", "async", "intercom"]
   },
   "intercomBridge": {
     "mode": "always"
+  },
+  "parallel": {
+    "maxTasks": 32,
+    "concurrency": 16
   }
 }
