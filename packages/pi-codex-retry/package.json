@@ -1,0 +1,40 @@
+{
+  "name": "pi-codex-retry",
+  "version": "0.1.0",
+  "description": "Pi extension that retries recoverable OpenAI Codex WebSocket transport failures while preserving streaming.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "codex",
+    "websocket",
+    "retry"
+  ],
+  "files": [
+    "src/",
+    "tests/",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run typecheck"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-ai": "^0.73.1",
+    "@mariozechner/pi-coding-agent": "^0.73.1",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
