@@ -11,13 +11,36 @@ import { createRequire } from "node:module";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { AgentConfig } from "../../agents/agents.ts";
 import { applyThinkingSuffix } from "../shared/pi-args.ts";
-import { injectSingleOutputInstruction, resolveSingleOutputPath, validateFileOnlyOutputMode } from "../shared/single-output.ts";
-import { buildChainInstructions, isParallelStep, resolveStepBehavior, suppressProgressForReadOnlyTask, writeInitialProgressFile, type ChainStep, type ResolvedStepBehavior, type SequentialStep, type StepOverrides } from "../../shared/settings.ts";
+import {
+	injectSingleOutputInstruction,
+	resolveSingleOutputPath,
+	validateFileOnlyOutputMode,
+} from "../shared/single-output.ts";
+import {
+	buildChainInstructions,
+	isParallelStep,
+	resolveStepBehavior,
+	suppressProgressForReadOnlyTask,
+	writeInitialProgressFile,
+	type ChainStep,
+	type ResolvedStepBehavior,
+	type SequentialStep,
+	type StepOverrides,
+} from "../../shared/settings.ts";
 import type { RunnerStep } from "../shared/parallel-utils.ts";
 import { resolvePiPackageRoot } from "../shared/pi-spawn.ts";
-import { buildSkillInjection, normalizeSkillInput, resolveSkillsWithFallback } from "../../agents/skills.ts";
+import {
+	buildSkillInjection,
+	normalizeSkillInput,
+	resolveSkillsWithFallback,
+} from "../../agents/skills.ts";
 import { resolveChildCwd } from "../../shared/utils.ts";
-import { buildModelCandidates, resolveModelCandidate, type AvailableModelInfo } from "../shared/model-fallback.ts";
+import {
+	buildModelCandidates,
+	resolveModelCandidate,
+	type AvailableModelInfo,
+} from "../shared/model-fallback.ts";
+import { formatChainStepLabel } from "../../shared/agent-labels.ts";
 import { resolveExpectedWorktreeAgentCwd } from "../shared/worktree.ts";
 import {
 	type ArtifactConfig,
@@ -37,12 +60,23 @@ const require = createRequire(import.meta.url);
 const piPackageRoot = resolvePiPackageRoot();
 const jitiCliPath: string | undefined = (() => {
 	const candidates: Array<() => string> = [
-		() => path.join(path.dirname(require.resolve("jiti/package.json")), "lib/jiti-cli.mjs"),
-		() => path.join(path.dirname(require.resolve("@mariozechner/jiti/package.json")), "lib/jiti-cli.mjs"),
+		() =>
+			path.join(
+				path.dirname(require.resolve("jiti/package.json")),
+				"lib/jiti-cli.mjs",
+			),
+		() =>
+			path.join(
+				path.dirname(require.resolve("@mariozechner/jiti/package.json")),
+				"lib/jiti-cli.mjs",
+			),
 		() => {
 			const piEntry = fs.realpathSync(process.argv[1]);
 			const piRequire = createRequire(piEntry);
-			return path.join(path.dirname(piRequire.resolve("@mariozechner/jiti/package.json")), "lib/jiti-cli.mjs");
+			return path.join(
+				path.dirname(piRequire.resolve("@mariozechner/jiti/package.json")),
+				"lib/jiti-cli.mjs",
+			);
 		},
 	];
 	for (const candidate of candidates) {
@@ -123,7 +157,7 @@ export function formatAsyncStartedMessage(headline: string): string {
 		"",
 		"The async run is detached. Do not run sleep timers or polling loops just to wait for it.",
 		"If you have independent work, continue that work. If you have nothing else to do until the async result arrives, end your turn now; Pi will deliver the completion when the run finishes.",
-		"Use subagent({ action: \"status\", id: \"...\" }) when you need the current status/result, or to inspect a blocked/stale run. Do not poll just to wait.",
+		'Use subagent({ action: "status", id: "..." }) when you need the current status/result, or to inspect a blocked/stale run. Do not poll just to wait.',
 	].join("\n");
 }
 
@@ -137,7 +171,11 @@ export function isAsyncAvailable(): boolean {
 /**
  * Spawn the async runner process
  */
-function spawnRunner(cfg: object, suffix: string, cwd: string): { pid?: number; error?: string } {
+function spawnRunner(
+	cfg: object,
+	suffix: string,
+	cwd: string,
+): { pid?: number; error?: string } {
 	if (!jitiCliPath) {
 		return { error: "jiti for TypeScript execution could not be found" };
 	}
@@ -154,7 +192,10 @@ function spawnRunner(cfg: object, suffix: string, cwd: string): { pid?: number; 
 	fs.mkdirSync(TEMP_ROOT_DIR, { recursive: true });
 	const cfgPath = getAsyncConfigPath(suffix);
 	fs.writeFileSync(cfgPath, JSON.stringify(cfg));
-	const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "subagent-runner.ts");
+	const runner = path.join(
+		path.dirname(fileURLToPath(import.meta.url)),
+		"subagent-runner.ts",
+	);
 
 	const proc = spawn(process.execPath, [jitiCliPath, runner, cfgPath], {
 		cwd,
@@ -172,7 +213,10 @@ function spawnRunner(cfg: object, suffix: string, cwd: string): { pid?: number; 
 	return { pid: proc.pid };
 }
 
-function formatAsyncStartError(mode: SubagentRunMode, message: string): AsyncExecutionResult {
+function formatAsyncStartError(
+	mode: SubagentRunMode,
+	message: string,
+): AsyncExecutionResult {
 	return {
 		content: [{ type: "text", text: message }],
 		isError: true,
@@ -215,9 +259,13 @@ export function executeAsyncChain(
 	const availableModels = params.availableModels;
 	const runnerCwd = resolveChildCwd(ctx.cwd, cwd);
 	const firstStep = chain[0];
-	const originalTask = params.task ?? (firstStep
-		? (isParallelStep(firstStep) ? firstStep.parallel[0]?.task : (firstStep as SequentialStep).task)
-		: undefined);
+	const originalTask =
+		params.task ??
+		(firstStep
+			? isParallelStep(firstStep)
+				? firstStep.parallel[0]?.task
+				: (firstStep as SequentialStep).task
+			: undefined);
 
 	for (const s of chain) {
 		const stepAgents = isParallelStep(s)
@@ -240,7 +288,12 @@ export function executeAsyncChain(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return {
-			content: [{ type: "text", text: `Failed to create async run directory '${asyncDir}': ${message}` }],
+			content: [
+				{
+					type: "text",
+					text: `Failed to create async run directory '${asyncDir}': ${message}`,
+				},
+			],
 			isError: true,
 			details: { mode: resultMode, results: [] },
 		};
@@ -258,39 +311,81 @@ export function executeAsyncChain(
 			...(s.model ? { model: s.model } : {}),
 		};
 	};
-	const buildSeqStep = (s: SequentialStep, sessionFile?: string, behaviorCwd?: string, progressPrecreated = false, resolvedBehavior?: ResolvedStepBehavior) => {
+	const buildSeqStep = (
+		s: SequentialStep,
+		sessionFile?: string,
+		behaviorCwd?: string,
+		progressPrecreated = false,
+		resolvedBehavior?: ResolvedStepBehavior,
+	) => {
 		const a = agents.find((x) => x.name === s.agent)!;
 		const stepCwd = resolveChildCwd(runnerCwd, s.cwd);
 		const instructionCwd = behaviorCwd ?? stepCwd;
-		const behavior = suppressProgressForReadOnlyTask(resolvedBehavior ?? resolveStepBehavior(a, buildStepOverrides(s), chainSkills), s.task, originalTask);
+		const behavior = suppressProgressForReadOnlyTask(
+			resolvedBehavior ??
+				resolveStepBehavior(a, buildStepOverrides(s), chainSkills),
+			s.task,
+			originalTask,
+		);
 		const skillNames = behavior.skills === false ? [] : behavior.skills;
-		const { resolved: resolvedSkills, missing: missingSkills } = resolveSkillsWithFallback(skillNames, stepCwd, ctx.cwd);
-		if (missingSkills.includes("pi-subagents")) throw new UnavailableSubagentSkillError(UNAVAILABLE_SUBAGENT_SKILL_ERROR);
+		const { resolved: resolvedSkills, missing: missingSkills } =
+			resolveSkillsWithFallback(skillNames, stepCwd, ctx.cwd);
+		if (missingSkills.includes("pi-subagents"))
+			throw new UnavailableSubagentSkillError(UNAVAILABLE_SUBAGENT_SKILL_ERROR);
 
 		let systemPrompt = a.systemPrompt?.trim() ?? "";
 		if (resolvedSkills.length > 0) {
 			const injection = buildSkillInjection(resolvedSkills);
-			systemPrompt = systemPrompt ? `${systemPrompt}\n\n${injection}` : injection;
+			systemPrompt = systemPrompt
+				? `${systemPrompt}\n\n${injection}`
+				: injection;
 		}
 
-		const readInstructions = buildChainInstructions({ ...behavior, output: false, progress: false }, instructionCwd, false);
-		const isFirstProgressAgent = behavior.progress && !progressPrecreated && !progressInstructionCreated;
+		const readInstructions = buildChainInstructions(
+			{ ...behavior, output: false, progress: false },
+			instructionCwd,
+			false,
+		);
+		const isFirstProgressAgent =
+			behavior.progress && !progressPrecreated && !progressInstructionCreated;
 		if (behavior.progress) progressInstructionCreated = true;
-		const progressInstructions = buildChainInstructions({ ...behavior, output: false, reads: false }, runnerCwd, isFirstProgressAgent);
-		const outputPath = resolveSingleOutputPath(behavior.output, ctx.cwd, instructionCwd);
-		const validationError = validateFileOnlyOutputMode(behavior.outputMode, outputPath, `Async step (${s.agent})`);
+		const progressInstructions = buildChainInstructions(
+			{ ...behavior, output: false, reads: false },
+			runnerCwd,
+			isFirstProgressAgent,
+		);
+		const outputPath = resolveSingleOutputPath(
+			behavior.output,
+			ctx.cwd,
+			instructionCwd,
+		);
+		const validationError = validateFileOnlyOutputMode(
+			behavior.outputMode,
+			outputPath,
+			`Async step (${s.agent})`,
+		);
 		if (validationError) throw new AsyncStartValidationError(validationError);
-		const task = injectSingleOutputInstruction(`${readInstructions.prefix}${s.task ?? "{previous}"}${progressInstructions.suffix}`, outputPath);
+		const task = injectSingleOutputInstruction(
+			`${readInstructions.prefix}${s.task ?? "{previous}"}${progressInstructions.suffix}`,
+			outputPath,
+		);
 
-		const primaryModel = resolveModelCandidate(behavior.model ?? a.model, availableModels, ctx.currentModelProvider);
+		const primaryModel = resolveModelCandidate(
+			behavior.model ?? a.model,
+			availableModels,
+			ctx.currentModelProvider,
+		);
 		return {
 			agent: s.agent,
 			task,
 			cwd: stepCwd,
 			model: applyThinkingSuffix(primaryModel, a.thinking),
-			modelCandidates: buildModelCandidates(behavior.model ?? a.model, a.fallbackModels, availableModels, ctx.currentModelProvider).map((candidate) =>
-				applyThinkingSuffix(candidate, a.thinking),
-			),
+			modelCandidates: buildModelCandidates(
+				behavior.model ?? a.model,
+				a.fallbackModels,
+				availableModels,
+				ctx.currentModelProvider,
+			).map((candidate) => applyThinkingSuffix(candidate, a.thinking)),
 			tools: a.tools,
 			extensions: a.extensions,
 			mcpDirectTools: a.mcpDirectTools,
@@ -302,7 +397,10 @@ export function executeAsyncChain(
 			outputPath,
 			outputMode: behavior.outputMode,
 			sessionFile,
-			maxSubagentDepth: resolveChildMaxSubagentDepth(maxSubagentDepth, a.maxSubagentDepth),
+			maxSubagentDepth: resolveChildMaxSubagentDepth(
+				maxSubagentDepth,
+				a.maxSubagentDepth,
+			),
 		};
 	};
 
@@ -318,10 +416,18 @@ export function executeAsyncChain(
 		steps = chain.map((s, stepIndex) => {
 			if (isParallelStep(s)) {
 				const parallelBehaviors = s.parallel.map((task) => {
-					const agent = agents.find((candidate) => candidate.name === task.agent)!;
-					return suppressProgressForReadOnlyTask(resolveStepBehavior(agent, buildStepOverrides(task), chainSkills), task.task, originalTask);
+					const agent = agents.find(
+						(candidate) => candidate.name === task.agent,
+					)!;
+					return suppressProgressForReadOnlyTask(
+						resolveStepBehavior(agent, buildStepOverrides(task), chainSkills),
+						task.task,
+						originalTask,
+					);
 				});
-				const progressPrecreated = parallelBehaviors.some((behavior) => behavior.progress);
+				const progressPrecreated = parallelBehaviors.some(
+					(behavior) => behavior.progress,
+				);
 				if (progressPrecreated) {
 					if (!s.worktree) writeInitialProgressFile(runnerCwd);
 					progressInstructionCreated = true;
@@ -331,12 +437,22 @@ export function executeAsyncChain(
 						let behaviorCwd: string | undefined;
 						if (s.worktree) {
 							try {
-								behaviorCwd = resolveExpectedWorktreeAgentCwd(runnerCwd, `${id}-s${stepIndex}`, taskIndex);
+								behaviorCwd = resolveExpectedWorktreeAgentCwd(
+									runnerCwd,
+									`${id}-s${stepIndex}`,
+									taskIndex,
+								);
 							} catch {
 								behaviorCwd = undefined;
 							}
 						}
-						return buildSeqStep(t, nextSessionFile(), behaviorCwd, progressPrecreated, parallelBehaviors[taskIndex]);
+						return buildSeqStep(
+							t,
+							nextSessionFile(),
+							behaviorCwd,
+							progressPrecreated,
+							parallelBehaviors[taskIndex],
+						);
 					}),
 					concurrency: s.concurrency,
 					failFast: s.failFast,
@@ -346,16 +462,24 @@ export function executeAsyncChain(
 			return buildSeqStep(s as SequentialStep, nextSessionFile());
 		});
 	} catch (error) {
-		if (error instanceof UnavailableSubagentSkillError || error instanceof AsyncStartValidationError) return formatAsyncStartError(resultMode, error.message);
+		if (
+			error instanceof UnavailableSubagentSkillError ||
+			error instanceof AsyncStartValidationError
+		)
+			return formatAsyncStartError(resultMode, error.message);
 		throw error;
 	}
 	let childTargetIndex = 0;
-	const childIntercomTargets = childIntercomTarget ? steps.flatMap((step) => {
-		if ("parallel" in step) {
-			return step.parallel.map((task) => childIntercomTarget(task.agent, childTargetIndex++));
-		}
-		return [childIntercomTarget(step.agent, childTargetIndex++)];
-	}) : undefined;
+	const childIntercomTargets = childIntercomTarget
+		? steps.flatMap((step) => {
+				if ("parallel" in step) {
+					return step.parallel.map((task) =>
+						childIntercomTarget(task.agent, childTargetIndex++),
+					);
+				}
+				return [childIntercomTarget(step.agent, childTargetIndex++)];
+			})
+		: undefined;
 
 	let spawnResult: { pid?: number; error?: string } = {};
 	try {
@@ -370,7 +494,9 @@ export function executeAsyncChain(
 				artifactsDir: artifactConfig.enabled ? artifactsDir : undefined,
 				artifactConfig,
 				share: shareEnabled,
-				sessionDir: sessionRoot ? path.join(sessionRoot, `async-${id}`) : undefined,
+				sessionDir: sessionRoot
+					? path.join(sessionRoot, `async-${id}`)
+					: undefined,
 				asyncDir,
 				sessionId: ctx.currentSessionId,
 				piPackageRoot,
@@ -387,11 +513,17 @@ export function executeAsyncChain(
 		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		return formatAsyncStartError(resultMode, `Failed to start async ${resultMode} '${id}': ${message}`);
+		return formatAsyncStartError(
+			resultMode,
+			`Failed to start async ${resultMode} '${id}': ${message}`,
+		);
 	}
 
 	if (spawnResult.error) {
-		return formatAsyncStartError(resultMode, `Failed to start async ${resultMode} '${id}': ${spawnResult.error}`);
+		return formatAsyncStartError(
+			resultMode,
+			`Failed to start async ${resultMode} '${id}': ${spawnResult.error}`,
+		);
 	}
 
 	if (spawnResult.pid) {
@@ -399,13 +531,21 @@ export function executeAsyncChain(
 		const firstAgents = isParallelStep(firstStep)
 			? firstStep.parallel.map((t) => t.agent)
 			: [(firstStep as SequentialStep).agent];
-		const parallelGroups: Array<{ start: number; count: number; stepIndex: number }> = [];
+		const parallelGroups: Array<{
+			start: number;
+			count: number;
+			stepIndex: number;
+		}> = [];
 		const flatAgents: string[] = [];
 		let flatStepStart = 0;
 		for (let stepIndex = 0; stepIndex < chain.length; stepIndex++) {
 			const step = chain[stepIndex]!;
 			if (isParallelStep(step)) {
-				parallelGroups.push({ start: flatStepStart, count: step.parallel.length, stepIndex });
+				parallelGroups.push({
+					start: flatStepStart,
+					count: step.parallel.length,
+					stepIndex,
+				});
 				flatAgents.push(...step.parallel.map((task) => task.agent));
 				flatStepStart += step.parallel.length;
 			} else {
@@ -424,7 +564,9 @@ export function executeAsyncChain(
 				? firstStep.parallel[0]?.task?.slice(0, 50)
 				: (firstStep as SequentialStep).task?.slice(0, 50),
 			chain: chain.map((s) =>
-				isParallelStep(s) ? `[${s.parallel.map((t) => t.agent).join("+")}]` : (s as SequentialStep).agent,
+				isParallelStep(s)
+					? `[${s.parallel.map((t) => t.agent).join("+")}]`
+					: (s as SequentialStep).agent,
 			),
 			chainStepCount: chain.length,
 			parallelGroups,
@@ -433,15 +575,24 @@ export function executeAsyncChain(
 		});
 	}
 
-	const chainDesc = chain
-		.map((s) =>
-			isParallelStep(s) ? `[${s.parallel.map((t) => t.agent).join("+")}]` : (s as SequentialStep).agent,
-		)
-		.join(" -> ");
+	const chainDesc = chain.map(formatChainStepLabel).join(" -> ");
 
 	return {
-		content: [{ type: "text", text: formatAsyncStartedMessage(`Async ${resultMode}: ${chainDesc} [${id}]`) }],
-		details: { mode: resultMode, runId: id, results: [], asyncId: id, asyncDir },
+		content: [
+			{
+				type: "text",
+				text: formatAsyncStartedMessage(
+					`Async ${resultMode}: ${chainDesc} [${id}]`,
+				),
+			},
+		],
+		details: {
+			mode: resultMode,
+			runId: id,
+			results: [],
+			asyncId: id,
+			asyncDir,
+		},
 	};
 }
 
@@ -474,8 +625,10 @@ export function executeAsyncSingle(
 	const runnerCwd = resolveChildCwd(ctx.cwd, cwd);
 	const skillNames = params.skills ?? agentConfig.skills ?? [];
 	const availableModels = params.availableModels;
-	const { resolved: resolvedSkills, missing: missingSkills } = resolveSkillsWithFallback(skillNames, runnerCwd, ctx.cwd);
-	if (missingSkills.includes("pi-subagents")) return formatAsyncStartError("single", UNAVAILABLE_SUBAGENT_SKILL_ERROR);
+	const { resolved: resolvedSkills, missing: missingSkills } =
+		resolveSkillsWithFallback(skillNames, runnerCwd, ctx.cwd);
+	if (missingSkills.includes("pi-subagents"))
+		return formatAsyncStartError("single", UNAVAILABLE_SUBAGENT_SKILL_ERROR);
 	let systemPrompt = agentConfig.systemPrompt?.trim() ?? "";
 	if (resolvedSkills.length > 0) {
 		const injection = buildSkillInjection(resolvedSkills);
@@ -488,7 +641,12 @@ export function executeAsyncSingle(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return {
-			content: [{ type: "text", text: `Failed to create async run directory '${asyncDir}': ${message}` }],
+			content: [
+				{
+					type: "text",
+					text: `Failed to create async run directory '${asyncDir}': ${message}`,
+				},
+			],
 			isError: true,
 			details: { mode: "single" as const, results: [] },
 		};
@@ -496,9 +654,16 @@ export function executeAsyncSingle(
 
 	const outputPath = resolveSingleOutputPath(params.output, ctx.cwd, runnerCwd);
 	const outputMode = params.outputMode ?? "inline";
-	const validationError = validateFileOnlyOutputMode(outputMode, outputPath, `Async single run (${agent})`);
+	const validationError = validateFileOnlyOutputMode(
+		outputMode,
+		outputPath,
+		`Async single run (${agent})`,
+	);
 	if (validationError) return formatAsyncStartError("single", validationError);
-	const taskWithOutputInstruction = injectSingleOutputInstruction(task, outputPath);
+	const taskWithOutputInstruction = injectSingleOutputInstruction(
+		task,
+		outputPath,
+	);
 	let spawnResult: { pid?: number; error?: string } = {};
 	try {
 		spawnResult = spawnRunner(
@@ -509,8 +674,20 @@ export function executeAsyncSingle(
 						agent,
 						task: taskWithOutputInstruction,
 						cwd: runnerCwd,
-						model: applyThinkingSuffix(resolveModelCandidate(params.modelOverride ?? agentConfig.model, availableModels, ctx.currentModelProvider), agentConfig.thinking),
-						modelCandidates: buildModelCandidates(params.modelOverride ?? agentConfig.model, agentConfig.fallbackModels, availableModels, ctx.currentModelProvider).map((candidate) =>
+						model: applyThinkingSuffix(
+							resolveModelCandidate(
+								params.modelOverride ?? agentConfig.model,
+								availableModels,
+								ctx.currentModelProvider,
+							),
+							agentConfig.thinking,
+						),
+						modelCandidates: buildModelCandidates(
+							params.modelOverride ?? agentConfig.model,
+							agentConfig.fallbackModels,
+							availableModels,
+							ctx.currentModelProvider,
+						).map((candidate) =>
 							applyThinkingSuffix(candidate, agentConfig.thinking),
 						),
 						tools: agentConfig.tools,
@@ -524,7 +701,10 @@ export function executeAsyncSingle(
 						outputPath,
 						outputMode,
 						sessionFile,
-						maxSubagentDepth: resolveChildMaxSubagentDepth(maxSubagentDepth, agentConfig.maxSubagentDepth),
+						maxSubagentDepth: resolveChildMaxSubagentDepth(
+							maxSubagentDepth,
+							agentConfig.maxSubagentDepth,
+						),
 					},
 				],
 				resultPath: path.join(RESULTS_DIR, `${id}.json`),
@@ -534,7 +714,9 @@ export function executeAsyncSingle(
 				artifactsDir: artifactConfig.enabled ? artifactsDir : undefined,
 				artifactConfig,
 				share: shareEnabled,
-				sessionDir: sessionRoot ? path.join(sessionRoot, `async-${id}`) : undefined,
+				sessionDir: sessionRoot
+					? path.join(sessionRoot, `async-${id}`)
+					: undefined,
 				asyncDir,
 				sessionId: ctx.currentSessionId,
 				piPackageRoot,
@@ -543,7 +725,9 @@ export function executeAsyncSingle(
 				worktreeSetupHookTimeoutMs,
 				controlConfig,
 				controlIntercomTarget,
-				childIntercomTargets: childIntercomTarget ? [childIntercomTarget(agent, 0)] : undefined,
+				childIntercomTargets: childIntercomTarget
+					? [childIntercomTarget(agent, 0)]
+					: undefined,
 				resultMode: "single",
 			},
 			id,
@@ -551,11 +735,17 @@ export function executeAsyncSingle(
 		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		return formatAsyncStartError("single", `Failed to start async run '${id}': ${message}`);
+		return formatAsyncStartError(
+			"single",
+			`Failed to start async run '${id}': ${message}`,
+		);
 	}
 
 	if (spawnResult.error) {
-		return formatAsyncStartError("single", `Failed to start async run '${id}': ${spawnResult.error}`);
+		return formatAsyncStartError(
+			"single",
+			`Failed to start async run '${id}': ${spawnResult.error}`,
+		);
 	}
 
 	if (spawnResult.pid) {
@@ -572,7 +762,12 @@ export function executeAsyncSingle(
 	}
 
 	return {
-		content: [{ type: "text", text: formatAsyncStartedMessage(`Async: ${agent} [${id}]`) }],
+		content: [
+			{
+				type: "text",
+				text: formatAsyncStartedMessage(`Async: ${agent} [${id}]`),
+			},
+		],
 		details: { mode: "single", runId: id, results: [], asyncId: id, asyncDir },
 	};
 }

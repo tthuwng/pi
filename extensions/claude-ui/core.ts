@@ -1608,6 +1608,7 @@ const EXTENSION_TOOL_WRAPPER_ALLOWLIST = new Set([
 	"ast_grep_search",
 	"ast_grep_replace",
 	"lsp_navigation",
+	"lsp_diagnostics",
 	"memory_search",
 	"memory_write",
 	"memory_list",
@@ -2457,6 +2458,14 @@ function webToolCallBody(name: string, args: unknown, theme: Theme): string {
 					: undefined,
 			]);
 		}
+		case "lsp_diagnostics":
+			return joinBodyParts(theme, [
+				compactPathList(args, theme),
+				argValueLabel(args, "severity"),
+				argArrayCount(args, "filePaths") !== undefined
+					? plural(argArrayCount(args, "filePaths") ?? 0, "file")
+					: undefined,
+			]);
 		case "memory_search":
 			return joinBodyParts(theme, [
 				argValueLabel(args, "query")
@@ -2532,6 +2541,8 @@ function webToolTitle(name: string): string {
 			return "AST Replace";
 		case "lsp_navigation":
 			return "LSP";
+		case "lsp_diagnostics":
+			return "LSP Diagnostics";
 		case "memory_search":
 			return "Memory Search";
 		case "memory_write":
@@ -3196,6 +3207,21 @@ function resultDetailSummary(
 				operation,
 				resultCount !== undefined ? plural(resultCount, "result") : undefined,
 				failureKind && failureKind !== "success" ? failureKind : undefined,
+			].filter(Boolean);
+			return parts.length > 0 ? parts.join(" · ") : "done";
+		}
+		case "lsp_diagnostics": {
+			const mode = detailString(details, "mode");
+			const totalDiagnostics = detailNumber(details, "totalDiagnostics");
+			const filesChecked = detailNumber(details, "filesChecked");
+			const filesScanned = detailNumber(details, "filesScanned");
+			const parts = [
+				mode,
+				totalDiagnostics !== undefined
+					? plural(totalDiagnostics, "diagnostic")
+					: undefined,
+				filesChecked !== undefined ? plural(filesChecked, "file") : undefined,
+				filesScanned !== undefined ? plural(filesScanned, "file") : undefined,
 			].filter(Boolean);
 			return parts.length > 0 ? parts.join(" · ") : "done";
 		}

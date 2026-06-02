@@ -14,6 +14,12 @@ When an agent has `fallbackModels` configured, pi-subagents can now retry these 
 
 Regression coverage: `test/unit/model-fallback.test.mjs`.
 
+## Async parallel start labels
+
+`src/shared/agent-labels.ts` keeps async start messages compact for large parallel groups. Repeated agents render as `N× agent`, so a top-level async parallel launch with 19 `delegate` children renders as `Async parallel: 19× delegate [id]` instead of `[delegate+delegate+...]`.
+
+Regression coverage: `test/unit/agent-labels.test.mjs`.
+
 ## Setup
 
 After copying or restoring this config on a new machine, run:

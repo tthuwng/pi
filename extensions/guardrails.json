@@ -1,11 +1,11 @@
 {
+  "$schema": "https://unpkg.com/@aliou/pi-guardrails@0.13.1/schema.json",
   "features": {
     "policies": true,
     "permissionGate": true,
     "pathAccess": false
   },
   "permissionGate": {
-    "explainCommands": false,
     "autoDenyPatterns": [
       "rm -rf /",
       "rm -rf ~",
@@ -38,10 +38,18 @@
       {
         "id": "no-env-files",
         "patterns": [
-          { "pattern": "**/.env" },
-          { "pattern": "**/.env.*" },
-          { "pattern": "**/credentials*" },
-          { "pattern": "**/secrets*" }
+          {
+            "pattern": "**/.env"
+          },
+          {
+            "pattern": "**/.env.*"
+          },
+          {
+            "pattern": "**/credentials*"
+          },
+          {
+            "pattern": "**/secrets*"
+          }
         ],
         "protection": "readOnly",
         "enabled": true
@@ -49,7 +57,9 @@
       {
         "id": "no-git-internals",
         "patterns": [
-          { "pattern": "**/.git/**" }
+          {
+            "pattern": "**/.git/**"
+          }
         ],
         "protection": "noAccess",
         "enabled": true

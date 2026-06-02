@@ -41,8 +41,8 @@ You don't need to describe what you're looking at.
 
 ## Context management
 
-- compact-advisor shows a non-blocking notice at 150k tokens
-- Core pi auto-compaction stays enabled and compact-advisor queues a follow-up continuation after threshold compaction
+- Core pi auto-compaction stays enabled
+- compact-advisor queues a follow-up continuation after threshold compaction
 - Use `/continue` manually to start fresh with context preserved in `.scratch/sessions/`
 - Research and plans go to `.scratch/` files, not into conversation context
 - Quick lookups stay in context, deeper research goes to files

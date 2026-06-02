@@ -29,14 +29,19 @@
     "reserveTokens": 24000,
     "keepRecentTokens": 20000
   },
-  "smartCompact": {
-    "profile": "aggressive",
-    "summaryModel": "openai-codex/gpt-5.5",
-    "segmentationModel": "openai-codex/gpt-5.3-codex-spark",
+  "slipstreamCompact": {
+    "enabled": true,
     "autoTrigger": true,
-    "autoTriggerTimeoutMs": 300000,
-    "minContextPercent": 75,
-    "backupEnabled": true
+    "triggerContextPercent": 0.6,
+    "slipstreamKeepRecentTokens": 50000,
+    "compactionStrategy": "direct",
+    "summaryModel": "openai-codex/gpt-5.5",
+    "judgeModel": "openai-codex/gpt-5.5",
+    "judgeThreshold": 7,
+    "repairAttempts": 3,
+    "rejectedSummaryMode": "ask",
+    "pendingTtlMs": 300000,
+    "artifactRoot": ".scratch/compactions"
   },
   "pi-memory-md": {
     "enabled": true,
@@ -64,13 +69,14 @@
     "npm:@aliou/pi-toolchain",
     "npm:pi-ask-user",
     {
-      "source": "npm:context-mode",
+      "source": "packages/context-mode",
       "skills": [
         "context-mode"
       ]
     },
     "npm:pi-intercom",
-    "npm:pi-smart-compact"
+    "packages/pi-slipstream-compact",
+    "packages/pi-codex-retry"
   ],
   "subagents": {
     "disableBuiltins": false

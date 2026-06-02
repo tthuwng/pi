@@ -1,15 +1,12 @@
 /**
  * Compact Advisor
  *
- * Shows a non-blocking context-size notice when usage exceeds a threshold.
- * Also keeps unattended threshold auto-compaction moving by queueing a small
+ * Keeps unattended threshold auto-compaction moving by queueing a small
  * follow-up continuation after Pi's successful compaction hook.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
-const THRESHOLD_TOKENS = 150_000;
-const COOLDOWN_MS = 5 * 60 * 1000;
 const COMPACTION_CANDIDATE_MAX_AGE_MS = 30_000;
 const AUTO_CONTINUE_MESSAGE = `Auto-compaction completed. Continue the active task from the compaction summary and recent messages.
 
@@ -46,7 +43,6 @@ function isSuccessfulAssistantEnd(event: { messages: unknown[] }) {
 }
 
 export default function (pi: ExtensionAPI) {
-	let lastSuggested = 0;
 	let thresholdCandidate: ThresholdCandidate | undefined;
 	let shouldAutoContinueAfterCompact = false;
 
@@ -68,16 +64,6 @@ export default function (pi: ExtensionAPI) {
 					tokens: usage.tokens,
 				};
 			}
-
-			if (!ctx.hasUI || !usage || usage.tokens < THRESHOLD_TOKENS) return;
-
-			if (now - lastSuggested < COOLDOWN_MS) return;
-			lastSuggested = now;
-
-			ctx.ui.notify(
-				`Context at ${Math.round(usage.tokens / 1000)}k tokens. Core auto-compaction is enabled; use /compact or /continue manually if you want an earlier reset.`,
-				"info",
-			);
 		} catch (error) {
 			if (isStaleContextError(error)) return;
 			throw error;

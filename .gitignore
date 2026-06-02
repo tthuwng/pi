@@ -13,6 +13,11 @@ pi-crash.log
 # Dependency installs (directories and symlinks)
 **/node_modules
 
+# Python tooling caches
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
 # Pi onboarding/runtime state
 mcp-onboarding.json
 /mcp-oauth/notion
