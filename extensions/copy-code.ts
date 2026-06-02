@@ -1,9 +1,43 @@
-import type { AssistantMessage } from "@mariozechner/pi-ai";
-import {
-	copyToClipboard,
-	type ExtensionAPI,
-	type ExtensionCommandContext,
-} from "@mariozechner/pi-coding-agent";
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
+import { copyToClipboard } from "@mariozechner/pi-coding-agent";
+
+interface MessageContent {
+	type: string;
+	text?: string;
+}
+
+interface AssistantMessage {
+	role: "assistant";
+	content: MessageContent[];
+}
+
+interface SessionEntry {
+	type: string;
+	message?: {
+		role?: string;
+		content?: MessageContent[];
+	};
+}
+
+interface ExtensionCommandContext {
+	hasUI: boolean;
+	sessionManager: { getBranch(): SessionEntry[] };
+	ui: {
+		notify(message: string, level: "error" | "info"): void;
+		select(prompt: string, options: string[]): Promise<string | undefined>;
+	};
+	waitForIdle(): Promise<void>;
+}
+
+interface ExtensionAPI {
+	registerCommand(
+		name: string,
+		command: {
+			description: string;
+			handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
+		},
+	): void;
+}
 
 interface CodeBlock {
 	label: string;
@@ -25,41 +59,6 @@ function isShellLanguage(language: string): boolean {
 	].includes(language.toLowerCase());
 }
 
-function splitShellCommands(code: string): string[] {
-	const rawCommands: string[] = [];
-	let current = "";
-
-	for (const rawLine of code.split(/\r?\n/)) {
-		const line = rawLine.trimEnd();
-		if (!line.trim() || line.trimStart().startsWith("#")) continue;
-
-		if (current) current += " ";
-		const continued = /(^|[^\\])\\$/.test(line);
-		current += continued ? line.replace(/\\\s*$/, "").trim() : line.trim();
-
-		if (!continued && current.trim()) {
-			rawCommands.push(current.trim());
-			current = "";
-		}
-	}
-
-	if (current.trim()) rawCommands.push(current.trim());
-
-	const commands: string[] = [];
-	let cdCommand: string | undefined;
-	for (const command of rawCommands) {
-		if (/^cd\s+/.test(command) && !/[;&|]/.test(command)) {
-			cdCommand = command;
-			continue;
-		}
-
-		commands.push(cdCommand ? `(${cdCommand} && ${command})` : command);
-	}
-
-	if (commands.length === 0 && cdCommand) commands.push(cdCommand);
-	return commands;
-}
-
 function extractFencedCodeBlocks(
 	text: string,
 ): Array<Omit<CodeBlock, "label">> {
@@ -72,17 +71,11 @@ function extractFencedCodeBlocks(
 		const code = (match[2] ?? "").replace(/\r?\n$/, "");
 		if (!code.trim()) continue;
 
-		if (isShellLanguage(language)) {
-			for (const command of splitShellCommands(code)) {
-				blocks.push({
-					language: language || "bash",
-					code: command,
-					isShell: true,
-				});
-			}
-		} else {
-			blocks.push({ language, code, isShell: false });
-		}
+		blocks.push({
+			language: language || (isShellLanguage(language) ? "bash" : ""),
+			code,
+			isShell: isShellLanguage(language),
+		});
 	}
 
 	return blocks;
@@ -107,6 +100,12 @@ function preview(code: string): string {
 	return text.length > 72 ? `${text.slice(0, 69)}...` : text;
 }
 
+function isAssistantMessage(
+	message: SessionEntry["message"],
+): message is AssistantMessage {
+	return message?.role === "assistant" && Array.isArray(message.content);
+}
+
 function collectCodeBlocks(
 	ctx: ExtensionCommandContext,
 	options: { includeRecent: boolean; includeCode: boolean },
@@ -119,7 +118,7 @@ function collectCodeBlocks(
 		if (entry.type !== "message") continue;
 
 		const message = entry.message;
-		if (!("role" in message) || message.role !== "assistant") continue;
+		if (!isAssistantMessage(message)) continue;
 
 		candidates.push(...extractFencedCodeBlocks(assistantText(message)));
 		if (!options.includeRecent) break;
