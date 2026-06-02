@@ -52,7 +52,8 @@ For code quality reviews, actively check whether the diff:
 - uses `any`, `unknown`, casts, loose object shapes, or unnecessary optionality to hide a real invariant;
 - makes related state updates less atomic or easier to leave half-applied;
 - grows a file past roughly 1000 lines or adds enough code to expose an obvious decomposition boundary;
-- introduces thin wrappers, pass-through helpers, or generic mechanisms that add indirection without simplifying the caller.
+- introduces thin wrappers, pass-through helpers, or generic mechanisms that add indirection without simplifying the caller;
+- leaves AI-slop patterns in the diff: unnecessary comments, abnormal defensive checks, cast-to-escape type errors, deeply nested logic that local style would normally flatten, or generic wrappers that do not simplify callers.
 
 Treat these as findings only when you can cite concrete impact: harder correctness reasoning, likely regression risk, broken ownership boundary, duplicated behavior, testability loss, or operational/debugging risk.
 
@@ -104,6 +105,16 @@ Review a PR or issue by understanding the context, then verifying:
 - Changes are minimal and focused.
 - No regressions are introduced.
 - Tests and docs are updated as needed.
+
+### 8. Review feedback evaluation
+
+Evaluate review feedback as evidence, not as an order to obey blindly:
+
+- Verify each feedback item against the code, tests, plan, and configured constraints.
+- Classify valid feedback as `must-fix`, `should-fix`, `nit`, `note`, or `needs-discussion`.
+- Treat invalid feedback as a `note` explaining why it conflicts with requirements, violates YAGNI, or lacks necessary context.
+- Use `needs-discussion` when applying the feedback would change behavior, architecture, tests, security, or scope.
+- Do not let review feedback trigger implementation or broaden approved scope.
 
 ## Working rules
 

@@ -9,13 +9,31 @@ Use the `gh` CLI for all GitHub operations. Never use the GitHub MCP server.
 
 ## Common Operations
 
-- `gh pr create --title "..." --body-file /tmp/pr_body.md`
-- `gh pr list`, `gh pr view <number>`, `gh pr checks <number>`
-- `gh issue list`, `gh issue create`, `gh issue view <number>`
-- `gh run list`, `gh run view <id>`, `gh run watch <id>`
-- `gh api repos/{owner}/{repo}/...` for anything else
+Read-only PR and CI inspection:
+
+- `gh pr list`, `gh pr view <number>`
+- `gh pr view --json number,url,headRefName,baseRefName,state`
+- `gh pr checks --json name,bucket,state,workflow,link`
+- `gh pr checks --watch --fail-fast` when checks are pending
+- `gh run list`, `gh run view <id>`, `gh run view <id> --log-failed`, `gh run watch <id>`
+- `gh api repos/{owner}/{repo}/pulls/{number}/comments` for PR review comments
+- `gh api repos/{owner}/{repo}/issues/{number}/comments` for PR discussion comments
+- `gh issue list`, `gh issue view <number>`
+- `gh api repos/{owner}/{repo}/...` for other read-only API queries
+
+Mutating operations require the user to explicitly ask for that exact action. One requested GitHub mutation does not authorize another. This skill documents command categories; it does not permit any mutation blocked by AGENTS.md or project rules:
+
+- creating a PR with `gh pr create --title "..." --body-file /tmp/pr_body.md`
+- editing a PR description/body
+- posting a PR comment
+- submitting a PR review
+- creating an inline PR review comment
+- creating an issue
+- posting an issue comment
 
 ## PR Description Format
+
+Use this format when drafting PR text or when the user explicitly asks to update a PR description/body:
 
 ```
 ## What changed
@@ -28,9 +46,16 @@ Motivation, context, problem being solved.
 Tests added/updated, manual checks, commands run.
 ```
 
+When a PR is large or noisy, add reviewer guidance:
+
+- separate core behavior files from generated, mechanical, or formatting-only files;
+- name the best reviewer entry points;
+- call out risky behavior changes, migration/order dependencies, rollout notes, and test coverage;
+- recommend splitting the PR instead of polishing the description when the diff is too large or mixed to review safely.
+
 ## Rules
 
 - Always use `--body-file` for multi-line PR bodies (avoids shell escaping issues).
-- You may update PR descriptions, post PR comments, submit PR reviews, and create inline PR review comments when the user explicitly asks.
-- NEVER push, merge, close, reopen, label, assign, request reviewers, change PR bases, or create PRs without explicit user approval for that exact operation.
+- You may update a PR description/body, post a PR comment, submit a PR review, or create an inline PR review comment only when the user explicitly asks for that exact action.
+- NEVER push, merge, close, reopen, label, assign, request reviewers, change PR bases, or create PRs unless the user explicitly asks for that exact operation.
 - Check `gh auth status` if operations fail.

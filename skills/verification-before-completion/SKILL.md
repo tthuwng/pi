@@ -19,6 +19,21 @@ Before saying work is done, fixed, passing, ready, clean, or complete:
 
 If you cannot run a check, say so. Do not convert inability to verify into confidence.
 
+## Claim Verification
+
+When the user asks to verify a specific claim, restate it in falsifiable form before testing it.
+
+Use this loop:
+
+1. State the claim with condition, expected result, metric, or threshold.
+2. Pick the smallest local surface that can disprove it.
+3. Capture baseline evidence when available without mutating git state. Baseline may be existing failure output, logs, screenshots, a repro before the latest edit, prior artifacts, or a user-run command.
+4. Capture treatment evidence after the relevant change using the same command, data, environment, and measurement surface when practical.
+5. Compare artifacts directly.
+6. Return one verdict: `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE`.
+
+Do not use claim verification for vague claims such as “cleaner” or “better architecture”; ask for a measurable claim or use review mode instead.
+
 ## Evidence by Claim
 
 | Claim                   | Required evidence                                            |
@@ -27,9 +42,12 @@ If you cannot run a check, say so. Do not convert inability to verify into confi
 | Typecheck/lint clean    | Fresh command output after edits                             |
 | Bug fixed               | Reproduction or regression test passes                       |
 | Feature complete        | Requirements/task checklist plus relevant tests              |
+| CLI/TUI behavior        | Repo-native harness, tmux/PTY transcript, or screen capture showing the expected state change |
 | Subagent completed task | Parent inspected subagent summary, diff, and verification    |
 | Config/skill valid      | Frontmatter/path/reference validation or explicit inspection |
 | No behavior change      | Diff inspection showing prompt/docs/config-only change       |
+
+For interactive CLI/TUI claims, prefer the repo's own harness first. If none exists, use a bounded tmux or PTY probe: capture the screen before acting, send one action, wait for a concrete prompt or screen pattern, then capture the result. Prefer deterministic waits over sleeps.
 
 ## Subagent Verification
 
@@ -54,6 +72,15 @@ Verification: <commands/evidence and results>
 Review: <review status or not run>
 Risks: <remaining risks or none known>
 Next: <user-run git/PR steps if needed>
+```
+
+For explicit claim verification, include the verdict:
+
+```text
+Verdict: VERIFIED | NOT VERIFIED | INCONCLUSIVE
+Claim: <falsifiable claim>
+Evidence: <baseline/treatment/comparison>
+Confounds: <none or specific limitation>
 ```
 
 ## Red Flags

@@ -47,6 +47,7 @@ Review:
    - loose type or object boundaries hiding invariants,
    - non-atomic related state updates,
    - unnecessary wrappers or generic mechanisms,
+   - AI-slop patterns such as unnecessary comments, abnormal defensive checks, cast-to-escape typing, or nesting/wrappers inconsistent with local style,
    - files crossing roughly 1000 lines without a decomposition reason.
 
 Do not relitigate approved product scope unless the implementation creates risk.
@@ -74,7 +75,8 @@ For each item:
    - `must-fix`: correctness, security, broken tests, requirement mismatch, unhandled critical edge case.
    - `should-fix`: maintainability, likely bug, insufficient test coverage, avoidable complexity.
    - `nit`: naming, wording, minor formatting, small cleanup.
-   - `invalid/needs-discussion`: conflicts with requirements, violates YAGNI, unclear, or reviewer lacks context.
+   - `note`: useful observation that does not require action, including feedback that is invalid because it conflicts with requirements, violates YAGNI, or lacks necessary context.
+   - `needs-discussion`: unclear feedback or feedback that would change behavior, architecture, tests, security, or scope.
 4. Implement valid fixes in severity order.
 5. Push back with evidence when feedback is wrong or conflicts with approved scope.
 6. Ask one focused question when feedback changes behavior, architecture, tests, security, or scope.

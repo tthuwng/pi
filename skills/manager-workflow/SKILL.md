@@ -191,8 +191,9 @@ For approved plan execution with subagents:
 
 - Run required checks and report evidence.
 - Verify worker/subagent claims from actual output, diffs, or rerun checks before reporting completion.
-- If the current branch has an open PR, load the github skill and update the existing PR description with what changed and how it was tested.
-- Update, merge, or append to the existing PR body; never overwrite unrelated content.
+- If the current branch has an open PR and the user explicitly asks to update the PR description/body, load the github skill and update only that PR description/body with what changed and how it was tested.
+- Without an explicit user request for that exact PR description/body update, draft suggested PR text instead of mutating GitHub.
+- When performing a requested PR body update, merge or append; never overwrite unrelated content.
 
 ## .scratch/ Workspace
 
