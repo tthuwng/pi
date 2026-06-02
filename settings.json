@@ -62,16 +62,26 @@
     "extensions/claude-ui",
     "packages/pi-subagents",
     "npm:pi-mcp-adapter",
-    "npm:pi-lens",
+    {
+      "source": "npm:pi-lens",
+      "skills": [
+        "!ast-grep",
+        "!lsp-navigation"
+      ]
+    },
     "npm:pi-web-access",
     "packages/pi-memory-md",
     "npm:@aliou/pi-guardrails",
     "npm:@aliou/pi-toolchain",
-    "npm:pi-ask-user",
+    {
+      "source": "npm:pi-ask-user",
+      "skills": []
+    },
     {
       "source": "packages/context-mode",
       "skills": [
-        "context-mode"
+        "context-mode",
+        "ctx-doctor"
       ]
     },
     "npm:pi-intercom",

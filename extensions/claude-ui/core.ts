@@ -68,7 +68,8 @@ import {
 
 type RenderFn = (width: number) => string[];
 type WorkingState = "inactive" | "working" | "streaming";
-type GetWorkingState = () => WorkingState;
+type WorkingStateSnapshot = { state: WorkingState; elapsedSeconds: number };
+type GetWorkingState = () => WorkingStateSnapshot;
 type SessionCostCacheEntry = {
 	length: number;
 	lastEntry: SessionEntry | undefined;
@@ -1104,6 +1105,11 @@ function expandLocalImageLines(lines: string[], width: number): string[] {
 }
 
 function addAssistantPrefix(line: string): string {
+	if (!ASSISTANT_RESPONSE_PREFIX) {
+		return line.startsWith(OSC133_ZONE_START)
+			? `${OSC133_ZONE_START}${line.slice(OSC133_ZONE_START.length).trimStart()}`
+			: line.trimStart();
+	}
 	if (line.startsWith(`${OSC133_ZONE_START}${ASSISTANT_RESPONSE_PREFIX}`)) {
 		return line;
 	}
@@ -1384,8 +1390,8 @@ function patchToolExecutionRenderers(): void {
 	prototype.__claudeToolExecutionPatched = true;
 }
 
-function statusLabel(label: string): string {
-	return label;
+function statusLabel(label: string, elapsedSeconds?: number): string {
+	return elapsedSeconds === undefined ? label : `${label} (${elapsedSeconds}s)`;
 }
 
 class ClaudeEditor extends CustomEditor {
@@ -1430,11 +1436,15 @@ class ClaudeEditor extends CustomEditor {
 	}
 
 	private workingLine(width: number): string | undefined {
-		switch (this.getWorkingState()) {
+		const { state, elapsedSeconds } = this.getWorkingState();
+		switch (state) {
 			case "working":
 				return fitLine(this.ruleColor(`⏺ ${statusLabel("Thinking")}`), width);
 			case "streaming":
-				return fitLine(this.ruleColor(`⏺ ${statusLabel("Streaming")}`), width);
+				return fitLine(
+					this.ruleColor(statusLabel("Streaming", elapsedSeconds)),
+					width,
+				);
 			case "inactive":
 				return undefined;
 		}
@@ -1579,7 +1589,7 @@ const DETAIL_INDENT = "    ";
 const DIFF_ADDITION_BG = "\x1b[48;2;0;70;0m";
 const DIFF_REMOVAL_BG = "\x1b[48;2;80;35;25m";
 const DIFF_BG_RESET = "\x1b[49m";
-const ASSISTANT_RESPONSE_PREFIX = "\x1b[97m●\x1b[39m ";
+const ASSISTANT_RESPONSE_PREFIX = "";
 const OSC133_ZONE_START = "\x1b]133;A\x07";
 const OSC133_ZONE_END = "\x1b]133;B\x07";
 const OSC133_ZONE_FINAL = "\x1b]133;C\x07";
@@ -4436,11 +4446,19 @@ export default function (pi: ExtensionAPI) {
 	let activeCtx: ExtensionContext | undefined;
 	let activeTui: TUI | undefined;
 	let workingState: WorkingState = "inactive";
+	let workingStateStartedAt: number | undefined;
 	let statusAnimationTimer: ReturnType<typeof setInterval> | undefined;
 	let footerRenderRevision = 0;
 	const footerDisposers = new Set<() => void>();
 
-	const getWorkingState = () => workingState;
+	const getWorkingState = (): WorkingStateSnapshot => {
+		const elapsedSeconds =
+			workingStateStartedAt === undefined
+				? 0
+				: Math.max(0, Math.floor((Date.now() - workingStateStartedAt) / 1000));
+
+		return { state: workingState, elapsedSeconds };
+	};
 	const bumpFooterRenderRevision = () => {
 		footerRenderRevision += 1;
 	};
@@ -4451,7 +4469,9 @@ export default function (pi: ExtensionAPI) {
 		statusAnimationTimer = undefined;
 	};
 	const startStatusAnimation = () => {
-		requestRender();
+		if (statusAnimationTimer) return;
+		statusAnimationTimer = setInterval(requestRender, 1000);
+		(statusAnimationTimer as { unref?: () => void }).unref?.();
 	};
 	const isStaleContextError = (error: unknown) =>
 		error instanceof Error &&
@@ -4486,9 +4506,10 @@ export default function (pi: ExtensionAPI) {
 	const setWorkingState = (state: WorkingState, ctx?: ExtensionContext) => {
 		if (ctx && safeHasUI(ctx)) hideBuiltInWorking(ctx);
 		if (workingState === state) return;
-		if (state === "inactive") stopStatusAnimation();
-		else startStatusAnimation();
 		workingState = state;
+		workingStateStartedAt = state === "inactive" ? undefined : Date.now();
+		if (state === "streaming") startStatusAnimation();
+		else stopStatusAnimation();
 		requestRender();
 	};
 	const reconcileIdleState = () => {
@@ -4704,5 +4725,6 @@ export default function (pi: ExtensionAPI) {
 		activeCtx = undefined;
 		pendingToolCalls.clear();
 		workingState = "inactive";
+		workingStateStartedAt = undefined;
 	});
 }
