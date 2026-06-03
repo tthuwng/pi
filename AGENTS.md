@@ -151,7 +151,7 @@ Never use bash for: grep (use Grep tool), cat (use Read tool), find (use Glob to
 
 When bash is necessary, keep it bounded and single-purpose. Avoid long pipelines that mix discovery, mutation, formatting, and cleanup. Do not use `rm`/`rm -rf` for cleanup unless the user explicitly approved that exact deletion scope.
 
-For changed files, prefer targeted read-only diffs before manual reads: `git diff -- <path>`, `git diff -U20 -- <path>`, or `git show -- <path>` for committed context. Review the changed hunks first, then use tree-sitter/LSP or narrow reads only for surrounding code needed to understand the diff.
+For changed files, prefer targeted read-only diffs before manual reads, but make them total effective diffs. Use `git diff HEAD -- <path>` or `git diff -U20 HEAD -- <path>` for tracked files so staged and unstaged changes are both included. Raw `git diff -- <path>` only shows unstaged tracked changes; `git diff --cached -- <path>` only shows staged changes. When untracked files are in scope, list them with `git ls-files --others --exclude-standard` and read/review their contents separately because Git cannot include untracked file bodies in normal diffs. Review the changed hunks first, then use tree-sitter/LSP or narrow reads only for surrounding code needed to understand the diff.
 
 ### Resource-heavy commands
 

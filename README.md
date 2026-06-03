@@ -120,8 +120,11 @@ Git mutations are intentionally blocked by guardrails. Staging, committing, push
 | context-mode | Lazy                     | Large-output analysis and indexing                                  |
 | notion       | Lazy remote OAuth        | Notion workspace access via official remote MCP                     |
 | google_docs  | Lazy local OAuth         | Google Docs/Drive read/write via local `@a-bonus/google-docs-mcp`   |
+| slack        | Lazy local user OAuth    | Slack read/search/write via local `slack-mcp-server`                |
 
 `google_docs` is sensitive. `AGENTS.md` requires explicit user approval before any `google_docs_*` tool call other than schema inspection, and per-action approval for every mutation or destructive operation.
+
+`slack` reads secrets from ignored `mcp-oauth/slack/env.sh`. Use a Slack user OAuth token (`SLACK_MCP_XOXP_TOKEN`) to post as yourself, and prefer `SLACK_MCP_ADD_MESSAGE_TOOL` with explicit channel IDs instead of unrestricted posting. This config runs a locally patched `~/.local/bin/slack-mcp-server-patched`; the patch is saved at `packages/slack-mcp-server-channel-types.patch` and adds `SLACK_MCP_CHANNEL_TYPES`. Set `SLACK_MCP_CHANNEL_TYPES=public_channel` to avoid private-channel, DM, and group-DM read scopes during startup channel caching. With that setting, the expected user scopes are `chat:write`, `channels:read`, `channels:history`, `users:read`, and `search:read`.
 
 ## Setup
 

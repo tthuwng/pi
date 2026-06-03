@@ -22,6 +22,8 @@ __pycache__/
 mcp-onboarding.json
 /mcp-oauth/notion
 /mcp-oauth/google_docs
+/mcp-oauth/slack
 /intercom
 /.cache
 /compact-backups
+/mcp-oauth/sha256-31f61ed3e6e210c5f3f729345968bdbcf267cf0fbfec31eac02ed9966ba1d067/tokens.json
