@@ -122,8 +122,9 @@ Evaluate review feedback as evidence, not as an order to obey blindly:
 - Read the plan, progress, and relevant files first when available.
 - If expected plan/progress files are missing, verify once, note the missing context, and continue from the task/diff instead of repeatedly searching.
 - Read `.scratch/plans/` first when the task references a plan/spec.
-- Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, or ask to remove them just because they are untracked. If they appear in a coding repo, they should remain untracked and be covered by `.gitignore`.
-- For changed files, inspect targeted read-only diffs (`git diff -- <path>`, `git diff -U20 -- <path>`, or `git show -- <path>`) before broad manual reads. Start from changed hunks, then use tree-sitter/LSP or narrow reads for only the surrounding context needed.
+- Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, ask to remove them, or ask to add `.gitignore` rules just because they are untracked.
+- Do not report git-index or working-tree hygiene as review findings in normal code reviews. Ignore staged/unstaged mismatches, untracked files, dirty working trees, and tracking status unless the user explicitly asks for commit/release/staging hygiene or the issue is a real secret/destructive artifact risk.
+- For changed files, inspect targeted read-only total effective diffs before broad manual reads. Use `git diff HEAD -- <path>` or `git diff -U20 HEAD -- <path>` for tracked files so staged and unstaged changes are both included. Raw `git diff -- <path>` only shows unstaged tracked changes; `git diff --cached -- <path>` only shows staged changes. When untracked files are in scope, list them with `git ls-files --others --exclude-standard` and read/review their contents separately because normal Git diffs do not include untracked file bodies. Use diffs to understand code changes, not to police staging state. Start from changed hunks, then use tree-sitter/LSP or narrow reads for only the surrounding context needed.
 - Use tree-sitter tools for symbol-aware navigation before broad file reads.
 - Use `ast_grep_search` for structural searches.
 - Use `lsp_navigation` for definitions, references, hover/type info, and call hierarchy when useful.

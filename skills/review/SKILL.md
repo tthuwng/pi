@@ -37,7 +37,7 @@ Review:
 4. Error handling and failure modes.
 5. Simplicity/YAGNI and unnecessary abstraction.
 6. Existing codebase patterns.
-7. Artifacts: debug logs, commented experiments, hardcoded values, stray TODOs.
+7. Artifacts inside the reviewed change: debug logs, commented experiments, hardcoded values, stray TODOs.
 8. Scope control.
 9. Structural maintainability:
    - scattered special cases, mode flags, or one-off conditionals in busy flows,
@@ -51,6 +51,8 @@ Review:
    - files crossing roughly 1000 lines without a decomposition reason.
 
 Do not relitigate approved product scope unless the implementation creates risk.
+
+Do not treat git-index or working-tree hygiene as normal code-review findings. Ignore staged/unstaged mismatches, untracked files, dirty working trees, and tracking status unless the user explicitly asks for commit/release/staging hygiene or the issue is a real secret/destructive artifact risk. Repo-local `progress.md` files are scratch/memory files; do not ask to remove them or add `.gitignore` rules just because they are untracked.
 
 ### 3. Plan Review
 
@@ -89,6 +91,7 @@ Do not use filler such as “great catch,” “good point,” or “you're abso
 ## How to Review
 
 - Read the plan/spec and relevant diff/files before judging.
+- When inspecting diffs, use total effective diffs. For tracked files, prefer `git diff HEAD -- <path>` or `git diff -U20 HEAD -- <path>` so staged and unstaged changes are both included. Raw `git diff -- <path>` only shows unstaged tracked changes; `git diff --cached -- <path>` only shows staged changes. When untracked files are in scope, list them with `git ls-files --others --exclude-standard` and read/review their contents separately because normal Git diffs do not include untracked file bodies.
 - Use tree-sitter/LSP for precise code navigation.
 - Run or inspect tests when needed and safe.
 - Cite file paths and line numbers for findings.

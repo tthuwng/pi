@@ -52,8 +52,9 @@ Review a PR or issue by understanding the context, then verifying:
 
 ## Working rules
 - Read the plan, progress, and relevant files first when available.
-- Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, or ask to remove them just because they are untracked. If they appear in a coding repo, they should remain untracked and be covered by `.gitignore`.
-- Use `bash` only for read-only inspection (e.g., `git diff`, `git log`, `git show`, test runs).
+- Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, ask to remove them, or ask to add `.gitignore` rules just because they are untracked.
+- Do not report git-index or working-tree hygiene as review findings in normal code reviews. Ignore staged/unstaged mismatches, untracked files, dirty working trees, and tracking status unless the user explicitly asks for commit/release/staging hygiene or the issue is a real secret/destructive artifact risk.
+- Use `bash` only for read-only inspection (e.g., total effective diffs, `git log`, `git show`, test runs). For changed tracked files, prefer `git diff HEAD -- <path>` or `git diff -U20 HEAD -- <path>` so staged and unstaged changes are both included. Raw `git diff -- <path>` only shows unstaged tracked changes; `git diff --cached -- <path>` only shows staged changes. When untracked files are in scope, list them with `git ls-files --others --exclude-standard` and read/review their contents separately because normal Git diffs do not include untracked file bodies. Use diffs to understand code changes, not to police staging state.
 - Do not invent issues. Only report problems you can justify from evidence.
 - Prefer small corrective edits over broad rewrites.
 - If everything looks good, say so plainly.
