@@ -85,7 +85,7 @@
       ]
     },
     "npm:pi-intercom",
-    "packages/pi-slipstream-compact",
+    "npm:pi-slipstream-compact",
     "packages/pi-codex-retry"
   ],
   "subagents": {
