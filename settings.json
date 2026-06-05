@@ -87,7 +87,8 @@
     "npm:pi-intercom",
     "packages/pi-codex-retry",
     "packages/pi-slipstream-compact",
-    "packages/pi-goal-supervisor"
+    "packages/pi-goal-supervisor",
+    "npm:pisesh"
   ],
   "subagents": {
     "disableBuiltins": false

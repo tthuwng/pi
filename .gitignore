@@ -27,3 +27,5 @@ mcp-onboarding.json
 /.cache
 /compact-backups
 /mcp-oauth/sha256-31f61ed3e6e210c5f3f729345968bdbcf267cf0fbfec31eac02ed9966ba1d067/tokens.json
+/favorites.json
+/pisesh-meta.json
