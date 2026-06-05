@@ -69,6 +69,11 @@ import {
 	validateFileOnlyOutputMode,
 } from "../shared/single-output.ts";
 import {
+	findSharedCwdChainParallelWriterError,
+	findSharedCwdParallelWriterError,
+} from "../shared/parallel-writer-guard.ts";
+import { canonicalizeOutputPathForCollision } from "../shared/path-collision.ts";
+import {
 	compactForegroundDetails,
 	getSingleResultOutput,
 	mapConcurrent,
@@ -1247,6 +1252,18 @@ function runAsyncPath(
 				details: { mode: "chain" as const, results: [] },
 			};
 		}
+		const chainParallelWriterError = findSharedCwdChainParallelWriterError({
+			chain: params.chain as ChainStep[],
+			agents,
+			baseCwd: effectiveCwd,
+		});
+		if (chainParallelWriterError) {
+			return {
+				content: [{ type: "text", text: chainParallelWriterError }],
+				isError: true,
+				details: { mode: "chain" as const, results: [] },
+			};
+		}
 	}
 
 	if (hasTasks && params.tasks) {
@@ -1263,6 +1280,16 @@ function runAsyncPath(
 			);
 			if (worktreeTaskCwdError)
 				return buildParallelModeError(worktreeTaskCwdError);
+		} else {
+			const parallelWriterError = findSharedCwdParallelWriterError({
+				tasks: params.tasks,
+				agents,
+				baseCwd: effectiveCwd,
+				worktree: params.worktree,
+				label: "Parallel",
+			});
+			if (parallelWriterError)
+				return buildParallelModeError(parallelWriterError);
 		}
 	}
 
@@ -1550,6 +1577,18 @@ async function runChainPath(
 			chainResult.requestedAsync.chain,
 			params.context,
 		);
+		const chainParallelWriterError = findSharedCwdChainParallelWriterError({
+			chain: asyncChain,
+			agents,
+			baseCwd: effectiveCwd,
+		});
+		if (chainParallelWriterError) {
+			return {
+				content: [{ type: "text", text: chainParallelWriterError }],
+				isError: true,
+				details: { mode: "chain" as const, results: [] },
+			};
+		}
 		return executeAsyncChain(id, {
 			chain: asyncChain,
 			task: params.task,
@@ -1757,11 +1796,12 @@ function findDuplicateParallelOutputPath(input: {
 			taskCwd,
 		);
 		if (!outputPath) continue;
-		const previous = seen.get(outputPath);
+		const outputKey = canonicalizeOutputPathForCollision(outputPath);
+		const previous = seen.get(outputKey);
 		if (previous) {
 			return `Parallel tasks ${previous.index + 1} (${previous.agent}) and ${index + 1} (${task.agent}) resolve output to the same path: ${outputPath}. Use distinct output paths.`;
 		}
-		seen.set(outputPath, { index, agent: task.agent });
+		seen.set(outputKey, { index, agent: task.agent });
 	}
 	return undefined;
 }
@@ -1975,6 +2015,15 @@ async function runParallelPath(
 		);
 		if (worktreeTaskCwdError)
 			return buildParallelModeError(worktreeTaskCwdError);
+	} else {
+		const parallelWriterError = findSharedCwdParallelWriterError({
+			tasks,
+			agents: agentConfigs,
+			baseCwd: effectiveCwd,
+			worktree: params.worktree,
+			label: "Parallel",
+		});
+		if (parallelWriterError) return buildParallelModeError(parallelWriterError);
 	}
 
 	const currentProvider = ctx.model?.provider;

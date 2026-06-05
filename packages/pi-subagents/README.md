@@ -21,19 +21,23 @@ That is the only required step. You can add optional pieces later.
 You do not need to create agents, write config, or learn slash commands. After installing, ask Pi for delegation in plain language:
 
 ```text
-Use reviewer to review this diff.
+Review this diff from multiple angles: correctness, tests, and unnecessary complexity.
 ```
 
 ```text
-Ask oracle for a second opinion on my current plan.
+Research and decide whether we should use option A or option B for this change.
 ```
 
 ```text
-Use scout to understand this code based on our discussion then ask me clarification questions.
+Give me options for testing this safely, then filter them to the strongest few.
 ```
 
 ```text
-Run parallel reviewers: one for correctness, one for tests, and one for unnecessary complexity.
+Think through the architecture and argue both sides before recommending a path.
+```
+
+```text
+Inspect the relevant code first, then ask me the clarification questions that matter.
 ```
 
 That is enough to start.
@@ -47,51 +51,67 @@ When you ask for a subagent, Pi starts the child, gives it the task, and brings 
 Installing the extension does not start an automatic reviewer in the background. It gives Pi a delegation tool. If you want every implementation reviewed, say that in your prompt or put it in your project instructions:
 
 ```text
-When you finish implementing, run a reviewer subagent before summarizing.
+When you finish implementing, run fresh reviewers before summarizing.
 ```
+
+Review requests are review-only unless you explicitly authorize a writer/fix pass.
 
 ## Good first prompts
 
 These cover most day-to-day use:
 
 ```text
-Ask oracle for a second opinion on my current plan. Challenge assumptions and tell me what I might be missing.
+Challenge this plan before we implement it. Tell me what I might be missing.
 ```
 
 ```text
-Use oracle to help solve this hard bug. Have it inspect the code and propose the best next move before we edit anything.
+Investigate this hard bug and recommend the safest next move before we edit anything.
 ```
 
 ```text
-Run parallel reviewers on this diff. I want one focused on correctness, one on tests, and one on unnecessary complexity.
+Review this diff with fresh eyes: correctness, tests, and unnecessary complexity.
 ```
 
 ```text
-Have worker implement this approved plan. Afterward, run parallel reviewers, summarize their feedback, and apply the fixes that make sense.
+Research and decide which approach is best, with evidence and the strongest counterargument.
 ```
 
 ```text
-Use scout to understand the auth flow, then have planner turn that into an implementation plan.
+Give me several implementation options, filter them, and return the top choices with tradeoffs.
+```
+
+```text
+Implement this approved plan. Afterward, review it from multiple angles and apply only the fixes that make sense.
+```
+
+```text
+Understand the auth flow first, then turn that into an implementation plan.
 ```
 
 Those are ordinary Pi requests. Pi decides whether to call `subagent`, which agent to use, and whether a chain or parallel run makes sense.
 
 ## Common workflows
 
-| Want                     | Ask naturally                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------- |
-| Get a second opinion     | “Ask oracle to review this plan and challenge assumptions.”                            |
-| Solve a hard problem     | “Use oracle to investigate this bug before we edit.”                                   |
-| Review a diff            | “Use reviewer to review this diff.”                                                    |
-| Run parallel reviewers   | “Run reviewers for correctness, tests, and cleanup.”                                   |
-| Implement then review    | “Implement this, then review it.”                                                      |
-| Execute a plan carefully | “Have worker implement this approved plan, then run reviewers and apply the feedback.” |
-| Scout before planning    | “Use scout to inspect the auth flow before planning.”                                  |
-| Run in the background    | “Run this in the background.”                                                          |
-| Browse agents            | “Show me the available subagents.”                                                     |
-| Use a saved workflow     | “Run the review chain on this branch.”                                                 |
-| See running work         | “Show active async runs.”                                                              |
-| Check setup              | “Check whether subagents are configured correctly.”                                    |
+| Want                     | Ask naturally                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Get a second opinion     | “Challenge this plan and tell me what I might be missing.”                                                |
+| Solve a hard problem     | “Investigate this bug and recommend the safest next move before we edit.”                                 |
+| Lightweight review       | “Review this diff without editing.”                                                                       |
+| Adversarial review       | “Review this from multiple angles: correctness, tests, and cleanup.”                                      |
+| Quality gate             | “Before finalizing, quality gate this answer/diff.”                                                       |
+| Research and decide      | “Research and decide which approach is best, with evidence and counterarguments.”                         |
+| Generate/filter options  | “Give me options for testing this safely, then filter them to the strongest few.”                         |
+| Debate architecture      | “Think through the architecture and argue both sides before recommending a path.”                         |
+| Clarify first            | “Inspect the relevant context, then ask me the clarification questions that matter.”                       |
+| Cleanup/deslop review    | “Clean this up conceptually and make it less verbose; ask before editing files.”                          |
+| Implement then review    | “Implement the approved plan, then review it before summarizing.”                                         |
+| Execute a plan carefully | “Implement this approved plan, then run reviewers and apply only the feedback that is worth doing now.”   |
+| Scout before planning    | “Inspect the auth flow before planning.”                                                                  |
+| Run in the background    | “Run this in the background.”                                                                             |
+| Browse agents            | “Show me the available subagents.”                                                                        |
+| Use a saved workflow     | “Run the review chain on this branch.”                                                                    |
+| See running work         | “Show active async runs.”                                                                                 |
+| Check setup              | “Check whether subagents are configured correctly.”                                                       |
 
 The extension ships with builtin agents you can use immediately.
 
@@ -99,16 +119,16 @@ The extension ships with builtin agents you can use immediately.
 
 | Agent             | Use it when you want...                                                                                                                                       |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start.                                              |
-| `researcher`      | External research with sources: context7-backed library/framework docs when available, plus web docs, specs, benchmarks, recent changes, and a concise brief. |
+| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start. Use `output: false` or explicit unique outputs for parallel scouts. |
+| `researcher`      | External research with sources: official docs, source repos, `code_search`, web docs, specs, benchmarks, recent changes, and a concise brief. If context7 evidence is required, have the parent fetch it. |
 | `planner`         | A concrete implementation plan from existing context. It should read and plan, not edit code.                                                                 |
 | `worker`          | Implementation work, including approved oracle handoffs. It edits files, validates, and escalates unapproved decisions instead of guessing.                   |
-| `reviewer`        | Code review and small fixes. It checks the implementation against the task/plan, tests, edge cases, and simplicity.                                           |
+| `reviewer`        | Review and critique. It checks the implementation against the task/plan, tests, edge cases, and simplicity; fixes require an explicit writer/autofix workflow. |
 | `context-builder` | A stronger setup pass before planning: gathers code context and writes handoff material such as `context.md` and `meta-prompt.md`.                            |
 | `oracle`          | A second opinion before acting. It challenges assumptions, catches drift, and recommends the safest next move without editing.                                |
 | `delegate`        | A lightweight general delegate when you want a child agent that behaves close to the parent session.                                                          |
 
-A simple rule of thumb: use `scout` before you understand the code, `researcher` before you trust external facts, `planner` before a bigger change, `worker` to implement, `reviewer` to check, and `oracle` when the decision itself feels risky. For library/framework docs, prefer context7 through `mcp` before general web search.
+A simple rule of thumb: use `scout` before you understand the code, `researcher` before you trust external facts, `planner` before a bigger change, `worker` to implement, `reviewer` to check, and `oracle` when the decision itself feels risky. Use fresh parallel reviewers for nontrivial review. For library/framework docs, prefer parent-fetched context7 evidence when needed; protected advisory subagents do not receive generic `mcp`.
 
 ## Changing a builtin agent's model
 
@@ -136,7 +156,7 @@ For a persistent override, edit settings. This example pins the reviewer everywh
 }
 ```
 
-Use `~/.pi/agent/settings.json` for a user override or `.pi/settings.json` for a project override. The same `agentOverrides` block can change `tools`, `skills`, inherited context, prompt text, or disable a builtin. If you want a totally different agent, create a user or project agent with the same name; for normal tweaks, prefer overrides.
+Use `~/.pi/agent/settings.json` for a user override or `.pi/settings.json` for a project override. The same `agentOverrides` block can change `tools`, `skills`, inherited context, prompt text, or disable a builtin. Protected advisory role names (`scout`, `reviewer`, `planner`, `researcher`, `context-builder`, `delegate`, `oracle`) are sanitized at runtime so same-name overrides cannot add direct file mutation tools, generic `mcp`, direct MCP tools, `extensions`, or custom tool-extension paths. They also run with normal extensions disabled except the subagent prompt runtime extension. They may still have `bash` for read-only inspection by prompt contract; Pi does not provide a read-only shell permission. Use `worker` or a custom non-advisory agent name for mutation-capable agents; for normal tweaks, prefer overrides.
 
 ## Where running subagents show up
 
@@ -180,18 +200,23 @@ Child-safety boundaries are enforced at runtime. Spawned child sessions do not r
 
 ## Optional shortcuts
 
-The package includes reusable prompt templates for common workflows. You do not need them, but they are handy when you want the same shape every time:
+The package includes reusable prompt templates for common workflows. You do not need to type these commands; parent agents should map normal requests such as “review this”, “research and decide”, “give me options”, or “argue both sides” to the same workflow shapes. The shortcuts are handy when you want to force the exact shape:
 
 | Prompt                        | Use it for                                                                                                  |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `/parallel-review`            | Launch fresh-context reviewers with distinct angles, then synthesize what to fix.                           |
+| `/parallel-review`            | Launch fresh-context reviewers with distinct adversarial angles, then synthesize what to fix.               |
+| `/quality-gate`               | Run a quality-first review gate over a plan, diff, answer, PR, issue, or target, then synthesize `PASS` / `FAIL` / `INCONCLUSIVE`. |
+| `/quick-adversarial-check`    | Quickly attack an assumption, plan, claim, or recommendation before committing to it.                        |
+| `/adversarial-debate`         | Generate competing positions, attack them, and synthesize the disagreement by rubric.                       |
 | `/parallel-research`          | Combine `researcher` and `scout` for external evidence, local code context, and practical tradeoffs.        |
+| `/research-decision`          | Research a decision with external evidence, local context, tradeoff critique, and recommendation.           |
+| `/generate-filter`            | Generate diverse options, run a mandatory reviewer/filter fan-in over concrete options, and return the strongest choices. |
 | `/parallel-context-build`     | Run `context-builder` agents in parallel to produce planning handoff context and meta-prompts.              |
 | `/parallel-handoff-plan`      | Combine external research and `context-builder` passes into an implementation handoff plan and meta-prompt. |
 | `/gather-context-and-clarify` | Scout/research first, then ask the user the clarification questions that matter.                            |
 | `/parallel-cleanup`           | Run review-only cleanup passes after implementation.                                                        |
 
-Add `autofix` to `/parallel-review` or `/parallel-cleanup` to apply only the synthesized fixes worth doing now after reviewers return.
+Add `autofix` to `/parallel-review` or `/parallel-cleanup` only when you want the parent to apply synthesized fixes worth doing now after reviewers return. `/quality-gate` is review and synthesis only; use a separate implementation-authorized fix workflow for changes.
 
 ## Optional pi-intercom companion
 
@@ -206,7 +231,7 @@ Most users do not call `intercom` directly. After `pi-intercom` is installed, `p
 Use it for work where the child might need a decision instead of guessing:
 
 ```text
-Run this implementation in the background. If the worker gets blocked or needs a product decision, have it ask me through intercom.
+Run this implementation in the background. If the worker gets blocked or needs a product decision, have it contact the supervising parent session.
 ```
 
 ```text
@@ -251,7 +276,7 @@ Use `->` to separate steps and give each step its own task:
 
 ```text
 /chain scout "scan the codebase" -> planner "create an implementation plan"
-/parallel scanner "find security issues" -> reviewer "check code style"
+/parallel scout "find security issues" -> reviewer "check code style"
 ```
 
 Both double and single quotes work. You can also use `--` as a delimiter:
@@ -260,7 +285,7 @@ Both double and single quotes work. You can also use `--` as a delimiter:
 /chain scout -- scan code -> planner -- analyze auth
 ```
 
-Steps without a task inherit behavior from the execution mode. Chain steps get `{previous}`, the prior step’s output. Parallel steps use the first available task as a fallback.
+Steps without a task inherit behavior from the execution mode. For chains, the first omitted step uses `{task}`, and later omitted steps use `{previous}`. Parallel steps use the first available task as a fallback.
 
 ```text
 /chain scout "analyze auth" -> planner -> worker
@@ -279,16 +304,16 @@ For a shared task, list agents and place one `--` before the task:
 Append `[key=value,...]` to an agent name to override defaults for that step:
 
 ```text
-/chain scout[output=context.md] "scan code" -> planner[reads=context.md] "analyze auth"
+/chain scout[output=auth-scout-notes.md,outputMode=file-only] "scan code" -> planner[reads=auth-scout-notes.md] "analyze auth"
 /run scout[model=anthropic/claude-sonnet-4] summarize this codebase
 /parallel reviewer[skills=code-review+security] "review backend" -> reviewer[model=openai/gpt-5-mini] "review frontend"
 ```
 
-| Key          | Example                           | Description                                                                                                                                           |
-| ------------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`     | `output=context.md`               | Write results to a file. For `/chain` and `/parallel`, relative paths live under the chain directory; for `/run`, relative paths resolve against cwd. |
-| `outputMode` | `outputMode=file-only`            | Return only a concise file reference for saved output instead of the full saved content. Requires `output`; default is `inline`.                      |
-| `reads`      | `reads=a.md+b.md`                 | Read files before executing. `+` separates multiple paths.                                                                                            |
+| Key          | Example                                             | Description                                                                                                                                           |
+| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`     | `output=auth-scout-notes.md`                       | Write results to a file. For `/run`, top-level `/parallel`, and background `/chain`, relative paths resolve against cwd or the step cwd; for foreground `/chain` steps, relative paths live under the chain artifact directory. |
+| `outputMode` | `outputMode=file-only`                             | Return only a concise file reference for saved output instead of the full saved content. Requires `output`; default is `inline`.                      |
+| `reads`      | `reads=a.md+b.md`                                  | Read files before executing. `+` separates multiple paths.                                                                                            |
 | `model`      | `model=anthropic/claude-sonnet-4` | Override model for this step.                                                                                                                         |
 | `skills`     | `skills=planning+review`          | Override injected skills. `+` separates multiple skills.                                                                                              |
 | `progress`   | `progress`                        | Enable progress tracking.                                                                                                                             |
@@ -320,7 +345,7 @@ You can combine them in either order:
 /run reviewer "review this diff" --bg --fork
 ```
 
-Background runs are detached. If the parent agent has other independent work, it should keep working. If it has nothing useful to do until the background result arrives, it should end the turn instead of running sleep or status-polling loops. Pi will deliver the completion when the run finishes.
+Background runs are detached. Use foreground execution when the next parent step, verdict, or final answer depends on the child result. Use background execution only when the parent has other independent work to do while the child runs. If the parent has nothing useful to do until the background result arrives, it should end the turn instead of running sleep or status-polling loops. Pi will deliver the completion when the run finishes. When the background result is relevant to the user request, inspect the status/result or saved artifact and synthesize it in the parent session before making the final claim.
 
 The `oracle` and `worker` builtins are designed for an explicit decision loop. A typical pattern is to ask `oracle` for diagnosis and a recommended execution prompt, then only run `worker` after the main agent approves that direction.
 
@@ -357,9 +382,9 @@ Agent locations, lowest to highest priority:
 
 Project discovery also reads legacy `.agents/**/*.md` files. Nested subdirectories are discovered recursively. `.chain.md` files do not define agents. If both `.agents/` and `.pi/agents/` define the same parsed runtime agent name, `.pi/agents/` wins. Use `agentScope: "user" | "project" | "both"` to control discovery; `both` is the default and project definitions win runtime-name collisions.
 
-Builtin agents load at the lowest priority, so a user or project agent with the same name overrides them. They do not pin a provider model; they inherit your current Pi default model unless you set `subagents.agentOverrides.<name>.model`. `oracle` is an advisory reviewer that critiques direction and proposes an execution prompt without editing files. `worker` is the implementation agent for normal tasks and approved oracle handoffs.
+Builtin agents load at the lowest priority, so a user or project agent with the same name overrides them. Protected advisory role names are still permission-sanitized after precedence is resolved: direct file mutation tools, generic `mcp`, direct MCP tools, `extensions`, and custom tool-extension paths are removed from `scout`, `reviewer`, `planner`, `researcher`, `context-builder`, `delegate`, and `oracle`, and normal extensions are disabled except the subagent prompt runtime extension. Advisory `bash` access, where present, is prompt-governed for read-only inspection because Pi has no read-only shell permission. They do not pin a provider model; they inherit your current Pi default model unless you set `subagents.agentOverrides.<name>.model`. `oracle` is an advisory reviewer that critiques direction and proposes an execution prompt without editing files. `worker` is the implementation agent for normal tasks and approved oracle handoffs.
 
-The `researcher` builtin uses `mcp` for context7-backed library/framework documentation when available, `code_search` as a fallback for code/docs examples, and `web_search`, `fetch_content`, and `get_search_content` for external web research. The web tools require [pi-web-access](https://github.com/nicobailon/pi-web-access):
+The `researcher` builtin uses `code_search` for code/docs examples plus `web_search`, `fetch_content`, and `get_search_content` for external web research. It does not receive generic `mcp`; when context7-specific library/framework evidence is required, the parent should fetch it and pass the findings into the researcher task. The web tools require [pi-web-access](https://github.com/nicobailon/pi-web-access):
 
 ```bash
 pi install npm:pi-web-access
@@ -386,7 +411,7 @@ Example:
 }
 ```
 
-Supported override fields are `model`, `fallbackModels`, `thinking`, `systemPromptMode`, `inheritProjectContext`, `inheritSkills`, `defaultContext`, `disabled`, `skills`, `tools`, and `systemPrompt`. Use `defaultContext: false` in builtin overrides to clear an inherited context default. Project overrides beat user overrides.
+Supported override fields are `model`, `fallbackModels`, `thinking`, `systemPromptMode`, `inheritProjectContext`, `inheritSkills`, `defaultContext`, `disabled`, `skills`, `tools`, and `systemPrompt`. Use `defaultContext: false` in builtin overrides to clear an inherited context default. Project overrides beat user overrides. For protected advisory role names, `tools` overrides are filtered to known advisory inspection/coordination tools, generic `mcp`, direct MCP tools, and `extensions` are stripped, and normal extensions are disabled; use `worker` or a custom non-advisory agent name when direct file mutation, generic `mcp`, direct MCP tools, custom extensions, or custom tool-extension paths are required.
 
 Set `disabled: true` to hide a builtin from runtime discovery and agent-facing `subagent({ action: "list" })` output. For bulk control, set `subagents.disableBuiltins: true` in settings.
 
@@ -411,22 +436,17 @@ A typical agent looks like this:
 
 ```yaml
 ---
-name: scout
-# Optional: registers this as code-analysis.scout while preserving name: scout
+name: chrome-inspector
+# Optional: registers this as code-analysis.chrome-inspector while preserving name: chrome-inspector
 package: code-analysis
-description: Fast codebase recon
+description: Chrome DevTools inspection agent
 tools: read, grep, find, ls, bash, mcp:chrome-devtools
-extensions:
 model: claude-haiku-4-5
 fallbackModels: openai/gpt-5-mini, anthropic/claude-sonnet-4
 thinking: high
 systemPromptMode: replace
 inheritProjectContext: false
 inheritSkills: false
-skills: safe-bash, chrome-devtools
-output: context.md
-defaultReads: context.md
-defaultProgress: true
 interactive: true
 maxSubagentDepth: 1
 ---
@@ -464,7 +484,7 @@ Examples:
 - `tools: mcp:chrome-devtools`: normal builtins plus direct Chrome DevTools MCP tools.
 - `tools: read, bash, mcp:chrome-devtools`: only `read` and `bash` as builtins, plus direct Chrome DevTools MCP tools.
 
-Direct MCP tools require [pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter). Subagents only receive direct MCP tools when `mcp:` entries are listed in their frontmatter; global `directTools: true` in `mcp.json` is not enough by itself. The generic `mcp` proxy tool can still be used for discovery when available. The adapter caches tool metadata at startup, so after connecting a new MCP server for the first time, restart Pi before relying on direct tools.
+Direct MCP tools require [pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter). Subagents only receive direct MCP tools when `mcp:` entries are listed in their frontmatter; global `directTools: true` in `mcp.json` is not enough by itself. The generic `mcp` proxy tool can still be used by non-protected custom agents when explicitly allowlisted, but it is treated as mutation-capable and is stripped from protected advisory roles. The adapter caches tool metadata at startup, so after connecting a new MCP server for the first time, restart Pi before relying on direct tools.
 
 `extensions` controls child extension loading:
 
@@ -501,15 +521,17 @@ description: Gather context then plan implementation
 
 ## scout
 
-output: context.md
+output: false
+progress: false
 
 Analyze the codebase for {task}
 
 ## planner
 
-reads: context.md
+output: false
+progress: false
+reads: false
 model: anthropic/claude-sonnet-4-5:high
-progress: true
 
 Create an implementation plan based on {previous}
 ```
@@ -518,7 +540,7 @@ Each `## agent-name` section is a step. Config lines such as `output`, `outputMo
 
 For `output`, `reads`, `skills`, and `progress`, chain behavior is three-state: omitted inherits from the agent, a value overrides, and `false` disables.
 
-Create chains by writing `.chain.md` files directly or with the `subagent({ action: "create", config: ... })` management action. Run them with natural language or:
+Create sequential chains by writing `.chain.md` files directly or with the `subagent({ action: "create", config: ... })` management action. Saved `.chain.md` files and management `config.steps` currently persist sequential steps only; runtime `chain` arrays still support parallel fan-out/fan-in groups. Run saved chains with natural language or:
 
 ```text
 /run-chain scout-planner -- refactor authentication
@@ -585,7 +607,7 @@ The package bundles a `pi-subagents` skill that is automatically available to th
 What the bundled skill covers:
 
 - **Delegation patterns**: when to launch which agent, whether to use single, parallel, chain, or async mode, and whether to use fresh or forked context
-- **Prompt workflow recipes**: how to apply the packaged techniques directly with `subagent(...)` when the user describes the workflow in natural language instead of invoking a slash command. This includes parallel review, parallel research, parallel context-build, parallel handoff-plan, gather-context-and-clarify, and parallel cleanup
+- **Prompt workflow recipes**: how to apply the packaged techniques directly with `subagent(...)` when the user describes the workflow in natural language instead of invoking a slash command. This includes parallel review, quality gate, quick adversarial check, adversarial debate, parallel research, research decision, generate/filter, parallel context-build, parallel handoff-plan, gather-context-and-clarify, and parallel cleanup
 - **Role-agent prompting guidance**: compact contract prompts instead of long scripts, what to include in role-specific meta prompts, and retrieval budgets for researchers
 - **Safety boundaries**: child agents must not run subagents, must not invent intercom targets, and must escalate unapproved decisions
 - **Intercom conventions**: when to ask vs send, and how parent-side result delivery works with `pi-intercom`
@@ -604,7 +626,7 @@ These are the parameters the LLM passes when it calls the `subagent` tool. Most 
 { agent: "worker", task: "refactor auth" }
 { agent: "scout", task: "find todos", maxOutput: { lines: 1000 } }
 { agent: "scout", task: "investigate", output: false }
-{ agent: "scout", task: "write a large report", output: "reports/scout.md", outputMode: "file-only" }
+{ agent: "scout", task: "produce a large report", output: "reports/scout.md", outputMode: "file-only" }
 
 // Forked context
 { agent: "worker", task: "continue this thread", context: "fork" }
@@ -644,7 +666,7 @@ These are the parameters the LLM passes when it calls the `subagent` tool. Most 
 
 ### Management actions
 
-Agent definitions are not loaded into context by default. Management actions let the LLM discover, inspect, create, update, and delete agents and chains at runtime.
+Agent definitions are not loaded into context by default. Management actions let the LLM discover, inspect, create, update, and delete agents and sequential saved chains at runtime. Management `config.steps` currently persists sequential chain steps only; use runtime `chain` arrays for parallel groups, `concurrency`, `failFast`, or `worktree`.
 
 ```ts
 { action: "list" }
@@ -665,12 +687,11 @@ Agent definitions are not loaded into context by default. Management actions let
   model: "anthropic/claude-sonnet-4",
   fallbackModels: ["openai/gpt-5-mini", "anthropic/claude-haiku-4-5"],
   tools: "read, bash, mcp:github/search_repositories",
-  extensions: "",
-  skills: "parallel-scout",
+  skills: false,
   thinking: "high",
-  output: "context.md",
-  reads: "shared-context.md",
-  progress: true
+  output: false,
+  reads: false,
+  progress: false
 }}
 
 { action: "create", config: {
@@ -678,14 +699,14 @@ Agent definitions are not loaded into context by default. Management actions let
   description: "Scout then review",
   scope: "project",
   steps: [
-    { agent: "scout", task: "Scan {task}", output: "context.md" },
-    { agent: "reviewer", task: "Review {previous}", reads: ["context.md"] }
+    { agent: "scout", task: "Scan {task}", output: false, progress: false },
+    { agent: "reviewer", task: "Review {previous}", output: false, progress: false }
   ]
 }}
 
-{ action: "update", agent: "code-analysis.scout", config: { model: "openai/gpt-4o" } }
+{ action: "update", agent: "code-analysis.code-scout", config: { model: "openai/gpt-4o" } }
 { action: "update", chainName: "review-pipeline", config: { steps: [...] } }
-{ action: "delete", agent: "scout" }
+{ action: "delete", agent: "code-analysis.code-scout" }
 { action: "delete", chainName: "review-pipeline" }
 ```
 
@@ -701,10 +722,10 @@ Agent definitions are not loaded into context by default. Management actions let
 | `chainName`       | string                        | -                        | Chain name for management actions.                                                                                                     |
 | `config`          | object/string                 | -                        | Agent or chain config for create/update.                                                                                               |
 | `output`          | `string \| false`             | agent default            | Override single-agent output file.                                                                                                     |
-| `outputMode`      | `"inline" \| "file-only"`     | `inline`                 | Return saved output inline or as a concise saved-file reference. `file-only` requires an `output` path.                                |
+| `outputMode`      | `"inline" \| "file-only"`     | `inline`                 | Return saved output inline or as a concise saved-file reference. `file-only` requires an `output` path; parent synthesis must read the saved artifact before relying on its contents. |
 | `skill`           | `string \| string[] \| false` | agent default            | Override skills or disable all.                                                                                                        |
 | `model`           | string                        | agent default            | Override model.                                                                                                                        |
-| `tasks`           | array                         | -                        | Top-level parallel tasks. Supports `agent`, `task`, `cwd`, `count`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. |
+| `tasks`           | array                         | -                        | Top-level parallel tasks. Supports `agent`, `task`, `cwd`, `count`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. Relative task outputs resolve against `cwd` or task `cwd`. |
 | `concurrency`     | number                        | config or `4`            | Top-level parallel concurrency.                                                                                                        |
 | `worktree`        | boolean                       | false                    | Create isolated git worktrees for parallel tasks.                                                                                      |
 | `chain`           | array                         | -                        | Sequential and parallel chain steps.                                                                                                   |
@@ -714,7 +735,7 @@ Agent definitions are not loaded into context by default. Management actions let
 | `agentScope`      | `user \| project \| both`     | `both`                   | Agent discovery scope. Project wins on collisions.                                                                                     |
 | `async`           | boolean                       | false                    | Background execution. Chains require `clarify: false`.                                                                                 |
 | `cwd`             | string                        | runtime cwd              | Override working directory.                                                                                                            |
-| `maxOutput`       | object                        | 200KB, 5000 lines        | Final output truncation limits.                                                                                                        |
+| `maxOutput`       | object                        | 200KB, 5000 lines        | Final output truncation limits. Accepted internally; omitted from the compact LLM-facing tool schema.                                  |
 | `artifacts`       | boolean                       | true                     | Write debug artifacts.                                                                                                                 |
 | `includeProgress` | boolean                       | false                    | Include full progress in result.                                                                                                       |
 | `share`           | boolean                       | false                    | Upload session export to GitHub Gist.                                                                                                  |
@@ -722,9 +743,9 @@ Agent definitions are not loaded into context by default. Management actions let
 
 `context: "fork"` fails fast when the parent session is not persisted, the current leaf is missing, or the branched child session cannot be created. It never silently downgrades to `fresh`. In multi-agent runs, if any requested agent has `defaultContext: fork` and the launch omits `context`, the whole invocation uses forked context; pass `context: "fresh"` when you intentionally want a fresh run.
 
-Use `outputMode: "file-only"` when a saved output may be large and the parent only needs a pointer. The returned text is a compact reference like `Output saved to: /abs/report.md (48.2 KB, 2847 lines). Read this file if needed.` Failed runs and save errors still return normal inline output for debugging. In chains, later `{previous}` steps receive the same compact reference when the prior step used file-only mode.
+Use `outputMode: "file-only"` when a saved output may be large and the parent only needs a pointer. The returned text is a compact reference like `Output saved to: /abs/report.md (48.2 KB, 2847 lines). Read this file if needed.` Parent synthesis must read saved file-only artifacts before making claims that depend on their contents. Failed runs and save errors still return normal inline output for debugging. In chains, later `{previous}` steps receive the same compact reference when the prior step used file-only mode.
 
-Sequential and parallel chain tasks accept `agent`, `task`, `cwd`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. Parallel tasks also accept `count`. Parallel step groups accept `parallel`, `concurrency`, `failFast`, and `worktree`.
+Sequential and parallel chain tasks accept `agent`, `task`, `cwd`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. Parallel tasks also accept `count`. Parallel step groups accept `parallel`, `concurrency`, `failFast`, and `worktree`. Foreground chain output paths are resolved before execution and duplicate resolved paths are rejected so sequential steps or parallel children cannot silently overwrite each other.
 
 Status and control actions:
 
@@ -746,7 +767,7 @@ subagent({ action: "doctor" });
 
 ## Worktree isolation
 
-Parallel agents can clobber each other if they edit the same checkout. `worktree: true` gives each parallel child its own git worktree branched from `HEAD`.
+Parallel agents can clobber each other if they mutate the same checkout. `worktree: true` gives each parallel child its own git worktree branched from `HEAD`. Natural-language requests for parallel implementation must not run workspace-mutation-capable children in the shared checkout; if clean worktrees or separately isolated workspaces are unavailable or not explicitly approved, refuse that shape or fall back to one writer plus parallel read-only reviewers/scouts.
 
 ```ts
 { tasks: [
@@ -767,7 +788,7 @@ Parallel agents can clobber each other if they edit the same checkout. `worktree
 Requirements:
 
 - run inside a git repo
-- working tree must be clean
+- working tree must be clean; dirty or untracked files make worktree setup fail fast
 - `node_modules/` is symlinked into each worktree when present
 - task-level `cwd` overrides must be omitted or match the shared cwd
 - configured `worktreeSetupHook` must return valid JSON before timeout

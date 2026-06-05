@@ -7,6 +7,20 @@ description: Code, plan, and implementation review against requirements and conf
 
 Review is evidence gathering, not rubber-stamping.
 
+## Subagent Escalation for Normal Review Requests
+
+For nontrivial review requests, high-quality review requests, implemented work, plans/diffs with meaningful risk, or user language such as “review this”, “check this”, “does this look right?”, “quality gate”, “before finalizing”, “fix review fix review”, or “review with many angles”, load/apply the `pi-subagents` skill and use fresh-context reviewer fanout when it would add independent evidence. Do not require the user to name `/parallel-review` or `/quality-gate`.
+
+Default routing:
+
+- Simple local review or tiny Tier 1 change: perform this review skill directly.
+- Nontrivial diff/plan/answer review: use `pi-subagents` `/parallel-review` pattern with distinct reviewer angles.
+- Pre-final claim that something is good enough: use `pi-subagents` `/quality-gate` pattern; review and synthesis only, ending with a parent-synthesized `PASS` / `FAIL` / `INCONCLUSIVE` verdict.
+- Review feedback loop explicitly authorized for fixes: one writer/fix pass at a time, then fresh reviewers.
+- Cleanup/deslop/verbosity review: use `pi-subagents` `/parallel-cleanup` pattern.
+
+The parent session owns synthesis. Reviewer subagents provide evidence; they do not replace direct inspection or final judgment.
+
 ## Review Modes
 
 Choose the mode explicitly.
@@ -96,7 +110,7 @@ Do not use filler such as “great catch,” “good point,” or “you're abso
 - Run or inspect tests when needed and safe.
 - Cite file paths and line numbers for findings.
 - Categorize findings: `must-fix`, `should-fix`, `nit`, `note`, or `needs-discussion`.
-- Write findings to `.scratch/reviews/` when requested by the workflow.
+- Return findings inline unless an explicit output path/wrapper capture is provided. Do not use shell writes to create review artifacts. If review-only/no-artifact instructions conflict with workflow artifact habits, review-only/no-artifact wins.
 
 ## Delegated Reviewer Subagents
 

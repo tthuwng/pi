@@ -42,6 +42,7 @@ import {
 } from "../shared/model-fallback.ts";
 import { formatChainStepLabel } from "../../shared/agent-labels.ts";
 import { resolveExpectedWorktreeAgentCwd } from "../shared/worktree.ts";
+import { canonicalizeOutputPathForCollision } from "../shared/path-collision.ts";
 import {
 	type ArtifactConfig,
 	type Details,
@@ -300,6 +301,21 @@ export function executeAsyncChain(
 	}
 
 	let progressInstructionCreated = false;
+	const seenOutputPaths = new Map<string, string>();
+	const validateUniqueAsyncOutputPath = (
+		outputPath: string | undefined,
+		owner: string,
+	): void => {
+		if (!outputPath) return;
+		const outputKey = canonicalizeOutputPathForCollision(outputPath);
+		const previous = seenOutputPaths.get(outputKey);
+		if (previous) {
+			throw new AsyncStartValidationError(
+				`${previous} and ${owner} resolve output to the same path: ${outputPath}. Use distinct output paths.`,
+			);
+		}
+		seenOutputPaths.set(outputKey, owner);
+	};
 	const buildStepOverrides = (s: SequentialStep): StepOverrides => {
 		const stepSkillInput = normalizeSkillInput(s.skill);
 		return {
@@ -313,6 +329,7 @@ export function executeAsyncChain(
 	};
 	const buildSeqStep = (
 		s: SequentialStep,
+		owner: string,
 		sessionFile?: string,
 		behaviorCwd?: string,
 		progressPrecreated = false,
@@ -362,9 +379,10 @@ export function executeAsyncChain(
 		const validationError = validateFileOnlyOutputMode(
 			behavior.outputMode,
 			outputPath,
-			`Async step (${s.agent})`,
+			owner,
 		);
 		if (validationError) throw new AsyncStartValidationError(validationError);
+		validateUniqueAsyncOutputPath(outputPath, owner);
 		const task = injectSingleOutputInstruction(
 			`${readInstructions.prefix}${s.task ?? "{previous}"}${progressInstructions.suffix}`,
 			outputPath,
@@ -448,6 +466,7 @@ export function executeAsyncChain(
 						}
 						return buildSeqStep(
 							t,
+							`Async parallel chain step ${stepIndex + 1} task ${taskIndex + 1} (${t.agent})`,
 							nextSessionFile(),
 							behaviorCwd,
 							progressPrecreated,
@@ -459,7 +478,11 @@ export function executeAsyncChain(
 					worktree: s.worktree,
 				};
 			}
-			return buildSeqStep(s as SequentialStep, nextSessionFile());
+			return buildSeqStep(
+				s as SequentialStep,
+				`Async chain step ${stepIndex + 1} (${(s as SequentialStep).agent})`,
+				nextSessionFile(),
+			);
 		});
 	} catch (error) {
 		if (

@@ -4,9 +4,9 @@ description: Parallel cleanup review
 
 Run a fresh-context parallel cleanup review of the current work.
 
-Use the `subagent` tool. First inspect available agents/skills if needed, then launch two reviewer subagents in parallel with `context: "fresh"`. Do not use forked context unless I explicitly ask for it. Reviewers must inspect the repository, relevant instructions, and current diff directly from files and commands. They must not rely on the main conversation history.
+This workflow is quality-first but cleanup-focused: reviewers should attack concrete slop, verbosity, duplication, and maintainability issues without broadening approved scope. Use the `subagent` tool. First inspect available agents/skills if needed, then launch two reviewer subagents in parallel with `context: "fresh"`. Do not use forked context unless I explicitly ask for it. Reviewers must inspect the repository, relevant instructions, and current diff directly from files and commands. They must not rely on the main conversation history.
 
-Do not write reviewer output files into the repository unless I explicitly ask for artifacts. Prefer `output: false` for each reviewer task.
+Do not write reviewer output files into the repository unless I explicitly ask for artifacts. Prefer `output: false` and `progress: false` for each reviewer task.
 
 Reviewer 1: deslop pass.
 
@@ -40,11 +40,12 @@ Both reviewers are review-only. They must not edit files unless I explicitly ask
 While reviewers run, do your own narrow inspection if useful. After they return, synthesize the feedback into:
 - fixes worth doing now;
 - optional improvements;
-- feedback to ignore or defer, with a short reason.
+- feedback to ignore or defer, with a short reason;
+- disagreements between cleanup reviewers and what you believe after comparing evidence.
 
-Do not blindly apply every reviewer suggestion.
+Do not blindly apply every reviewer suggestion. Cleanup should improve the diff, not create a new unapproved refactor.
 
-Autofix mode: if the invocation contains the exact word `autofix`, treat it as workflow control, not cleanup scope. Remove it before deciding the cleanup target. After synthesis, apply only fixes worth doing now, validate, and summarize. Do not apply optional improvements unless explicitly requested. If there are no fixes worth doing now, do not edit.
+Autofix mode: enter write-continuation only when `autofix` is clearly supplied as a workflow flag, such as a trailing standalone token or explicit control phrase. Do not enter autofix when `autofix` is part of the cleanup target, such as reviewing autofix docs, code, or behavior. Remove the control token before deciding the cleanup target. After synthesis, apply only fixes worth doing now, validate, and summarize. Do not apply optional improvements unless explicitly requested. If there are no fixes worth doing now, do not edit.
 
 Without autofix mode, ask before applying fixes unless I already told you to address review feedback. When you ask, end with a compact numbered menu so I can respond with a number. Use wording suited to the findings, but include these choices when applicable:
 
@@ -54,6 +55,6 @@ Reply with [1], [2], or further instructions:
 [2] Apply the fixes worth doing now plus optional improvements.
 ```
 
-Additional scope or focus from the slash command invocation:
+Additional cleanup scope or focus from the user request, if any:
 
 $@

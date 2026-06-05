@@ -12,7 +12,7 @@ Use the `subagent` tool in chain mode with a single parallel step, not top-level
 
 Do not write these context artifacts into the repository unless I explicitly ask for persistent files.
 
-Treat the slash command arguments as the primary request, target, or focus:
+Primary request, target, or focus from the user request:
 
 $@
 
@@ -33,7 +33,7 @@ Adapt the angles when the request calls for it:
 
 - Issue or PR URL: include issue requirements, acceptance criteria, linked discussion, and likely affected files.
 - Plan file: include plan consistency, missing context, implementation sequence, and validation readiness.
-- External API/library work: prefer context7 through `mcp` for library/framework documentation when available; use web/code search only when context7/local source is insufficient or the source is not covered by context7.
+- External API/library work: use parent-provided context7 evidence when available; otherwise use local source, official docs, source repos, `code_search`, or web search.
 - Large refactor: include module boundaries, dependency direction, migration/cutover risks, and testability.
 - UI/product work: include user flow, accessibility, copy, visual constraints, and implementation touchpoints.
 

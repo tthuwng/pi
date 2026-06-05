@@ -98,10 +98,30 @@ Load or apply these skills when their trigger fits:
 | Approved requirements need task breakdown             | `writing-plans`                  |
 | New behavior, logic change, or bug fix implementation | `test-driven-development`        |
 | Test failure, bug, crash, unexpected behavior         | `systematic-debugging`           |
-| Code/spec/plan review or review feedback evaluation   | `review`                         |
+| Code/spec/plan review or review feedback evaluation   | `review`; escalate to `pi-subagents` review patterns when parallel/adversarial/fresh review would improve quality |
 | Before done/fixed/passing claims                      | `verification-before-completion` |
 
 Do not stack heavy workflow on tiny Tier 1 edits.
+
+## Natural-Language Subagent Recipe Routing
+
+The user does not need to name slash commands. Route ordinary requests to the matching `pi-subagents` recipe when independent context, adversarial pressure, or parallel evidence would improve quality.
+
+| User says or implies | Use this pattern |
+| --- | --- |
+| “review this”, “check this”, “does this look right?” | `review` skill plus `/parallel-review` pattern when adversarial/fresh reviewers add value |
+| “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
+| “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
+| “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
+| “ask me what you need first”, “clarify before planning”, “figure out the unknowns” | `/gather-context-and-clarify` pattern |
+| “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
+| “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
+| “research and decide”, “look at docs/source and recommend”, “what should we use?” | `/research-decision` pattern |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | `/generate-filter` pattern with generator fanout plus mandatory reviewer/filter fan-in |
+| “think through the architecture”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
+| “clean this up”, “deslop”, “make it less verbose” | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized |
+
+These are shape-based routing rules, not keyword triggers. Choose the smallest useful workflow that adds independent evidence. For high-impact or ambiguous work, prefer adversarial fanout; for tiny Tier 1 edits, do not add process just to use subagents.
 
 ## Delegation Rules
 
@@ -160,15 +180,20 @@ For approved plan execution with subagents:
   1. spec compliance review against the approved task/design,
   2. code quality review when needed.
 - Send must-fix findings back as focused worker tasks, then re-review the affected mode.
-- Do not run parallel implementation workers unless the user has created isolated workspaces/worktrees and approved that execution mode.
+- Do not run parallel implementation workers unless the user has created isolated workspaces/worktrees and approved that execution mode. If the request asks for parallel writers but clean worktrees/isolated workspaces are unavailable, refuse that shape or fall back to one writer plus parallel read-only reviewers/scouts; never launch workspace-mutation-capable implementation workers in the shared checkout.
 - If two focused fix attempts fail, stop and ask; the plan likely needs redesign.
 
 ### Research Phase
 
-- Dispatch scout agents for codebase exploration
-- Scouts can run in parallel (e.g., 5 scouts analyzing different modules)
-- Scouts write findings to `.scratch/research/`
-- Read scout findings before planning
+- For nontrivial, ambiguous, high-impact, or externally grounded work, prefer a quality-first fanout instead of a single scout when independent evidence will improve the plan.
+- Route ordinary user language to the matching `pi-subagents` recipe; the user does not need to name a slash command. Examples: “research and decide” → `/research-decision`, concrete “give me options” → `/generate-filter`, “think through the architecture / argue both sides” → `/adversarial-debate`, “check this assumption” → `/quick-adversarial-check`. Vague ideas, new behavior, or design-placement questions still enter through `brainstorming` first.
+- Use the `pi-subagents` prompt recipes directly when they fit: `/parallel-research` for evidence gathering, `/research-decision` for recommendations, `/generate-filter` for option generation, `/adversarial-debate` for competing approaches, and `/quick-adversarial-check` for assumption attacks.
+- Dispatch scout agents for codebase exploration.
+- Scouts can run in parallel (e.g., 5 scouts analyzing different modules) when their scopes are distinct.
+- Give each child a distinct angle and output contract; avoid duplicate vague agents.
+- For parallel scouts, pass `output: false` for concise findings or give every scout an explicit unique output path. Do not rely on a shared default artifact path.
+- Scouts return findings inline or through parent-managed `.scratch/research/` output artifacts only when an explicit unique output path is provided.
+- Read scout/research findings before planning.
 
 ### Implementation Phase
 
@@ -181,11 +206,15 @@ For approved plan execution with subagents:
 
 ### Review Phase
 
-- Dispatch reviewer agent after implementation
-- Reviewer checks against the plan and coding standards
-- For plan execution, prefer spec compliance review first, then code quality review
-- Reviewer writes findings to `.scratch/reviews/`
-- Address must-fix findings before presenting to user
+- Dispatch reviewer agents after implementation unless the change is truly Tier 1/trivial or the user requested no review.
+- Prefer a fresh-context parallel review gate for nontrivial work: correctness/regressions, tests/verification, and simplicity/maintainability. Add security, ops/resource, UX, or architecture reviewers when relevant.
+- Use `/parallel-review` or `/quality-gate` patterns directly through `subagent(...)` when they fit.
+- Use `/quick-adversarial-check` before committing to a diagnosis, architecture direction, or user-facing claim that has meaningful uncertainty.
+- Reviewer checks against the plan and coding standards.
+- For plan execution, prefer spec compliance review first, then code quality review.
+- Reviewer writes findings to `.scratch/reviews/` or returns concise inline output when artifacts are unnecessary.
+- Parent synthesizes reviewer disagreements; do not blindly apply every suggestion.
+- Address must-fix findings before presenting to user.
 
 ### Completion Phase
 

@@ -33,7 +33,7 @@ Role guidance:
 External reference researcher:
 
 - Study linked projects, docs, issues, examples, source code, or prompt guidance.
-- For library/framework documentation, prefer context7 through `mcp` when available; use web/code search only when context7/local source is insufficient or the source is not covered by context7.
+- For library/framework documentation, use parent-provided context7 evidence when available; otherwise use local source, official docs, source repos, `code_search`, or web search.
 - Identify the behavior, API, implementation files, constraints, and transferable ideas.
 - Conduct web research for non-library external evidence when needed. Use `web_search` if it is available; otherwise use whatever equivalent research capability is available.
 - Return source links, repo paths, key evidence, risks, and what matters for this implementation.

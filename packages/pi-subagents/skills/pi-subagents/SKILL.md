@@ -5,7 +5,10 @@ description: |
   parallel, async, forked-context, and intercom-coordinated workflows. Use
   for advisory review, implementation handoffs, and multi-step tasks where a
   single agent should stay in control while other agents contribute context,
-  planning, or execution.
+  planning, or execution. Also use when ordinary user language implies a
+  workflow such as review this, quality gate, fix-review-fix, argue both
+  sides, think through architecture, research and decide, generate options,
+  build context, prepare a handoff, clarify first, or cleanup/deslop.
 ---
 
 # Pi Subagents
@@ -55,28 +58,100 @@ you are guiding a human through an interactive flow.
 
 Packaged prompt shortcuts are also available for repeatable workflows. Treat them as reusable orchestration recipes, not just human slash commands. When the user asks for one of these shapes, or when the workflow clearly fits, apply the same pattern directly with `subagent(...)` and other tools:
 
-- `/parallel-review` — fresh-context reviewers with distinct review angles, then synthesis
+- `/parallel-review` — fresh-context reviewers with distinct adversarial review angles, then synthesis
+- `/quality-gate` — quality-first review gate over a plan, diff, answer, PR, issue, or target
+- `/quick-adversarial-check` — lightweight attack on an assumption, plan, claim, or recommendation
+- `/adversarial-debate` — competing positions, attacks, optional repair, and parent synthesis by rubric
 - `/parallel-research` — combine `researcher` and `scout` for external evidence plus local code context
+- `/research-decision` — external evidence, local context, tradeoff critique, and recommendation
+- `/generate-filter` — diverse option generation, dedupe/filter, and top-choice synthesis
 - `/parallel-context-build` — parallel `context-builder` passes that produce planning handoff context and meta-prompts
 - `/parallel-handoff-plan` — external-reference research plus local `context-builder` passes, followed by a synthesis handoff plan and implementation-ready meta-prompt
-- `/gather-context-and-clarify` — scout/research first, then ask the user clarifying questions with `interview`
+- `/gather-context-and-clarify` — scout/research first, then ask the user clarifying questions with the available structured question tool (`ask_user` here; `interview` only if installed)
 - `/parallel-cleanup` — two fresh-context reviewers (deslop + verbosity passes) for an adversarial cleanup review of the current diff
 
 ## Applying Prompt Techniques Without Slash Commands
 
+The user does not need to name a slash command. Treat ordinary language as workflow intent when the shape is clear, then run the matching pattern directly with `subagent(...)`. Do not wait for the user to say `/quality-gate`, `/adversarial-debate`, or another exact shortcut.
+
+Natural-language routing examples:
+
+| User says or implies | Parent should usually run |
+| --- | --- |
+| “review this”, “check this”, “does this look right?” | `review` skill first; escalate to `/parallel-review` with fresh reviewers when independent review adds value |
+| “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
+| “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
+| “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
+| “think about the architecture”, “is this the right approach?”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
+| “research and decide”, “what should we use?”, “look at docs/source and recommend” | `/research-decision` pattern with researcher + scout + tradeoff reviewer |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
+| “vague idea”, “new behavior”, “where should this live?” | `brainstorming` skill first; use `/generate-filter` only after the options/rubric shape is clear |
+| “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
+| “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
+| “clean this up”, “remove slop”, “make it less verbose” | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized |
+
+These are routing examples, not keyword triggers. Classify by task shape, risk, available evidence, and whether independent context will improve quality. If several mappings fit, choose the smallest useful workflow that still gives independent evidence; for high-impact or ambiguous work, prefer adversarial fanout. Do not bypass the canonical task skill just because a subagent recipe is available: review requests enter through `review`, vague/product/design ideas enter through `brainstorming`, and implementation work enters through `manager-workflow`.
+
 The prompt templates in `prompts/` encode workflows the parent agent can run on demand. If the user provides a URL, issue, PR, plan, local file, screenshot, or freeform target, treat that target as the primary scope: read or fetch it before launching children, then include it explicitly in every child task. Do not depend on the parent conversation history when the recipe calls for fresh context.
+
+Quality-first users may prefer more fanout than the minimum. Use extra children when they add independent evidence, competing hypotheses, attack surfaces, or verification. Do not add duplicate vague agents. Keep final synthesis in the parent session: children provide evidence and critique; the parent accepts, rejects, defers, investigates further, or asks the user.
+
+For fresh adversarial or research fanout, prefer explicit call shapes with `context: "fresh"`, deliberate `concurrency`, `progress: false`, and either `output: false` for concise advisory passes or distinct `.scratch/...` output paths plus `outputMode: "file-only"` for large artifacts. Avoid parallel writers unless `worktree: true` or separate isolated workspaces are explicitly approved; if a natural-language parallel-writer request cannot safely use clean worktrees/isolated workspaces, refuse that shape and fall back to one writer plus parallel read-only reviewers/scouts.
 
 ### Parallel review technique
 
-Use this when the user wants adversarial review of a diff, plan, issue, file, or implemented work. Launch fresh-context `reviewer` agents with distinct angles generated from the actual target. Common angles are correctness/regressions, tests/validation, and simplicity/maintainability; adapt for TypeScript, UI, security, docs, or large structural changes. Reviewers should inspect files and diffs directly, return concise evidence-backed findings with file/line references, and avoid edits unless the user explicitly asks for a writer pass. The parent synthesizes fixes worth doing now, optional improvements, and feedback to ignore/defer before applying anything.
+Use this when the user wants adversarial review of a diff, plan, issue, file, or implemented work. Launch fresh-context `reviewer` agents with distinct angles generated from the actual target. Common angles are correctness/regressions, tests/validation, and simplicity/maintainability; adapt for TypeScript, UI, security, docs, or large structural changes. Prefer three strong reviewers for normal work; use four or five when the work is large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous. Reviewers should inspect files and diffs directly, return concise evidence-backed findings with file/line references, and avoid edits unless the user explicitly asks for a writer pass. The parent synthesizes fixes worth doing now, optional improvements, feedback to ignore/defer, and reviewer disagreements before applying anything.
+
+### Quality gate technique
+
+Use this when the parent is about to claim a plan, answer, implementation, PR, or issue is good enough. Run fresh-context reviewers for correctness/regressions, tests/verification, and simplicity/maintainability; add security/privacy or ops/resource reviewers when relevant. This is a stronger named form of parallel review with an explicit gate verdict, not just reviewer fanout. Default shape:
+
+```typescript
+subagent({
+  tasks: [
+    { agent: "reviewer", task: "Quality gate: attack correctness/regression risk for <target>. Inspect files/diffs/sources directly. Do not edit.", output: false, progress: false },
+    { agent: "reviewer", task: "Quality gate: attack tests and verification evidence for <target>. Do not edit.", output: false, progress: false },
+    { agent: "reviewer", task: "Quality gate: attack simplicity and maintainability for <target>. Do not edit.", output: false, progress: false },
+  ],
+  concurrency: 3,
+  context: "fresh",
+});
+```
+
+After reviewers return, the parent must synthesize a structured verdict:
+
+```text
+Verdict: PASS | FAIL | INCONCLUSIVE
+Blocking findings: <count and one-line list>
+Evidence inspected: <commands/files/artifacts actually inspected>
+Decision: <claim allowed, claim blocked, or more evidence needed>
+```
+
+Use `FAIL` when any accepted must-fix remains, required verification is missing or stale, reviewers found a real unresolved correctness/security/ops blocker, or the target cannot support the claim. Use `INCONCLUSIVE` when reviewers lacked access, evidence is incomplete, tool failures blocked inspection, or reviewer findings cannot be reconciled. Use `PASS` only when no accepted must-fix remains, required evidence supports the claim, and should-fix/optional findings are explicitly non-blocking.
+
+### Quick adversarial check technique
+
+Use this before committing to an assumption, diagnosis, plan, or recommendation when a full debate would be too heavy. Run two or three fresh-context reviewers: one attacks correctness/missing evidence, one looks for a simpler or safer alternative, and one checks scope/security/ops/validation risks when relevant. Parent synthesis should be short: confirmed, weakened, or rejected; strongest objection; next action.
+
+### Adversarial debate technique
+
+Use this for ambiguous, high-impact, architecture/product/security-relevant, or taste-heavy decisions. The protocol is: independent proposals or positions; adversarial attacks; optional rebuttal/repair; parent synthesis by rubric, including the strongest counterargument to the preferred path. Runtime `subagent({ chain: [{ parallel: [...] }] })` can express fan-out/fan-in debate steps. Do not write saved `.chain.md` files for parallel debate unless the chain serializer supports parallel groups; current saved chain markdown is sequential-only.
 
 ### Parallel research technique
 
-Use this when the question needs both external evidence and local implications. Combine `researcher` for external evidence and `scout` for repository files, patterns, constraints, tests, and likely integration points. For library/framework documentation, direct the researcher to try context7 through `mcp` first; if context7 has no relevant coverage, it should say so and move to local source, official docs, source repos, `code_search`, or web search rather than stalling. Give each child a distinct angle: external evidence, local code context, and practical tradeoffs. Ask for source links or file ranges, confidence level, gaps, and decision implications. Do not ask these children to edit unless implementation was explicitly requested.
+Use this when the question needs both external evidence and local implications. Combine `researcher` for external evidence and `scout` for repository files, patterns, constraints, tests, and likely integration points. For library/framework documentation, either have the parent fetch context7 evidence first or direct the researcher to use local source, official docs, source repos, `code_search`, or web search. Give each child a distinct angle: external evidence, local code context, and practical tradeoffs. Ask for source links or file ranges, confidence level, gaps, and decision implications. Do not ask these children to edit unless implementation was explicitly requested.
+
+### Research-decision technique
+
+Use this when the parent must recommend a path rather than merely collect facts. Combine external evidence, local code/context, and an adversarial tradeoff critique. For high-impact decisions, add a user-preference, ops-risk, or security/privacy critic. Children should write distinct file-only outputs when findings may be large. For top-level `tasks`, relative output paths resolve against `cwd`; use absolute `.scratch/...` paths for repo artifacts. For foreground tool-call chain steps, relative outputs are temp/chain-artifact-local; slash-command background `/chain` relative outputs resolve against cwd or the step cwd. Parent synthesis must include the recommendation, strongest counterargument, local implications, confidence, gaps, and whether user approval is needed before implementation.
+
+### Generate-filter technique
+
+Use this when many candidate ideas are useful but the output must be selective. Use runtime chain fan-out/fan-in when subagents are available: diverse children first generate practical, ambitious/high-upside, and minimal/simplifying options, then a reviewer/filter pass sees the concrete generated options. A top-level parallel call with only generator children is incomplete; do not score it as success. Dedupe aggressively. Return only the strongest options with tradeoffs, rejected categories, strongest counterargument to the recommendation, and the next validation step. Ask the user before picking a winner for taste/product/architecture/security-sensitive decisions.
 
 ### Parallel context-build technique
 
-Use this before planning or implementation when a stronger handoff is needed. Run a chain with one parallel step of `context-builder` agents rather than top-level parallel tasks, so relative output files live under the temporary chain directory. Give every task a distinct output path such as `context-build/request-and-scope.md`, `context-build/codebase-and-patterns.md`, and `context-build/validation-and-risks.md`. Choose two or three builders: request/scope, codebase/patterns, and validation/risks. Each builder must read every relevant file needed to understand its slice, follow imports/callers/tests/docs/config, use context7 through `mcp` first for library/framework documentation, fall back to local source/official docs/source repos/`code_search`/web search when context7 has no relevant coverage, and include a compact `meta-prompt` section. The parent synthesizes the outputs into important context, recommended next meta-prompt, open questions, assumptions, and artifact paths.
+Use this before planning or implementation when a stronger handoff is needed. Run a chain with one parallel step of `context-builder` agents rather than top-level parallel tasks, so relative output files live under the temporary chain directory. Give every task a distinct output path such as `context-build/request-and-scope.md`, `context-build/codebase-and-patterns.md`, and `context-build/validation-and-risks.md`. Choose two or three builders: request/scope, codebase/patterns, and validation/risks. Each builder must read every relevant file needed to understand its slice, follow imports/callers/tests/docs/config, use parent-provided context7 evidence when available for library/framework documentation, otherwise use local source/official docs/source repos/`code_search`/web search, and include a compact `meta-prompt` section. The parent synthesizes the outputs into important context, recommended next meta-prompt, open questions, assumptions, and artifact paths.
 
 Example shape:
 
@@ -109,7 +184,7 @@ subagent({
 
 ### Parallel handoff-plan technique
 
-Use this when the user needs a solution brief or implementation-ready handoff from an external reference plus local code context, such as “study this library behavior, inspect our codebase, then produce a worker prompt.” Run a chain with a first parallel group and a second synthesis `context-builder` step. The first group usually includes `researcher` for external projects/docs/prompt guidance and `context-builder` for local code context; for library/framework docs, tell the researcher to try context7 through `mcp` first and then fall back to local source, official docs, source repos, `code_search`, or web search if context7 has no relevant coverage. Add a second `context-builder` for implementation strategy only when the scope is large enough to benefit. Use distinct output paths under `handoff/`, then have the synthesis `context-builder` read those outputs and write `handoff/final-handoff-plan.md` with the recommended approach, likely files, constraints, non-goals, validation, risks, unresolved questions, and final compact implementation-ready meta-prompt.
+Use this when the user needs a solution brief or implementation-ready handoff from an external reference plus local code context, such as “study this library behavior, inspect our codebase, then produce a worker prompt.” Run a chain with a first parallel group and a second synthesis `context-builder` step. The first group usually includes `researcher` for external projects/docs/prompt guidance and `context-builder` for local code context; for library/framework docs, pass parent-fetched context7 evidence when needed, or tell the researcher to use local source, official docs, source repos, `code_search`, or web search. Add a second `context-builder` for implementation strategy only when the scope is large enough to benefit. Use distinct output paths under `handoff/`, then have the synthesis `context-builder` read those outputs and write `handoff/final-handoff-plan.md` with the recommended approach, likely files, constraints, non-goals, validation, risks, unresolved questions, and final compact implementation-ready meta-prompt.
 
 Example shape:
 
@@ -147,7 +222,7 @@ subagent({
 
 ### Gather-context-and-clarify technique
 
-Use this at the start of non-trivial work. Launch `scout` for local context and `researcher` only when external docs, recent sources, ecosystem context, or primary evidence would materially improve understanding. For library/framework documentation, prefer context7 through `mcp` before general web search. Ask children for concise findings plus remaining clarification questions. Then synthesize what is known and use `interview` to ask the unresolved questions needed for shared understanding before planning or implementing.
+Use this at the start of non-trivial work. Launch `scout` for local context and `researcher` only when external docs, recent sources, ecosystem context, or primary evidence would materially improve understanding. For library/framework documentation, prefer parent-fetched context7 evidence when needed; otherwise use local source, official docs, source repos, `code_search`, or web search. Ask children for concise findings plus remaining clarification questions. Then synthesize what is known and use the available structured question tool to ask the unresolved questions needed for shared understanding before planning or implementing. Prefer `ask_user` in this environment; use `interview` only if it is installed.
 
 ### Parallel cleanup technique
 
@@ -156,17 +231,25 @@ Use this after implementation when the user wants cleanup review or when a final
 ## Builtin Agents
 
 Builtin agents load at the lowest priority. Project agents override user agents,
-and user/project agents override builtins with the same name.
+and user/project agents override builtins with the same name. Protected advisory
+role names (`scout`, `reviewer`, `planner`, `researcher`, `context-builder`,
+`delegate`, `oracle`) are permission-sanitized after precedence is resolved:
+direct file mutation tools, generic `mcp`, direct MCP tools, `extensions`, and custom
+tool-extension paths are removed, and normal extensions are disabled except the
+subagent prompt runtime extension. Advisory `bash`, where present, is
+prompt-governed for read-only inspection because Pi has no read-only shell
+permission. Use `worker` or a custom non-advisory agent name for
+mutation-capable roles.
 
 | Agent             | Purpose                                     | Model            | Typical output / role                                 |
 | ----------------- | ------------------------------------------- | ---------------- | ----------------------------------------------------- |
-| `scout`           | Fast codebase recon                         | inherits default | Writes `context.md` handoff material                  |
-| `planner`         | Creates implementation plans                | inherits default | Writes `plan.md`                                      |
+| `scout`           | Fast codebase recon                         | inherits default | Read-only recon; use `output: false` or explicit `.scratch/...` artifacts |
+| `planner`         | Creates implementation plans                | inherits default | Returns a plan; default `output` saves `plan.md`       |
 | `worker`          | Implementation and approved oracle handoffs | inherits default | Single-writer implementation with decision escalation |
-| `reviewer`        | Review-and-fix specialist                   | inherits default | Can edit/fix reviewed code                            |
-| `context-builder` | Requirements/codebase handoff builder       | inherits default | Writes structured context files                       |
-| `researcher`      | Web research brief generator                | inherits default | Writes `research.md`                                  |
-| `delegate`        | Lightweight generic delegate                | inherits default | No fixed output; generic delegated work               |
+| `reviewer`        | Review specialist                           | inherits default | Review-only; no edit/write tools in the packaged role |
+| `context-builder` | Requirements/codebase handoff builder       | inherits default | Structured handoff context; use chain/artifact paths intentionally |
+| `researcher`      | Web research brief generator                | inherits default | Research brief; use `output: false` or explicit `.scratch/...` artifacts |
+| `delegate`        | Lightweight generic delegate                | inherits default | Advisory delegated work; no edit/write tools in the packaged role |
 | `oracle`          | Decision-consistency advisory review        | inherits default | Advisory review, intercom coordination                |
 
 Builtin agents inherit the current Pi default model unless a run, user setting, or project setting overrides `model`. Override builtin defaults before copying full agent files when a small tweak is enough.
@@ -191,7 +274,7 @@ A strong subagent prompt usually includes:
 - **Hard constraints**: true invariants only, such as no edits for review-only tasks, one writer thread, child must not run subagents, or escalation for unapproved decisions.
 - **Validation**: targeted checks to run, or the next-best check when validation is impossible.
 - **Output**: the expected summary shape, artifact path, or finding format.
-- **Stop rules**: when to ask via `intercom`, when to stop after enough evidence, and when not to keep searching.
+- **Stop rules**: when to ask through the injected supervisor bridge (`contact_supervisor` when available, generic `intercom` only with a safe documented target), when to stop after enough evidence, and when not to keep searching.
 
 Avoid carrying over old prompt habits that over-specify every step. Use `must`, `always`, and `never` for real invariants; for judgment calls, give decision rules. For example, tell a reviewer to inspect the total effective diff, including staged and unstaged tracked changes plus in-scope untracked file contents, and report only evidence-backed findings, rather than prescribing every file or command. Tell a researcher the retrieval budget: start with broad targeted searches, fetch only the strongest sources, search again only when a required fact is missing, then stop.
 
@@ -220,8 +303,13 @@ Direct settings example:
 
 Useful override fields: `model`, `fallbackModels`, `thinking`,
 `systemPromptMode`, `inheritProjectContext`, `inheritSkills`, `defaultContext`,
-`disabled`, `skills`, `tools`, and `systemPrompt`. Create a user or project
-agent with the same name only when you want a substantially different agent.
+`disabled`, `skills`, `tools`, and `systemPrompt`. For protected advisory role
+names, `tools` is filtered to known advisory inspection/coordination tools,
+generic `mcp`, direct MCP tools, and `extensions` are stripped, and normal extensions are disabled.
+Use `worker` or a custom non-advisory agent name when direct file mutation,
+generic `mcp`, direct MCP tools, custom extensions, or custom tool-extension paths are required.
+Create a user or project agent with the same name only when you want a
+substantially different advisory prompt or model/context behavior.
 
 ## Discovery and Scope Rules
 
@@ -274,8 +362,8 @@ or execution thread that can still reference the parent session history.
 ```typescript
 subagent({
   tasks: [
-    { agent: "scout", task: "Explore the auth module" },
-    { agent: "reviewer", task: "Review the API client" },
+    { agent: "scout", task: "Explore the auth module", output: false, progress: false },
+    { agent: "reviewer", task: "Review the API client", output: false, progress: false },
   ],
 });
 ```
@@ -288,25 +376,30 @@ subagent({
     {
       agent: "scout",
       task: "Map auth",
-      output: "auth-context.md",
-      progress: true,
+      output: ".scratch/research/auth-context.md",
+      outputMode: "file-only",
+      progress: false,
     },
     {
       agent: "researcher",
       task: "Research OAuth best practices",
-      output: "oauth-research.md",
+      output: ".scratch/research/oauth-research.md",
+      outputMode: "file-only",
+      progress: false,
     },
     {
       agent: "reviewer",
       task: "Review auth tests",
       model: "anthropic/claude-sonnet-4",
+      output: false,
+      progress: false,
     },
   ],
   concurrency: 3,
 });
 ```
 
-Avoid duplicate output paths in parallel tasks. Concurrent children should not write to the same file. For large saved outputs, set `outputMode: "file-only"` together with an `output` path. The parent result then contains only a compact reference like `Output saved to: /abs/report.md (48.2 KB, 2847 lines). Read this file if needed.` instead of the full saved content. Do not use `output: false` for this; `output: false` means no file output. Failed runs and save errors still return inline details for debugging.
+Avoid duplicate output paths in parallel tasks. Concurrent children should not target the same saved output file. For large saved outputs, set `outputMode: "file-only"` together with a distinct `output` path, preferably under `.scratch/` or an explicit artifact directory. The parent result then contains only a compact reference like `Output saved to: /abs/report.md (48.2 KB, 2847 lines). Read this file if needed.` instead of the full saved content. Do not use `output: false` for this; `output: false` means no file output. Failed runs and save errors still return inline details for debugging.
 
 ### Chain execution
 
@@ -329,9 +422,9 @@ without forcing each step to rediscover everything.
 
 ### Async/background
 
-Use async mode whenever the parent agent should keep working while a child runs. A normal foreground `subagent(...)` call blocks the parent until the child completes; it is appropriate when the next parent step depends on the child result. If you say you will "ask a reviewer while I continue auditing" or otherwise run local work in parallel with a child, launch with `async: true`.
+Use async mode only when the parent agent should keep working on independent work while a child runs. A normal foreground `subagent(...)` call blocks the parent until the child completes; use foreground when the next parent step, verdict, or final answer depends on the child result. If you say you will "ask a reviewer while I continue auditing" or otherwise run local work in parallel with a child, launch with `async: true`.
 
-Do not end your turn immediately after launching an async child if you promised to keep working. Continue the local inspection or other independent work, then check the async run when its result is needed. If there is no independent work left and you would only be running `sleep` or status polling commands to wait, end your turn instead. Pi will deliver the async completion when it arrives.
+Do not end your turn immediately after launching an async child if you promised to keep working. Continue the local inspection or other independent work, then check the async run when its result is needed. If there is no independent work left and you would only be running `sleep` or status polling commands to wait, end your turn instead. Pi will deliver the async completion when it arrives. When the async result is relevant to the user request, later completion/status is not enough by itself: read the saved result or status output, synthesize it in the parent session, and only then make the final claim.
 
 ```typescript
 subagent({
@@ -458,8 +551,11 @@ subagent({
 
 `worktree: true` gives each parallel task its own git worktree branched from
 HEAD. This requires a clean git state and is mainly for intentionally parallel
-write workflows. If you want one writer thread and several advisory agents,
-prefer a single-writer pattern instead.
+write workflows. If the working tree is dirty, untracked files are present, or
+worktree isolation is not explicitly approved, do not launch parallel writers in
+the shared checkout. Refuse the parallel-writer shape or fall back to one writer
+plus parallel read-only reviewers/scouts. If you want one writer thread and
+several advisory agents, prefer a single-writer pattern instead.
 
 ## The Oracle Workflow
 
@@ -622,14 +718,15 @@ copying a full builtin file.
 ## Prompt Template Integration
 
 The package includes prompt shortcuts for common workflows: `/parallel-review`,
-`/parallel-research`, `/parallel-context-build`, `/parallel-handoff-plan`,
+`/quality-gate`, `/quick-adversarial-check`, `/adversarial-debate`,
+`/parallel-research`, `/research-decision`, `/generate-filter`,
+`/parallel-context-build`, `/parallel-handoff-plan`,
 `/gather-context-and-clarify`, and `/parallel-cleanup`. Use them when the user
-wants repeatable review, research, context handoff, implementation handoff,
-clarification, or cleanup-review patterns. `/parallel-review autofix` and
-`/parallel-cleanup autofix` synthesize reviewer feedback and then apply only the
-fixes worth doing now. Parent agents can also apply the same recipes directly
-with `subagent(...)` when the user describes the workflow in natural language
-instead of invoking a slash command.
+wants repeatable review, quality gates, adversarial checks, debate, research,
+decision support, idea generation/filtering, context handoff, implementation
+handoff, clarification, or cleanup-review patterns. `/parallel-review autofix`
+and `/parallel-cleanup autofix` synthesize reviewer feedback and then apply only
+the fixes worth doing now. `/quality-gate` is review and synthesis only; use a separate implementation-authorized fix workflow for changes. Parent agents can also apply the same recipes directly with `subagent(...)` when the user describes the workflow in natural language instead of invoking a slash command.
 
 If `pi-prompt-template-model` is installed, additional user prompt templates can delegate into
 `pi-subagents`. This is useful when a slash command should always run through a
@@ -674,7 +771,7 @@ Give subagents specific tasks rather than vague mandates.
 ### Escalate decisions upward
 
 If a subagent encounters an unapproved product, architecture, or scope choice,
-it should coordinate back via `intercom` instead of deciding alone.
+it should coordinate upward through the injected supervisor bridge, preferably `contact_supervisor` when available, instead of deciding alone. Use generic `intercom` only as the documented fallback when bridge instructions provide a safe target.
 
 ### Intervene only on clear control signals
 
@@ -702,13 +799,18 @@ subagent({
 
 When you are the orchestrating agent for a new feature or non-trivial change, factor in the packaged prompt workflows without literally invoking slash commands. Use the same patterns through tools and subagents.
 
-Keep builtin agent defaults unless the user explicitly asks for a different model, thinking level, skills, output behavior, context mode, or other override. Do not add overrides just because you are orchestrating; the defaults encode the intended role behavior. In particular, packaged `planner`, `worker`, and `oracle` default to forked context.
+Keep builtin model, thinking, skills, and context defaults unless the user explicitly asks for different behavior. Output/progress are different: advisory fanout should explicitly use `output: false` and `progress: false` unless artifacts are needed; artifact-producing fanout should use distinct `.scratch/...` output paths plus `outputMode: "file-only"`. In particular, packaged `planner`, `worker`, and `oracle` default to forked context.
 
 When the user approves launching a subagent to carry out a plan or workflow, treat that as approval to generate a proper role-specific meta prompt for that subagent. Include the approved plan path or summary, clarified requirements, non-goals, relevant context, role boundaries, files or areas to inspect, acceptance criteria, expected output, and validation expectations. Do not pass vague instructions like “implement the plan fully” or “review this” by themselves.
 
-- `/gather-context-and-clarify` maps to: launch `scout` and, when needed, `researcher`; synthesize findings; then use `interview` to ask every clarification question needed for shared understanding.
-- `/parallel-review` maps to: launch fresh-context `reviewer` agents with distinct review angles; synthesize the feedback before applying anything.
+- `/gather-context-and-clarify` maps to: launch `scout` and, when needed, `researcher`, with `output: false` / `progress: false` unless explicit artifacts are needed; synthesize findings; then use `ask_user` or the available structured question tool to ask every clarification question needed for shared understanding.
+- `/parallel-review` maps to: launch fresh-context `reviewer` agents with distinct adversarial review angles; synthesize the feedback before applying anything.
+- `/quality-gate` maps to: run a stronger parallel review gate for correctness/regressions, tests/verification, simplicity/maintainability, and optional security/ops risk, then emit a parent-synthesized `PASS` / `FAIL` / `INCONCLUSIVE` verdict before claiming a plan, answer, or diff is good enough.
+- `/quick-adversarial-check` maps to: run two or three fresh-context reviewers to attack an assumption, plan, claim, or recommendation before committing to it.
+- `/adversarial-debate` maps to: generate competing positions, attack the concrete proposals in a fan-in step, optionally repair the best candidate, then synthesize disagreement by rubric in the parent.
 - `/parallel-research` maps to: combine local `scout` context with external `researcher` evidence when current docs, ecosystem behavior, or API details matter.
+- `/research-decision` maps to: combine external evidence, local context, and adversarial tradeoff critique into a recommendation with confidence, risks, and user-decision points.
+- `/generate-filter` maps to: spawn diverse option generators in a fan-out step, run a mandatory reviewer/filter fan-in pass over their concrete options, dedupe/filter by rubric, and return the strongest choices with tradeoffs.
 - `/parallel-context-build` maps to: run a chain-mode parallel group of `context-builder` agents with distinct temp output paths, then synthesize their context and meta-prompt sections.
 - `/parallel-handoff-plan` maps to: run external `researcher` plus local/strategy `context-builder` passes, then a synthesis `context-builder` that writes an implementation handoff plan and implementation-ready meta-prompt.
 - `/parallel-cleanup` maps to: use review-only cleanup passes after implementation, especially for simplicity, verbosity, and redundant tests.
@@ -723,7 +825,7 @@ The first `worker` implements the approved plan. The parallel reviewers inspect 
 
 Keep orchestration authority in the parent session. Child subagents should not launch more subagents, read this skill, or run their own orchestration loops. Spawned subagents do not receive the `pi-subagents` skill, parent-only status/control/slash messages, prior parent `subagent` tool-call/tool-result artifacts, or the `subagent` extension tool. Child context filtering also strips old hidden orchestration-instruction messages when they appear in inherited history. Every child also receives a boundary instruction that says the parent owns orchestration, the child must not propose or run subagents, and implementation children must call real edit/write tools instead of printing pseudo tool calls. Pass children concrete role-specific work instead.
 
-1. Clarify first. This is mandatory. Gather code context with `scout` or `context-builder`, add `researcher` only when external evidence matters, then ask the user clarifying questions with `interview` until scope, acceptance criteria, constraints, and non-goals are clear.
+1. Clarify first. This is mandatory. Gather code context with `scout` or `context-builder`, add `researcher` only when external evidence matters, then ask the user clarifying questions with `ask_user` or the available structured question tool until scope, acceptance criteria, constraints, and non-goals are clear.
 2. Plan when useful. For complex work, call `planner` or write a plan doc yourself and get approval before implementation. For simple work, confirm shared understanding and explicitly note why planning is skipped.
 3. Implement with one writer. After approval, launch `worker` with a proper meta prompt that includes clarified requirements, relevant context, plan path or summary, acceptance criteria, and validation expectations. Packaged `worker` defaults to forked context; pass `context: "fresh"` only when you intentionally want a fresh child.
 4. Review after implementation. After the worker completes, launch parallel fresh-context `reviewer` agents for correctness/regressions, tests/validation, and simplicity/maintainability. Use `output: false` unless review artifacts are explicitly needed.
