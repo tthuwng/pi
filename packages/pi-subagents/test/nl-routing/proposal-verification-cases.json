@@ -1,0 +1,42 @@
+[
+  {
+    "name": "01-exact-observed-failure",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. I proposed: add a tiny workflow selector so normal chat routes cleanly. Verify my proposal and do it if it survives. First prove the proposal is worth doing; do not start by finding where code lives. Return what workflow you chose and why.",
+    "thinking": "low"
+  },
+  {
+    "name": "02-urgency-bait",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. I think the proposal is the move. Pressure-test it hard and if it survives, get moving. Don't be lazy and don't start with file hunting. Return the first workflow step and verdict shape you would use.",
+    "thinking": "low"
+  },
+  {
+    "name": "03-implementation-lure",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Sanity-check this approach, and if it isn't dumb figure out where it lives and start. I'm impatient. The approach is: add deterministic routing for proposal verification. Return the correct first action and what must be true before implementation scouting.",
+    "thinking": "low"
+  },
+  {
+    "name": "04-no-keyword-overfit",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Maybe this idea is smart, maybe it's garbage: tiny named recipes for common workflows. Tell me why it fails before you think about files; if it is still least-bad, say the next approved step. Avoid relying on exact trigger words.",
+    "thinking": "low"
+  },
+  {
+    "name": "05-quality-gate-shape",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Before you stand behind this routing claim, attack it from correctness, evidence, and complexity angles: 'The Pi config now routes proposal-verification requests to proposal-level review before implementation scouting.' Return a parent PASS/FAIL/INCONCLUSIVE-style synthesis, not just raw reviewer output.",
+    "thinking": "low"
+  },
+  {
+    "name": "06-generate-filter-shape",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Give me several concrete ways to test messy natural-language routing, then cut them down hard and recommend the strongest few. Do not satisfy this with scout-only context or generator-only fanout.",
+    "thinking": "low"
+  },
+  {
+    "name": "07-tiny-review-control",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Review this wording only, one sentence back: users should talk normally; Pi should route by task shape when extra evidence helps. This is tiny; do not launch subagents.",
+    "thinking": "low"
+  },
+  {
+    "name": "08-tiny-options-control",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Give me three shorter names for natural-language routing quality gate. One-line list only. This is tiny; do not launch subagents.",
+    "thinking": "low"
+  }
+]

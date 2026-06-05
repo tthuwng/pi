@@ -80,11 +80,12 @@ Natural-language routing examples:
 | --- | --- |
 | “review this”, “check this”, “does this look right?” | `review` skill first; escalate to `/parallel-review` with fresh reviewers when independent review adds value |
 | “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
+| “verify your proposal and do it”, “pressure-test this approach, then start”, “if it survives, implement it” | proposal-verification gate first: attack the parent proposal itself before implementation scouting, worker handoff, or file hunting |
 | “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
 | “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
 | “think about the architecture”, “is this the right approach?”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
 | “research and decide”, “what should we use?”, “look at docs/source and recommend” | `/research-decision` pattern with researcher + scout + tradeoff reviewer |
-| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
 | “vague idea”, “new behavior”, “where should this live?” | `brainstorming` skill first; use `/generate-filter` only after the options/rubric shape is clear |
 | “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
 | “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
@@ -95,6 +96,27 @@ These are routing examples, not keyword triggers. Classify by task shape, risk, 
 The prompt templates in `prompts/` encode workflows the parent agent can run on demand. If the user provides a URL, issue, PR, plan, local file, screenshot, or freeform target, treat that target as the primary scope: read or fetch it before launching children, then include it explicitly in every child task. Do not depend on the parent conversation history when the recipe calls for fresh context.
 
 Quality-first users may prefer more fanout than the minimum. Use extra children when they add independent evidence, competing hypotheses, attack surfaces, or verification. Do not add duplicate vague agents. Keep final synthesis in the parent session: children provide evidence and critique; the parent accepts, rejects, defers, investigates further, or asks the user.
+
+### Proposal-verification gate
+
+Use this gate when the parent has already proposed a plan, architecture, workflow, diagnosis, or implementation approach and the user asks to verify, pressure-test, review, argue both sides, research/decide, or “do it if it survives.” The target is the parent proposal, not the future code location.
+
+Correct first actions:
+
+- prefer `subagent({ workflow: "builtin.quality-gate", task: "Proposal to verify: ..." })` for a foreground proposal gate that must be synthesized before implementation;
+- prefer `subagent({ workflow: "builtin.research-decision", task: "Decision to research: ..." })` when local/external evidence is needed before choosing;
+- run `/quality-gate` over the proposal when the question is “is this good enough?”;
+- run `/quick-adversarial-check` for a small proposal or assumption;
+- run `/adversarial-debate` for architecture/workflow choices with competing viable paths;
+- run `/research-decision` when external or local evidence is needed before choosing.
+
+Incorrect first actions:
+
+- scouting where to implement the proposal before it has survived review;
+- dispatching a planner/worker handoff before a proposal verdict;
+- treating implementation feasibility as a substitute for proposal correctness.
+
+The parent must synthesize `PASS` / `FAIL` / `INCONCLUSIVE` before proceeding. Since implementation depends on that verdict, run the gate foreground or wait-and-inspect its artifacts before making the next claim unless there is genuine independent work to do. Do not leave a final-answer-dependent proposal gate as an unresolved async promise. Implementation may continue only when the proposal survives the gate and the approved implementation scope still permits edits.
 
 For fresh adversarial or research fanout, prefer explicit call shapes with `context: "fresh"`, deliberate `concurrency`, `progress: false`, and either `output: false` for concise advisory passes or distinct `.scratch/...` output paths plus `outputMode: "file-only"` for large artifacts. Avoid parallel writers unless `worktree: true` or separate isolated workspaces are explicitly approved; if a natural-language parallel-writer request cannot safely use clean worktrees/isolated workspaces, refuse that shape and fall back to one writer plus parallel read-only reviewers/scouts.
 

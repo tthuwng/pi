@@ -93,7 +93,8 @@ import {
 	resolveAsyncResumeTarget,
 } from "../background/async-resume.ts";
 import { inspectSubagentStatus } from "../background/run-status.ts";
-import { applyForceTopLevelAsyncOverride } from "../background/top-level-async.ts";
+import { applyForceTopLevelAsyncOverrideForExecution } from "../background/top-level-async.ts";
+import { expandBuiltinWorkflowParams } from "../shared/workflows.ts";
 import {
 	cleanupWorktrees,
 	createWorktrees,
@@ -146,6 +147,7 @@ interface TaskParam {
 }
 
 export interface SubagentParamsLike {
+	workflow?: string;
 	action?: string;
 	id?: string;
 	runId?: string;
@@ -154,6 +156,8 @@ export interface SubagentParamsLike {
 	agent?: string;
 	task?: string;
 	message?: string;
+	chainName?: string;
+	config?: unknown;
 	chain?: ChainStep[];
 	tasks?: TaskParam[];
 	concurrency?: number;
@@ -172,7 +176,7 @@ export interface SubagentParamsLike {
 	skill?: string | string[] | boolean;
 	output?: string | boolean;
 	outputMode?: "inline" | "file-only";
-	agentScope?: unknown;
+	agentScope?: string;
 	chainDir?: string;
 }
 
@@ -2780,10 +2784,21 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		deps.state.foregroundControls ??= new Map();
 		deps.state.lastForegroundControlId ??= null;
 		const requestCwd = resolveRequestedCwd(ctx.cwd, params.cwd);
-		const paramsWithResolvedCwd =
+		let paramsWithResolvedCwd =
 			params.cwd === undefined ? params : { ...params, cwd: requestCwd };
-		if (params.action) {
-			if (params.action === "doctor") {
+		const workflowExpansion = expandBuiltinWorkflowParams(
+			paramsWithResolvedCwd,
+		);
+		if (workflowExpansion.error) {
+			return {
+				content: [{ type: "text", text: workflowExpansion.error }],
+				isError: true,
+				details: { mode: "parallel" as const, results: [] },
+			};
+		}
+		paramsWithResolvedCwd = workflowExpansion.params ?? paramsWithResolvedCwd;
+		if (paramsWithResolvedCwd.action) {
+			if (paramsWithResolvedCwd.action === "doctor") {
 				let currentSessionFile: string | null = null;
 				let currentSessionId = deps.state.currentSessionId;
 				let sessionError: string | undefined;
@@ -2824,7 +2839,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					details: { mode: "management", results: [] },
 				};
 			}
-			if (params.action === "status") {
+			if (paramsWithResolvedCwd.action === "status") {
 				const foreground = getForegroundControl(
 					deps.state,
 					paramsWithResolvedCwd.id ?? paramsWithResolvedCwd.runId,
@@ -2832,7 +2847,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				if (foreground) return foregroundStatusResult(foreground);
 				return inspectSubagentStatus(paramsWithResolvedCwd);
 			}
-			if (params.action === "resume") {
+			if (paramsWithResolvedCwd.action === "resume") {
 				return resumeAsyncRun({
 					params: paramsWithResolvedCwd,
 					requestCwd,
@@ -2840,7 +2855,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					deps,
 				});
 			}
-			if (params.action === "interrupt") {
+			if (paramsWithResolvedCwd.action === "interrupt") {
 				const targetRunId =
 					paramsWithResolvedCwd.runId ?? paramsWithResolvedCwd.id;
 				const foreground = getForegroundControl(deps.state, targetRunId);
@@ -2883,22 +2898,30 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					details: { mode: "management", results: [] },
 				};
 			}
-			if (!(SUBAGENT_ACTIONS as readonly string[]).includes(params.action)) {
+			if (
+				!(SUBAGENT_ACTIONS as readonly string[]).includes(
+					paramsWithResolvedCwd.action,
+				)
+			) {
 				return {
 					content: [
 						{
 							type: "text",
-							text: `Unknown action: ${params.action}. Valid: ${SUBAGENT_ACTIONS.join(", ")}`,
+							text: `Unknown action: ${paramsWithResolvedCwd.action}. Valid: ${SUBAGENT_ACTIONS.join(", ")}`,
 						},
 					],
 					isError: true,
 					details: { mode: "management" as const, results: [] },
 				};
 			}
-			return handleManagementAction(params.action, paramsWithResolvedCwd, {
-				...ctx,
-				cwd: requestCwd,
-			});
+			return handleManagementAction(
+				paramsWithResolvedCwd.action,
+				paramsWithResolvedCwd,
+				{
+					...ctx,
+					cwd: requestCwd,
+				},
+			);
 		}
 
 		const { blocked, depth, maxDepth } = checkSubagentDepth(
@@ -2924,10 +2947,11 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		if (normalized.error) return normalized.error;
 		const normalizedParams = normalized.params!;
 
-		let effectiveParams = applyForceTopLevelAsyncOverride(
+		let effectiveParams = applyForceTopLevelAsyncOverrideForExecution(
 			normalizedParams,
 			depth,
 			deps.config.forceTopLevelAsync === true,
+			workflowExpansion,
 		);
 
 		const scope: AgentScope = resolveExecutionAgentScope(

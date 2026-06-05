@@ -111,17 +111,26 @@ The user does not need to name slash commands. Route ordinary requests to the ma
 | --- | --- |
 | “review this”, “check this”, “does this look right?” | `review` skill plus `/parallel-review` pattern when adversarial/fresh reviewers add value |
 | “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
+| “verify your proposal and do it”, “pressure-test this approach, then start”, “if it survives, implement it” | proposal-verification gate first: review the parent proposal itself before implementation scouting, worker handoff, or file hunting |
 | “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
 | “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
 | “ask me what you need first”, “clarify before planning”, “figure out the unknowns” | `/gather-context-and-clarify` pattern |
 | “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
 | “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
 | “research and decide”, “look at docs/source and recommend”, “what should we use?” | `/research-decision` pattern |
-| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | `/generate-filter` pattern with generator fanout plus mandatory reviewer/filter fan-in |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with generator fanout plus mandatory reviewer/filter fan-in |
 | “think through the architecture”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
 | “clean this up”, “deslop”, “make it less verbose” | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized |
 
 These are shape-based routing rules, not keyword triggers. Choose the smallest useful workflow that adds independent evidence. For high-impact or ambiguous work, prefer adversarial fanout; for tiny Tier 1 edits, do not add process just to use subagents.
+
+### Proposal-Verification Gate
+
+When this parent session has proposed a plan, architecture, workflow, diagnosis, or implementation approach, and the user asks to verify, pressure-test, review, argue both sides, research/decide, or “do it if it survives,” first treat the parent proposal as the review target. Prefer `subagent({ workflow: "builtin.quality-gate", task: "Proposal to verify: ..." })` for a foreground proposal gate; use `builtin.research-decision` when local/external evidence is needed before choosing. Run a proposal-level `/quality-gate`, `/quick-adversarial-check`, `/adversarial-debate`, or `/research-decision` shape as appropriate. Do not dispatch scouts/planners/workers to find implementation locations until the parent has synthesized a proposal verdict (`PASS` / `FAIL` / `INCONCLUSIVE`) and implementation is still approved.
+
+Because implementation depends on the gate result, prefer foreground/wait-and-inspect delegation for this gate. Use async only when there is real independent work to do before the verdict; do not leave a final-answer-dependent proposal gate as “pending” and call the task done.
+
+The gate fails if the first delegated work is implementation-placement scouting, worker handoff, file hunting, or an unresolved async review promise instead of an inspected proposal verdict.
 
 ## Delegation Rules
 

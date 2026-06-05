@@ -628,6 +628,11 @@ These are the parameters the LLM passes when it calls the `subagent` tool. Most 
 { agent: "scout", task: "investigate", output: false }
 { agent: "scout", task: "produce a large report", output: "reports/scout.md", outputMode: "file-only" }
 
+// Builtin foreground workflows for dependent parent synthesis
+{ workflow: "builtin.quality-gate", task: "Proposal to verify: ..." }
+{ workflow: "builtin.research-decision", task: "Decision to research: ..." }
+{ workflow: "builtin.generate-filter", task: "Options to generate and filter: ..." }
+
 // Forked context
 { agent: "worker", task: "continue this thread", context: "fork" }
 
@@ -716,8 +721,9 @@ Agent definitions are not loaded into context by default. Management actions let
 
 | Param             | Type                          | Default                  | Description                                                                                                                            |
 | ----------------- | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `workflow`        | string                        | -                        | Builtin workflow selector, currently `builtin.quality-gate`, `builtin.research-decision`, or `builtin.generate-filter`. Requires `task`; mutually exclusive with explicit execution/management fields. Expands to existing foreground/fresh tasks or chains so the parent can inspect and synthesize before proceeding. |
 | `agent`           | string                        | -                        | Agent name for single mode, or target for management actions.                                                                          |
-| `task`            | string                        | -                        | Task string for single mode.                                                                                                           |
+| `task`            | string                        | -                        | Task string for single mode or builtin workflow target.                                                                                |
 | `action`          | string                        | -                        | `list`, `get`, `create`, `update`, `delete`, `status`, `interrupt`, `resume`, or `doctor`.                                             |
 | `chainName`       | string                        | -                        | Chain name for management actions.                                                                                                     |
 | `config`          | object/string                 | -                        | Agent or chain config for create/update.                                                                                               |

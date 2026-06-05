@@ -16,6 +16,7 @@ Default routing:
 - Simple local review or tiny Tier 1 change: perform this review skill directly.
 - Nontrivial diff/plan/answer review: use `pi-subagents` `/parallel-review` pattern with distinct reviewer angles.
 - Pre-final claim that something is good enough: use `pi-subagents` `/quality-gate` pattern; review and synthesis only, ending with a parent-synthesized `PASS` / `FAIL` / `INCONCLUSIVE` verdict.
+- Parent proposal verification: when the user asks to verify, pressure-test, argue against, research/decide, or “do it if it survives” after this parent proposed a plan/architecture/workflow/diagnosis, review the proposal itself before implementation scouting or worker/planner dispatch. Synthesize `PASS` / `FAIL` / `INCONCLUSIVE` first.
 - Review feedback loop explicitly authorized for fixes: one writer/fix pass at a time, then fresh reviewers.
 - Cleanup/deslop/verbosity review: use `pi-subagents` `/parallel-cleanup` pattern.
 
