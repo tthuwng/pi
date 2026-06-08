@@ -34,7 +34,6 @@
     "autoTrigger": true,
     "triggerContextPercent": 0.6,
     "slipstreamKeepRecentTokens": 50000,
-    "compactionStrategy": "direct",
     "summaryModel": "openai-codex/gpt-5.5",
     "judgeModel": "openai-codex/gpt-5.5",
     "judgeThreshold": 7,
@@ -87,7 +86,8 @@
     "packages/pi-codex-retry",
     "packages/pi-slipstream-compact",
     "packages/pi-goal-supervisor",
-    "npm:pisesh"
+    "npm:pisesh",
+    "npm:pi-btw"
   ],
   "subagents": {
     "disableBuiltins": false
