@@ -122,6 +122,15 @@ Always prefer tree-sitter MCP tools over raw file reads:
 - `document_symbols` to understand file structure before reading entire files
 - `pattern_search` for structural code search (AST-aware, not text-matching)
 
+### Ast-grep for structural search and refactoring
+
+Use `ast_grep_search` and `ast_grep_replace` for structural code patterns, especially function calls, imports, class methods, JSX/TSX structure, and broad safe refactors. Prefer ast-grep over grep/sed when the target is code structure rather than literal text.
+
+- Search with ast-grep before grep for structured code patterns.
+- Use tree-sitter for symbol navigation and ast-grep for pattern matching/refactoring.
+- Scope ast-grep to relevant paths and dry-run replacements before applying.
+- Fall back to grep only for plain strings, comments, URLs, logs, config text, or after one simplified ast-grep attempt still returns zero matches.
+
 ### context7 for docs
 
 Never guess library behavior. Use `context7` MCP to look up library/framework documentation. Do not rely on training data for library specifics.
@@ -244,6 +253,14 @@ Use these skills as routing points:
 Subagent roles are operational contracts, not documentation: use **scout** for read-only recon, **worker** for single-thread implementation, and **reviewer** for evidence-backed code/spec review.
 
 Natural-language subagent routing is expected. The user should be able to talk normally; do not wait for slash commands when the task shape clearly fits subagent workflows. Use the canonical skill for the task first, then escalate to `pi-subagents` when parallel evidence, fresh context, or adversarial pressure would improve quality: route ordinary review through the `review` skill before `/parallel-review`, route vague ideas/new behavior/design placement through `brainstorming` before option generation, and route implementation work through `manager-workflow`. Use `subagent(...)` for ordinary requests such as “quality gate,” “fix review fix review,” “argue both sides,” “think through the architecture,” “research and decide,” “give me options,” “build context,” “prepare a handoff,” “clarify first,” or “cleanup/deslop,” unless the task is tiny Tier 1 or subagents would add no independent evidence. These are shape-based triggers, not brittle keywords. For “give me options” / generate-filter requests, prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use option generators plus a mandatory reviewer/filter fan-in. Do not run scout-only or generator-only fanout, and use at most one bounded scout for local constraints. For quality gates, synthesize reviewer output into `PASS` / `FAIL` / `INCONCLUSIVE`; reviewer fanout alone is not a gate.
+
+Reviewer subagents are the default quality weapon. For every nontrivial debugging, planning, implementation, refactor, architecture, benchmark, config, or final-readiness task, attach reviewer pressure at the earliest useful lifecycle boundary:
+
+- Before committing to a proposal: run a proposal-level quality gate or quick adversarial check.
+- Before implementation from an approved plan: use scout/context-builder/planner when missing context would create risk.
+- After nontrivial implementation: run at least one fresh `reviewer` before claiming done; use three reviewers (different goals) for broad/high-risk diffs.
+- During long implementations: launch an async reviewer only when it can inspect a stable artifact, plan, or partial diff while the parent/worker has independent work.
+- Do not keep reviewers running continuously without a reviewable target; stale background reviews are noise, not evidence.
 
 Proposal-verification gate: when the parent has proposed a plan, architecture, workflow, diagnosis, or implementation approach and the user asks to “verify,” “pressure-test,” “review,” “argue both sides,” “research/decide,” “if it survives do it,” or similar, first treat the parent’s proposal as the target of a proposal-level adversarial review. Prefer the foreground builtin selector for this dependent gate, e.g. `subagent({ workflow: "builtin.quality-gate", task: "Proposal to verify: ..." })`; use `builtin.research-decision` when local/external evidence is needed before choosing. Do not start implementation-placement scouting, worker handoff, or file hunting until the parent has synthesized a proposal verdict (`PASS` / `FAIL` / `INCONCLUSIVE`) and confirmed the next implementation step is approved. Because the next action depends on the gate result, use foreground/wait-and-inspect subagents for the gate unless there is genuine independent work; do not leave a final-answer-dependent proposal gate as an unresolved async promise.
 

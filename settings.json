@@ -65,8 +65,7 @@
     {
       "source": "npm:pi-lens",
       "skills": [
-        "!ast-grep",
-        "!lsp-navigation"
+        "ast-grep"
       ]
     },
     "npm:pi-web-access",
