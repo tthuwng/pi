@@ -69,6 +69,64 @@ test("pause and stop commands abort an active turn when context supports abort",
 	assert.equal(aborts, 2);
 });
 
+test("widget and supervisor prompt show unbounded turn count", async () => {
+	const entries: Array<{ type: "custom"; customType: string; data: unknown }> =
+		[];
+	const hooks = new Map<
+		string,
+		(event: unknown, ctx: unknown) => Promise<void> | void | unknown
+	>();
+	let handler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
+	let widgetContent: string[] | undefined;
+	const api = {
+		on(
+			event: string,
+			hook: (event: unknown, ctx: unknown) => Promise<void> | void | unknown,
+		) {
+			hooks.set(event, hook);
+		},
+		registerCommand(
+			_name: string,
+			options: { handler: (args: string, ctx: unknown) => Promise<void> },
+		) {
+			handler = options.handler;
+		},
+		appendEntry(customType: string, data: unknown) {
+			entries.push({ type: "custom", customType, data });
+		},
+		sendMessage() {},
+	};
+	registerGoalSupervisor(api);
+	assert.ok(handler);
+	const ctx = {
+		sessionManager: {
+			getCwd: () => "/tmp/project",
+			getSessionId: () => "session-1",
+			getBranch: () => entries,
+		},
+		isIdle: () => true,
+		hasPendingMessages: () => false,
+		ui: {
+			notify() {},
+			setWidget(_key: string, content: string[] | undefined) {
+				widgetContent = content;
+			},
+		},
+	};
+
+	await handler("finish objective", ctx);
+	const promptResult = hooks.get("before_agent_start")?.(
+		{ systemPrompt: "base", prompt: "continue" },
+		ctx,
+	) as { systemPrompt: string } | undefined;
+
+	assert.equal(widgetContent?.[0], "goal: running 0 turns");
+	assert.doesNotMatch(widgetContent?.[0] ?? "", /\d+\/\d+/);
+	assert.match(promptResult?.systemPrompt ?? "", /turns: 0/i);
+	assert.doesNotMatch(promptResult?.systemPrompt ?? "", /\d+\/\d+/);
+	assert.doesNotMatch(promptResult?.systemPrompt ?? "", /completed turns/i);
+});
+
 test("manual /goal done fails closed when no transcript evidence exists", async () => {
 	const entries: Array<{ type: "custom"; customType: string; data: unknown }> =
 		[];

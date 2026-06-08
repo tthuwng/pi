@@ -8,7 +8,6 @@ export type GoalStatus =
 	| "judging"
 	| "blocked"
 	| "complete"
-	| "budget_limited"
 	| "stopped";
 
 export type ContinuationReason =
@@ -62,14 +61,9 @@ export type GoalSupervisorState = {
 	lastBlocker?: {
 		reason: string;
 		at: string;
-		source: "marker" | "question" | "budget" | "judge_error";
+		source: "marker" | "question" | "judge_error";
 	};
 	lastJudge?: GoalJudgeResult;
-	budget: {
-		maxIterations: number;
-		maxNoProgressTurns: number;
-		maxWallClockMs: number;
-	};
 	counters: {
 		judgeAttempts: number;
 		judgeErrors: number;
@@ -123,7 +117,4 @@ export type CommandContext = {
 	cwd: string;
 	sessionId?: string;
 	now: string;
-	maxIterations?: number;
-	maxNoProgressTurns?: number;
-	maxWallClockMs?: number;
 };

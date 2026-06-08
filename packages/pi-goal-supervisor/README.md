@@ -1,6 +1,6 @@
 # pi-goal-supervisor
 
-Local Pi extension that adds a session-scoped `/goal` command and continues work at safe idle boundaries until evidence-backed completion or a typed stop state.
+Local Pi extension that adds a session-scoped `/goal` command and continues work at safe idle boundaries until evidence-backed completion or a typed stop state. It has no built-in turn, no-progress, or wall-clock budget limit.
 
 ## Commands
 
@@ -20,6 +20,7 @@ This package is deliberately non-invasive:
 - It does not change tools, permissions, guardrails, MCP servers, memory, subagents, or Slipstream settings.
 - It does not auto-approve shell commands, sudo, destructive actions, mutating git operations, cloud/database mutations, or Google Docs/Drive changes.
 - It uses `pi.sendMessage(..., { deliverAs: "followUp", triggerTurn: true })` for supervisor continuations.
+- It does not stop automatically after a fixed number of turns, repeated no-progress turns, or elapsed wall-clock time; use `/goal pause`, `/goal stop`, or `GOAL_BLOCKED` to stop it.
 
 ## Completion policy
 

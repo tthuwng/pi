@@ -2,28 +2,54 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
 	createInitialState,
+	parseState,
 	reduceState,
 	restoreStateFromEntries,
 	serializeState,
 } from "../src/state.ts";
 import { STATE_CUSTOM_TYPE, type CustomSessionEntry } from "../src/types.ts";
 
-test("creates running state with configured budgets", () => {
+test("creates running state without budget limits", () => {
 	const state = createInitialState({
 		objective: "ship the feature",
 		cwd: "/tmp/project",
 		sessionId: "session-1",
 		now: "2026-06-03T00:00:00.000Z",
-		maxIterations: 7,
-		maxNoProgressTurns: 3,
-		maxWallClockMs: 60_000,
 	});
 
 	assert.equal(state.status, "running");
 	assert.equal(state.objective, "ship the feature");
 	assert.equal(state.iteration, 0);
-	assert.equal(state.budget.maxIterations, 7);
+	assert.equal("budget" in state, false);
 	assert.equal(state.pendingContinuation, undefined);
+});
+
+test("parses legacy budget-limited state as stopped", () => {
+	const legacy = serializeState(
+		createInitialState({
+			objective: "legacy budget stop",
+			cwd: "/tmp/project",
+			sessionId: "session-1",
+			now: "2026-06-03T00:00:00.000Z",
+		}),
+	) as Record<string, unknown>;
+	legacy.status = "budget_limited";
+	legacy.budget = {
+		maxIterations: 50,
+		maxNoProgressTurns: 5,
+		maxWallClockMs: 21_600_000,
+	};
+	legacy.lastBlocker = {
+		reason: "iteration budget exceeded (51/50)",
+		at: "2026-06-03T00:51:00.000Z",
+		source: "budget",
+	};
+
+	const parsed = parseState(legacy);
+
+	assert.equal(parsed?.status, "stopped");
+	assert.equal(parsed?.objective, "legacy budget stop");
+	assert.equal(parsed?.lastBlocker, undefined);
 });
 
 test("restores latest valid custom entry from active branch", () => {
@@ -94,34 +120,12 @@ test("pause resume stop and blocked transitions control liveness state", () => {
 	assert.equal(stopped.pendingContinuation, undefined);
 });
 
-test("turn accounting enforces wall-clock budget", () => {
+test("turn accounting does not stop for long-running or repeated turns", () => {
 	const initial = createInitialState({
 		objective: "finish",
 		cwd: "/tmp/project",
 		sessionId: "session-1",
 		now: "2026-06-03T00:00:00.000Z",
-		maxWallClockMs: 1_000,
-	});
-
-	const over = reduceState(initial, {
-		type: "turn_recorded",
-		assistantText: "progress",
-		fingerprint: "abc",
-		now: "2026-06-03T00:00:02.000Z",
-	});
-
-	assert.equal(over.status, "budget_limited");
-	assert.match(over.lastBlocker?.reason ?? "", /wall-clock budget/i);
-});
-
-test("turn accounting marks repeated no-progress and budget limit", () => {
-	const initial = createInitialState({
-		objective: "finish",
-		cwd: "/tmp/project",
-		sessionId: "session-1",
-		now: "2026-06-03T00:00:00.000Z",
-		maxIterations: 2,
-		maxNoProgressTurns: 2,
 	});
 	const once = reduceState(initial, {
 		type: "turn_recorded",
@@ -133,17 +137,19 @@ test("turn accounting marks repeated no-progress and budget limit", () => {
 		type: "turn_recorded",
 		assistantText: "same",
 		fingerprint: "abc",
-		now: "2026-06-03T00:02:00.000Z",
+		now: "2026-06-03T08:02:00.000Z",
 	});
-	const over = reduceState(twice, {
+	const later = reduceState(twice, {
 		type: "turn_recorded",
 		assistantText: "same",
 		fingerprint: "abc",
-		now: "2026-06-03T00:03:00.000Z",
+		now: "2026-06-04T00:03:00.000Z",
 	});
 
 	assert.equal(once.iteration, 1);
 	assert.equal(twice.noProgressTurns, 1);
-	assert.equal(over.status, "budget_limited");
-	assert.match(over.lastBlocker?.reason ?? "", /iteration budget/i);
+	assert.equal(later.iteration, 3);
+	assert.equal(later.noProgressTurns, 2);
+	assert.equal(later.status, "running");
+	assert.equal(later.lastBlocker, undefined);
 });

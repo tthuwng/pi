@@ -67,6 +67,12 @@ test("command handler starts pauses resumes and stops", () => {
 	assert.ok(paused.state);
 	assert.ok(resumed.state);
 	assert.ok(stopped.state);
+	const status = handleCommand(start.state, "status", {
+		cwd: "/tmp/project",
+		sessionId: "s",
+		now,
+	});
+
 	assert.equal(start.state.status, "running");
 	assert.equal(paused.state.status, "paused");
 	assert.equal(resumed.state.status, "running");
@@ -74,6 +80,8 @@ test("command handler starts pauses resumes and stops", () => {
 	assert.equal(start.continuationReason, "start");
 	assert.equal(resumed.continuationReason, "resume");
 	assert.match(start.message, /started/i);
+	assert.match(status.message, /\(0 turns\)/);
+	assert.doesNotMatch(status.message, /\d+\/\d+/);
 });
 
 test("manual done records evidence and enters judging state", () => {

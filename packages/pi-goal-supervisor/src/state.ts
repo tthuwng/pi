@@ -18,9 +18,6 @@ export type InitialStateInput = {
 	cwd: string;
 	sessionId?: string;
 	now: string;
-	maxIterations?: number;
-	maxNoProgressTurns?: number;
-	maxWallClockMs?: number;
 };
 
 export type GoalEvent =
@@ -50,10 +47,6 @@ export type GoalEvent =
 	  }
 	| { type: "continuation_delivered"; now: string }
 	| { type: "compacted"; now: string };
-
-const DEFAULT_MAX_ITERATIONS = 50;
-const DEFAULT_MAX_NO_PROGRESS_TURNS = 5;
-const DEFAULT_MAX_WALL_CLOCK_MS = 6 * 60 * 60 * 1000;
 
 function copy(state: GoalSupervisorState): GoalSupervisorState {
 	return structuredClone(state) as GoalSupervisorState;
@@ -89,12 +82,6 @@ export function createInitialState(
 		iteration: 0,
 		repeatedFingerprintCount: 0,
 		noProgressTurns: 0,
-		budget: {
-			maxIterations: input.maxIterations ?? DEFAULT_MAX_ITERATIONS,
-			maxNoProgressTurns:
-				input.maxNoProgressTurns ?? DEFAULT_MAX_NO_PROGRESS_TURNS,
-			maxWallClockMs: input.maxWallClockMs ?? DEFAULT_MAX_WALL_CLOCK_MS,
-		},
 		counters: {
 			judgeAttempts: 0,
 			judgeErrors: 0,
@@ -102,59 +89,6 @@ export function createInitialState(
 			continuationsQueued: 0,
 		},
 	};
-}
-
-function maybeBudgetLimit(
-	state: GoalSupervisorState,
-	now: string,
-): GoalSupervisorState {
-	if (state.status !== "running") return state;
-	const startedAt = Date.parse(state.startedAt);
-	const checkedAt = Date.parse(now);
-	if (
-		Number.isFinite(startedAt) &&
-		Number.isFinite(checkedAt) &&
-		checkedAt - startedAt > state.budget.maxWallClockMs
-	) {
-		return {
-			...state,
-			status: "budget_limited",
-			updatedAt: now,
-			pendingContinuation: undefined,
-			lastBlocker: {
-				reason: `wall-clock budget exceeded (${checkedAt - startedAt}/${state.budget.maxWallClockMs}ms)`,
-				at: now,
-				source: "budget",
-			},
-		};
-	}
-	if (state.iteration > state.budget.maxIterations) {
-		return {
-			...state,
-			status: "budget_limited",
-			updatedAt: now,
-			pendingContinuation: undefined,
-			lastBlocker: {
-				reason: `iteration budget exceeded (${state.iteration}/${state.budget.maxIterations})`,
-				at: now,
-				source: "budget",
-			},
-		};
-	}
-	if (state.noProgressTurns >= state.budget.maxNoProgressTurns) {
-		return {
-			...state,
-			status: "budget_limited",
-			updatedAt: now,
-			pendingContinuation: undefined,
-			lastBlocker: {
-				reason: `no-progress budget exceeded (${state.noProgressTurns}/${state.budget.maxNoProgressTurns})`,
-				at: now,
-				source: "budget",
-			},
-		};
-	}
-	return state;
 }
 
 export function reduceState(
@@ -169,9 +103,6 @@ export function reduceState(
 					cwd: state.cwd,
 					sessionId: state.sessionId,
 					now: event.now,
-					maxIterations: state.budget.maxIterations,
-					maxNoProgressTurns: state.budget.maxNoProgressTurns,
-					maxWallClockMs: state.budget.maxWallClockMs,
 				}),
 				createdAt: state.createdAt,
 			};
@@ -247,7 +178,7 @@ export function reduceState(
 					: 0,
 				noProgressTurns: repeated ? state.noProgressTurns + 1 : 0,
 			};
-			return maybeBudgetLimit(next, event.now);
+			return next;
 		}
 		case "continuation_queued":
 			return {
@@ -319,6 +250,7 @@ export function parseState(value: unknown): GoalSupervisorState | undefined {
 		!isNumber(value.iteration)
 	)
 		return undefined;
+	const status = value.status === "budget_limited" ? "stopped" : value.status;
 	if (
 		![
 			"idle",
@@ -327,16 +259,8 @@ export function parseState(value: unknown): GoalSupervisorState | undefined {
 			"judging",
 			"blocked",
 			"complete",
-			"budget_limited",
 			"stopped",
-		].includes(value.status)
-	)
-		return undefined;
-	if (
-		!isRecord(value.budget) ||
-		!isNumber(value.budget.maxIterations) ||
-		!isNumber(value.budget.maxNoProgressTurns) ||
-		!isNumber(value.budget.maxWallClockMs)
+		].includes(status)
 	)
 		return undefined;
 	if (
@@ -368,7 +292,7 @@ export function parseState(value: unknown): GoalSupervisorState | undefined {
 		cwd: value.cwd,
 		sessionId: isString(value.sessionId) ? value.sessionId : undefined,
 		objective: value.objective,
-		status: value.status as GoalSupervisorState["status"],
+		status: status as GoalSupervisorState["status"],
 		createdAt: value.createdAt,
 		updatedAt: value.updatedAt,
 		startedAt: value.startedAt,
@@ -408,7 +332,6 @@ export function parseState(value: unknown): GoalSupervisorState | undefined {
 			isString(value.lastBlocker.at) &&
 			(value.lastBlocker.source === "marker" ||
 				value.lastBlocker.source === "question" ||
-				value.lastBlocker.source === "budget" ||
 				value.lastBlocker.source === "judge_error")
 				? {
 						reason: value.lastBlocker.reason,
@@ -417,11 +340,6 @@ export function parseState(value: unknown): GoalSupervisorState | undefined {
 					}
 				: undefined,
 		lastJudge,
-		budget: {
-			maxIterations: value.budget.maxIterations,
-			maxNoProgressTurns: value.budget.maxNoProgressTurns,
-			maxWallClockMs: value.budget.maxWallClockMs,
-		},
 		counters: {
 			judgeAttempts: value.counters.judgeAttempts,
 			judgeErrors: value.counters.judgeErrors,

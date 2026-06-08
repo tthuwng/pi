@@ -125,7 +125,7 @@ function updateWidget(
 		ctx.ui?.setWidget?.(
 			"goal-supervisor",
 			[
-				`goal: ${state.status} ${state.iteration}/${state.budget.maxIterations}`,
+				`goal: ${state.status} ${state.iteration} turns`,
 				state.objective.slice(0, 100),
 			],
 			{ placement: "aboveEditor" },
@@ -173,7 +173,7 @@ async function judgeCurrentClaim(
 }
 
 function supervisorPrompt(state: GoalSupervisorState): string {
-	return `\n\n## Goal Supervisor\nActive objective: ${state.objective}\nStatus: ${state.status}; iteration ${state.iteration}/${state.budget.maxIterations}.\nUse the normal Pi tools/extensions already available. This supervisor does not change tools or permissions.\nDo not ask the human unless truly blocked. If blocked, write: GOAL_BLOCKED: <specific blocker>.\nWhen fully complete, write: GOAL_DONE: <specific evidence from transcript/artifacts/verifications>.`;
+	return `\n\n## Goal Supervisor\nActive objective: ${state.objective}\nStatus: ${state.status}; turns: ${state.iteration}.\nUse the normal Pi tools/extensions already available. This supervisor does not change tools or permissions.\nDo not ask the human unless truly blocked. If blocked, write: GOAL_BLOCKED: <specific blocker>.\nWhen fully complete, write: GOAL_DONE: <specific evidence from transcript/artifacts/verifications>.`;
 }
 
 export function registerGoalSupervisor(

@@ -85,7 +85,7 @@ function requireState(
 
 function formatStatus(state: GoalSupervisorState | undefined): string {
 	if (!state) return "No active goal.";
-	return `Goal ${state.status}: ${state.objective} (${state.iteration}/${state.budget.maxIterations})`;
+	return `Goal ${state.status}: ${state.objective} (${state.iteration} turns)`;
 }
 
 export function handleCommand(
@@ -120,9 +120,6 @@ export function handleCommand(
 						cwd: ctx.cwd,
 						sessionId: ctx.sessionId,
 						now: ctx.now,
-						maxIterations: ctx.maxIterations,
-						maxNoProgressTurns: ctx.maxNoProgressTurns,
-						maxWallClockMs: ctx.maxWallClockMs,
 					});
 			return {
 				state: next,
