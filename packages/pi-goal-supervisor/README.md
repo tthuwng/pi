@@ -11,6 +11,7 @@ Local Pi extension that adds a session-scoped `/goal` command and continues work
 - `/goal resume` — resume and queue one continuation when idle.
 - `/goal stop [reason]` or `/goal clear` — stop auto-continuation and abort the active turn when possible.
 - `/goal done <evidence>` — record completion evidence for judging.
+- `/goal help` — show command usage.
 
 ## Safety contract
 

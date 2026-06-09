@@ -2,60 +2,63 @@
 
 ## System
 
-- ThinkPad X1 Carbon Gen 13, x86_64, Arch Linux
-- Wayland compositor: sway. Use sway config syntax
-- Clipboard: use `wl-copy`/`wl-paste`; To copy an exact command, pipe only the command text to `wl-copy`, e.g. `printf '%s\n' '<command>' | wl-copy`.
-- IDE: Neovim, Terminal: Foot
-- Package manager: `pacman`/`yay` (not apt/brew)
-- Sudo commands: do not run them directly unless explicitly authorized; copy the exact command to the clipboard with `wl-copy` and say it was copied.
+- Machine: ThinkPad X1 Carbon Gen 13, x86_64, Arch Linux
+- Wayland: sway; use sway config syntax
+- Clipboard: `wl-copy` / `wl-paste`
+  - To copy an exact command: `printf '%s\n' '<command>' | wl-copy`
+- IDE: Neovim
+- Terminal: Foot
+- Package manager: `pacman` / `yay`; not apt/brew
 
 ## Stack
 
-- **Python**: uv, basedpyright, ruff
-- **TypeScript**: pnpm, vtsls, eslint, prettier
-- **Bash**: shellcheck
-- **Containers**: docker + docker-compose + docker-buildx
-- **Database**: PostgreSQL (installed locally, not just Docker)
-- **Node**: nvm + pnpm
-- **Git workflow**: git-spice (`gs`) for stacked PRs — use `gs` commands for branch stacking, not raw git
-- **Cloud**: aws-cli for AWS operations (S3, ECS, Secrets Manager, CloudFormation, logs)
-- **Parsing**: tree-sitter-cli for AST inspection
+- Python: `uv`, `basedpyright`, `ruff`
+- TypeScript: `pnpm`, `vtsls`, `eslint`, `prettier`
+- Bash: `shellcheck`
+- Containers: `docker`, `docker-compose`, `docker-buildx`
+- Database: local PostgreSQL is installed
+- Node: `nvm` + `pnpm`
+- User version-control workflow: stacked PRs are user-run
+- Cloud: `aws-cli` for S3, ECS, Secrets Manager, CloudFormation, logs
+- Parsing: `tree-sitter-cli`
 
-## Language Conventions
+## Preferred CLIs
+
+| Use                        | Prefer                  | Avoid                                 |
+| -------------------------- | ----------------------- | ------------------------------------- |
+| Python env/packages        | `uv`                    | `pip`, `venv`, `virtualenv`           |
+| TypeScript packages        | `pnpm`                  | `npm`                                 |
+| Structural search/refactor | `ast-grep`, `sg`        | grep/sed for code structure           |
+| File discovery             | Pi `find` tool / `fd`   | shell `find` when Pi tools fit        |
+| File display               | Pi `read` tool / `bat`  | `cat`                                 |
+| Text replacement           | `sd`                    | `sed` for broad edits                 |
+| Shell validation           | `shellcheck`            | manual-only shell review              |
+| YAML/JSON                  | `yq` / targeted scripts | manual parsing                        |
+| Benchmarks                 | `hyperfine`             | ad hoc `time`                         |
+| Disk usage                 | `dua`                   | raw `du`                              |
+| GitHub                     | `gh`                    | web UI                                |
+| Structural git impact      | `gitnexus` / `sem`      | line diff only when structure matters |
+
+## Language conventions
 
 ### Python
 
-- No local imports — always import at the top of the file. Only exception: circular dependency resolution.
-- Logging: DEBUG for lifecycle details, INFO for state changes, WARNING for real problems.
+- Imports at top of file. Only exception: circular dependency resolution
+- Logging levels:
+  - `DEBUG`: lifecycle details
+  - `INFO`: state changes
+  - `WARNING`: real problems
 
 ### TypeScript
 
-- Strict mode. No `any`. Import types with `type` keyword.
+- Strict mode
+- No `any`
+- Import types with `type`
 
-### Bash
+## Local check commands
 
-- Run shellcheck on any script you write or edit.
-
-## Code Quality
-
-- Run checks (lint, typecheck, format) batched after a logical group of edits, not after each individual edit.
-- Worker agents run checks before reporting done.
-- Auto-format with `ruff format` / `prettier` after edits.
-- Typecheck and lint only at end of task or when explicitly asked.
-
-## Testing
-
-- Every behavioral change gets a test.
-- Implement first, then write tests covering what was built.
-- Reviewer flags untested behavioral changes.
-- Match existing test format — check for conftest auto-applied markers before adding decorators.
-- Prefer plain helper functions over `@pytest.fixture` when a fixture isn't needed.
-- No trivial tests that just verify type behavior, field existence, or simple map lookups — tests should exercise real logic.
-
-## Documentation
-
-- Always know where project docs are (docs/, README, docstrings).
-- Read relevant docs before modifying behavior.
-- Update all affected documentation after modifying behavior — project docs, inline comments, docstrings, type annotations.
-- Preserve all comments when refactoring. Ask before removing commented-out code.
-- Update comments when changing the behavior they describe.
+- Python formatting: `ruff format`
+- Python typecheck: `basedpyright`
+- TypeScript formatting: `prettier`
+- TypeScript lint/typecheck: `eslint`, project typecheck script, or `vtsls` diagnostics
+- Bash validation: `shellcheck`

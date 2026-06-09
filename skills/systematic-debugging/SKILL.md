@@ -15,7 +15,7 @@ Read the actual failure completely.
 
 - Read the full error, stack trace, command output, or symptom report.
 - Identify exact file, line, function, test, request, or data path involved.
-- Reproduce when possible with the narrowest command.
+- Reproduce with the narrowest safe command unless reproduction is impossible, unsafe, or already captured in reliable evidence.
 - Check current diff and recent read-only history if relevant.
 - Use tree-sitter/LSP to inspect failing symbols before broad reads.
 
@@ -68,9 +68,9 @@ Once root cause is supported:
 
 No “while here” refactors unless the fix requires them.
 
-## When 3 Fix Attempts Fail
+## When 2 Fix Attempts Fail
 
-If three attempted fixes fail or each fix reveals a new symptom:
+If two attempted fixes fail or each fix reveals a new symptom:
 
 - stop,
 - summarize attempts and evidence,

@@ -7,30 +7,37 @@
   },
   "permissionGate": {
     "autoDenyPatterns": [
-      "rm -rf /",
-      "rm -rf ~",
-      "rm -rf .",
+      {
+        "pattern": "(?:^|[;&|()])\\s*rm\\b(?=[^;&|()]*\\s(?:-[A-Za-z]*[rR][A-Za-z]*|--recursive)\\b)(?=[^;&|()]*\\s(?:-[A-Za-z]*[fF][A-Za-z]*|--force)\\b)[^;&|()]*\\s(?:--\\s+)?(?:/|~/?|\\./?)(?=\\s|$|[;&|()])",
+        "regex": true
+      },
       ":(){ :|:& };:",
-      "dd if=/dev/",
+      {
+        "pattern": "(^|[;&|()\\s])dd\\s+.*\\bof=/dev/",
+        "regex": true
+      },
       "mkfs",
       {
-        "pattern": "(^|[;&|()\\s])git\\s+(?:-[A-Za-z]+(?:=\\S+)?\\s+|--[A-Za-z0-9-]+(?:=\\S+)?\\s+)*(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|init|merge|mv|pull|push|rebase|reflog|remote|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\\b",
+        "pattern": "(?:^|[;&|()])\\s*git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|init|merge|mv|pull|push|rebase|reflog|remote|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\\b",
         "regex": true
       },
       {
-        "pattern": "(^|[;&|()\\s])git\\s+(?:-[A-Za-z]+(?:=\\S+)?\\s+|--[A-Za-z0-9-]+(?:=\\S+)?\\s+)*push\\s+.*(?:--force|-f)\\b",
+        "pattern": "(?:^|[;&|()])\\s*git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+push\\b[^;&|()]*(?:--force|-f)\\b",
         "regex": true
       },
       {
         "pattern": "(^|[;&|()\\s])gs\\s+(?:(?:upstack|downstack|branch|stack|repo|commit)\\s+)?(?:absorb|amend|checkout|continue|create|delete|onto|rename|rebase|restack|submit|sync)\\b",
         "regex": true
       },
-      "sudo rm -rf",
+      {
+        "pattern": "(^|[;&|()\\s])sudo\\b",
+        "regex": true
+      },
       "chmod 777",
-      "curl | bash",
-      "curl | sh",
-      "wget | bash",
-      "wget | sh"
+      {
+        "pattern": "(^|[;&|()\\s])(?:curl|wget)\\b[^|;]*\\|\\s*(?:bash|sh)\\b",
+        "regex": true
+      }
     ]
   },
   "policies": {
@@ -52,6 +59,19 @@
           }
         ],
         "protection": "readOnly",
+        "enabled": true
+      },
+      {
+        "id": "no-pi-auth-material",
+        "patterns": [
+          {
+            "pattern": "auth.json"
+          },
+          {
+            "pattern": "mcp-oauth/**"
+          }
+        ],
+        "protection": "noAccess",
         "enabled": true
       },
       {

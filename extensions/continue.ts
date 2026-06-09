@@ -11,9 +11,16 @@
  *   /continue <slug>    — use a custom slug for the filename
  */
 
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
 import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
 import { complete, type Message } from "@mariozechner/pi-ai";
-import { BorderedLoader, convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
+import { BorderedLoader } from "@mariozechner/pi-coding-agent";
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
+import { convertToLlm } from "@mariozechner/pi-coding-agent";
+// @ts-expect-error Pi runtime resolves SDK imports outside this config repo.
+import { serializeConversation } from "@mariozechner/pi-coding-agent";
 
 const SYSTEM_PROMPT = `You are a session continuity assistant. Given a conversation history, write a concise continuation file that a fresh coding agent session can read to pick up where this one left off.
 
@@ -48,113 +55,145 @@ Rules:
 - Skip any section that has nothing useful to say.`;
 
 export default function (pi: ExtensionAPI) {
-	pi.registerCommand("continue", {
-		description: "Write continuation file to .scratch/sessions/ and start fresh",
-		handler: async (args, ctx) => {
-			if (!ctx.hasUI) {
-				ctx.ui.notify("/continue requires interactive mode", "error");
-				return;
-			}
+  pi.registerCommand("continue", {
+    description:
+      "Write continuation file to .scratch/sessions/ and start fresh",
+    handler: async (args, ctx) => {
+      if (!ctx.hasUI) {
+        ctx.ui.notify("/continue requires interactive mode", "error");
+        return;
+      }
 
-			if (!ctx.model) {
-				ctx.ui.notify("No model selected", "error");
-				return;
-			}
+      if (!ctx.model) {
+        ctx.ui.notify("No model selected", "error");
+        return;
+      }
 
-			const branch = ctx.sessionManager.getBranch();
-			const messages = branch
-				.filter((entry): entry is SessionEntry & { type: "message" } => entry.type === "message")
-				.map((entry) => entry.message);
+      const branch = ctx.sessionManager.getBranch();
+      const messages = branch
+        .filter(
+          (entry): entry is SessionEntry & { type: "message" } =>
+            entry.type === "message",
+        )
+        .map((entry) => entry.message);
 
-			if (messages.length === 0) {
-				ctx.ui.notify("No conversation to continue from", "error");
-				return;
-			}
+      if (messages.length === 0) {
+        ctx.ui.notify("No conversation to continue from", "error");
+        return;
+      }
 
-			const llmMessages = convertToLlm(messages);
-			const conversationText = serializeConversation(llmMessages);
+      const llmMessages = convertToLlm(messages);
+      const conversationText = serializeConversation(llmMessages);
 
-			// Generate continuation file content
-			const result = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
-				const loader = new BorderedLoader(tui, theme, "Writing continuation file...");
-				loader.onAbort = () => done(null);
+      // Generate continuation file content
+      const result: string | null = await ctx.ui.custom(
+        (tui, theme, _kb, done) => {
+          const loader = new BorderedLoader(
+            tui,
+            theme,
+            "Writing continuation file...",
+          );
+          loader.onAbort = () => done(null);
 
-				const doGenerate = async () => {
-					const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model!);
-					if (!auth.ok) {
-						throw new Error(auth.error);
-					}
+          const doGenerate = async () => {
+            const auth = await ctx.modelRegistry.getApiKeyAndHeaders(
+              ctx.model!,
+            );
+            if (!auth.ok) {
+              throw new Error(auth.error);
+            }
 
-					const userMessage: Message = {
-						role: "user",
-						content: [
-							{
-								type: "text",
-								text: `## Conversation History\n\n${conversationText}`,
-							},
-						],
-						timestamp: Date.now(),
-					};
+            const userMessage: Message = {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `## Conversation History\n\n${conversationText}`,
+                },
+              ],
+              timestamp: Date.now(),
+            };
 
-					const response = await complete(
-						ctx.model!,
-						{ systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
-						{ apiKey: auth.apiKey, headers: auth.headers, signal: loader.signal },
-					);
+            const response = await complete(
+              ctx.model!,
+              { systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
+              {
+                apiKey: auth.apiKey,
+                headers: auth.headers,
+                signal: loader.signal,
+              },
+            );
 
-					if (response.stopReason === "aborted") {
-						return null;
-					}
+            if (response.stopReason === "aborted") {
+              return null;
+            }
 
-					return response.content
-						.filter((c): c is { type: "text"; text: string } => c.type === "text")
-						.map((c) => c.text)
-						.join("\n");
-				};
+            return response.content
+              .filter(
+                (c): c is { type: "text"; text: string } => c.type === "text",
+              )
+              .map((c) => c.text)
+              .join("\n");
+          };
 
-				doGenerate()
-					.then(done)
-					.catch((err) => {
-						console.error("Continue generation failed:", err);
-						done(null);
-					});
+          doGenerate()
+            .then(done)
+            .catch((err) => {
+              console.error("Continue generation failed:", err);
+              done(null);
+            });
 
-				return loader;
-			});
+          return loader;
+        },
+      );
 
-			if (result === null) {
-				ctx.ui.notify("Cancelled", "info");
-				return;
-			}
+      if (result === null) {
+        ctx.ui.notify("Cancelled", "info");
+        return;
+      }
 
-			// Build filename
-			const date = new Date().toISOString().slice(0, 10);
-			const slug = args.trim() || `${Date.now()}`;
-			const safeSlug = slug.replace(/[^a-zA-Z0-9-_]/g, "-").replace(/-+/g, "-").toLowerCase();
-			const filename = `continue-${date}-${safeSlug}.md`;
-			const filepath = `.scratch/sessions/${filename}`;
+      // Build filename
+      const date = new Date().toISOString().slice(0, 10);
+      const slug = args.trim() || `${Date.now()}`;
+      const safeSlug = slug
+        .replace(/[^a-zA-Z0-9-_]/g, "-")
+        .replace(/-+/g, "-")
+        .toLowerCase();
+      const filename = `continue-${date}-${safeSlug}.md`;
+      const relativeFilepath = `.scratch/sessions/${filename}`;
 
-			// Write the file
-			const { writeFileSync, mkdirSync } = await import("fs");
-			mkdirSync(".scratch/sessions", { recursive: true });
-			writeFileSync(filepath, result, "utf-8");
+      // Write the file under the session cwd, not the process cwd.
+      // @ts-expect-error Node built-ins are available in Pi's runtime.
+      const { writeFileSync, mkdirSync } = await import("fs");
+      // @ts-expect-error Node built-ins are available in Pi's runtime.
+      const { join } = await import("path");
+      const sessionsDir = join(ctx.cwd, ".scratch", "sessions");
+      const filepath = join(sessionsDir, filename);
+      mkdirSync(sessionsDir, { recursive: true });
+      writeFileSync(filepath, result, "utf-8");
 
-			ctx.ui.notify(`Wrote ${filepath}`, "info");
+      ctx.ui.notify(`Wrote ${relativeFilepath}`, "info");
 
-			// Start new session
-			const currentSessionFile = ctx.sessionManager.getSessionFile();
-			const newSessionResult = await ctx.newSession({
-				parentSession: currentSessionFile,
-				withSession: async (newCtx) => {
-					newCtx.ui.setEditorText(`Read \`${filepath}\` and continue where we left off.`);
-					newCtx.ui.notify("Ready — submit to continue.", "info");
-				},
-			});
+      // Start new session
+      const currentSessionFile = ctx.sessionManager.getSessionFile();
+      const newSessionResult = await ctx.newSession({
+        parentSession: currentSessionFile,
+        withSession: async (newCtx) => {
+          newCtx.ui.setEditorText(
+            `Read \`${relativeFilepath}\` and continue where we left off.`,
+          );
+          newCtx.ui.notify("Ready — submit to continue.", "info");
+        },
+      });
 
-			if (newSessionResult.cancelled) {
-				ctx.ui.notify("New session cancelled — continuation file is still at " + filepath, "info");
-				return;
-			}
-		},
-	});
+      if (newSessionResult.cancelled) {
+        ctx.ui.notify(
+          "New session cancelled — continuation file is still at " +
+            relativeFilepath,
+          "info",
+        );
+        return;
+      }
+    },
+  });
 }

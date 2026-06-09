@@ -1,89 +1,81 @@
 # How to Use Pi
 
-## Starting a session
+This is the human quick guide. Agent policy starts in `AGENTS.md`, with subagent roles in `agents/` and runtime behavior in `settings.json` / `mcp.json`.
+
+## Start
 
 ```bash
 cd ~/your-project
 pi
 ```
 
-First time in a project: say "learn the codebase" — scans conventions, structure, instruction files.
+First time in a repo: say `learn the codebase`.
 
-## The 3 tiers
+## Work sizes
 
-**Small fix** — just say it. "Fix the type error in auth.py line 45." Pi does it directly.
+| Work           | What to say                              | What should happen                                                      |
+| -------------- | ---------------------------------------- | ----------------------------------------------------------------------- |
+| Small fix      | “Fix the type error in auth.py line 45.” | Pi edits directly, then verifies                                        |
+| Feature/change | “Add a rate limit endpoint.”             | Pi discusses approach and waits for approval                            |
+| Broad redesign | “Redesign the queue system.”             | Pi writes a plan first, waits for approval, then implements and reviews |
 
-**Feature work** — describe what you want. "Add a rate limit endpoint." Pi discusses the approach, you approve, it delegates to worker agents.
+If Pi moves too fast, say `wait`, `hold on`, or `let's talk`.
 
-**Big changes** — "Redesign the queue system." Pi writes a plan to `.scratch/plans/`, marks assumptions as `[ASSUMPTION: ...]`. You review, challenge, approve. Workers implement. Reviewer checks.
+## Useful commands
 
-You don't pick the tier — pi decides. Say "wait" or "let's talk" to slow it down.
+| Command               | Purpose                                                                         |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `/answer`             | Extract questions from the last assistant message and answer them interactively |
+| `/cc`, `/copy-code`   | Copy a fenced command/code block from recent assistant messages                 |
+| `/context`            | Show current context/token usage details                                        |
+| `/continue [slug]`    | Write a continuation note under `.scratch/sessions/` and start a fresh session  |
+| `/files`              | Browse git/session-referenced files with reveal, open, edit, and diff actions   |
+| `/goal`               | Run or manage a session-scoped continuation goal                                |
+| `/slipstream`         | Inspect or run Slipstream compaction controls                                   |
+| `/skill:self-improve` | End-of-session retrospective and config improvement suggestions                 |
+| `/todos`              | Open the interactive todo manager                                               |
 
-## Slash commands
+## Useful shortcuts
 
-| Command               | What it does                                                                |
-| --------------------- | --------------------------------------------------------------------------- |
-| `/todos`              | Visual todo manager — see, create, filter, close todos                      |
-| `/answer`             | When pi asks multiple questions, answer them one by one in a TUI            |
-| `/files` or `/diff`   | Fuzzy file browser — pick to open, reveal, or diff                          |
-| `/continue`           | Context getting large — distill conversation, start fresh session           |
-| `/skill:self-improve` | End-of-session retrospective — analyze what went well/poorly, update config |
+| Shortcut       | Purpose                                      |
+| -------------- | -------------------------------------------- |
+| `ctrl+.`       | Run the `/answer` question-answering flow    |
+| `ctrl+shift+o` | Open the `/files` browser                    |
+| `ctrl+shift+f` | Reveal the latest session file reference     |
+| `ctrl+shift+r` | Quick Look the latest session file reference |
 
-## While coding with an editor MCP
+## Ask for these workflows
 
-If an editor MCP is configured, Pi can inspect open buffers, cursor position, selections, and diagnostics. Ask it:
+- `learn the codebase` — first-session orientation
+- `debug this systematically` — root-cause debugging
+- `write a plan first` — implementation plan in `.scratch/plans/`
+- `review the changes` — reviewer pass
+- `quality gate this` — adversarial review with a pass/fail/inconclusive synthesis
+- `give me options` — generate/filter candidates
+- `ask me what you need first` — gather context and clarify
 
-- "What file do I have open?"
-- "Check the diagnostics in my editor"
-- "Read the selection in my buffer"
+## Editor MCP
 
-You don't need to describe what you're looking at.
+If the editor MCP is available, Pi can inspect open buffers, cursor position, selections, and diagnostics. Useful prompts:
+
+- “What file do I have open?”
+- “Check editor diagnostics.”
+- “Read my current selection.”
 
 ## Context management
 
-- Core pi auto-compaction stays enabled
-- compact-advisor queues a follow-up continuation after threshold compaction
-- Use `/continue` manually to start fresh with context preserved in `.scratch/sessions/`
-- Research and plans go to `.scratch/` files, not into conversation context
-- Quick lookups stay in context, deeper research goes to files
-
-## Debugging
-
-When something breaks, pi should: read error → hypothesize → verify → fix. If it starts guessing or flailing, say "debug this systematically" to trigger the debugging skill.
-
-## Code review
-
-After implementation, say "review the changes." Pi dispatches a reviewer agent that writes findings to `.scratch/reviews/` categorized as must-fix / should-fix / nit.
-
-## End of session
-
-Run `/skill:self-improve` to do a retrospective. Pi analyzes what went well/poorly, suggests config improvements, you approve which to apply. This is how the config improves over time.
+- Automatic compaction is enabled; Slipstream auto-compaction writes artifacts under `.scratch/compactions`
+- After qualifying threshold auto-compaction, `extensions/compact-advisor.ts` may queue an `auto-compaction-continue` follow-up turn when safe so the active task resumes without manual prompting
+- Use `/continue` when context gets large or a clean handoff would help; this local extension writes a continuation file under `.scratch/sessions/` and opens a fresh session
+- Research, plans, reviews, and continuation notes go in `.scratch/`
+- Quick facts can stay in the conversation; durable runbooks should go to memory
 
 ## Git
 
-Pi never touches git. It reads diffs, logs, blame, status — but all staging, committing, pushing is you. When ready to commit, pi advises on the commit message via the commit skill. You run the git commands.
+Pi is instructed to read git state but not mutate it. Because this config uses `permissions.json` `yolo`, that is a prompt-policy rule backed by guardrails for many mutations, not a universal runtime confirmation gate. You stage, commit, push, branch, rebase, and merge.
 
-Use the git workflow configured for your repository. Host- or team-specific git tooling belongs in `APPEND_SYSTEM.md`.
+When ready to commit, ask for a commit message; Pi will use the commit skill.
 
-## Tool priority
+## Local customization
 
-Pi uses tools in this order:
-
-1. **tree-sitter** — symbol_definition, search_symbols, document_symbols, pattern_search (always first for code)
-2. **context7** — library/framework docs (never guesses)
-3. **Project-specific analysis tools** — call chains, blast radius, or semantic impact tools when configured
-4. **Preferred CLIs** — use the tools configured for the current host and project
-5. **Grep/Glob/Read** — when tree-sitter doesn't apply
-
-## Local host customization
-
-Machine-, editor-, package-manager-, clipboard-, database-, git-workflow-, and cloud-specific details belong in `APPEND_SYSTEM.md`. Replace that file with your own local environment before reusing this config.
-
-## Agent roles
-
-| Role                 | What it does                                         | When                 |
-| -------------------- | ---------------------------------------------------- | -------------------- |
-| main (gpt-5.5)       | Plans, coordinates, talks with you, does small edits | Always               |
-| scout (gpt-5.4-mini) | Fast read-only recon, writes to .scratch/research/   | Research phase       |
-| worker (gpt-5.4)     | Implements from exact instructions, runs checks      | Implementation phase |
-| reviewer (gpt-5.4)   | Reviews against plan, writes to .scratch/reviews/    | After implementation |
+Change `APPEND_SYSTEM.md` for machine-specific facts: OS, editor, terminal, package manager, clipboard, database, version-control workflow, cloud tooling, and language-tool conventions.

@@ -1,139 +1,90 @@
 # Pi Config v2
 
-Personal pi coding agent configuration.
+Personal Pi coding-agent configuration. Always-loaded policy starts in `AGENTS.md`; subagent role behavior is also defined in `agents/`. Runtime behavior comes from `settings.json`, `mcp.json`, enabled packages, and auto-discovered local `extensions/`. Host-specific facts are in `APPEND_SYSTEM.md` where possible.
 
-## Architecture
+## File map
 
-```
+```text
 pi/
-├── AGENTS.md                  # Core agent behavior
-├── APPEND_SYSTEM.md           # Machine- and workflow-specific details
-├── settings.json              # Provider, model, packages, compaction
+├── AGENTS.md                  # Always-loaded agent policy
+├── APPEND_SYSTEM.md           # Host/toolchain overlay
+├── settings.json              # Model, packages, UI, memory, compaction
 ├── models.json                # Custom model definitions
-├── mcp.json                   # MCP servers
+├── mcp.json                   # MCP server registry
 ├── permissions.json           # Permission mode
 ├── keybindings.json           # Terminal keybindings
-├── setup.sh                   # Symlinks config to ~/.pi/agent
-├── worktree-setup.sh          # Git worktree isolation setup
 │
-├── agents/                    # Subagent role definitions
+├── agents/                    # Local subagent role prompts; override same-name packaged builtins
 │   ├── scout.md               # Read-only recon
-│   ├── worker.md              # Implementation
-│   ├── reviewer.md            # Code review
-│   └── general-purpose.md     # Default subagent override
+│   ├── worker.md              # Single-task implementation
+│   ├── reviewer.md            # Review-only feedback
+│   └── general-purpose.md     # Fallback role
 │
 ├── skills/                    # On-demand workflows
-│   ├── manager-workflow/      # Tiered implementation workflow
-│   ├── commit/                # Commit-message guidance
-│   ├── systematic-debugging/  # Debugging workflow
-│   ├── frontend/              # React/TypeScript conventions
-│   ├── semantic-git/          # Structural git analysis
-│   ├── github/                # GitHub CLI workflow
-│   ├── learn-codebase/        # First-session project orientation
-│   ├── iterate-pr/            # PR iteration workflow
-│   ├── review/                # Code review standards
-│   ├── self-improve/          # Config retrospective workflow
-│   └── session-reader/        # Session JSONL inspection
-│
-├── extensions/
-│   ├── claude-ui/             # Custom terminal UI
-│   ├── todos/                 # File-based todo management
-│   ├── guardrails.json        # Blocks destructive commands and git mutations
-│   ├── answer.ts              # /answer question-answering TUI
-│   ├── files.ts               # /files and /diff file browser
-│   ├── continue.ts            # /continue session handoff
-│   └── compact-advisor.ts     # Auto-continue shim after core compaction
-│
-├── themes/
-│   └── gruvbox-custom.json    # Gruvbox dark theme
-│
-├── mcp-servers/
-│   └── tree-sitter/           # Local tree-sitter MCP server
-│
-└── .gitignore                 # Excludes auth, sessions, caches, logs, node_modules
+├── extensions/                # Local commands, UI, todos, guardrails
+├── themes/                    # TUI theme
+├── mcp-servers/               # Local MCP implementations
+└── .gitignore                 # Runtime/secrets/cache exclusions
 ```
 
-## How It Works
+## Runtime shape
 
-### Workflow tiers
+- Main model: configured in `settings.json`
+- Subagents: local role prompts in `agents/` plus packaged `pi-subagents` roles/prompts; local same-name agents override packaged builtins
+- Skills: progressive disclosure; descriptions are discoverable, full instructions load on demand
+- MCP: registered in `mcp.json`; most servers are lazy
+- Memory: `pi-memory-md` delivers selected memory into the system prompt
+- Extensions: local commands, UI helpers, todos, and guardrails are auto-discovered from `extensions/`
+- Safety: prompt policy plus `extensions/guardrails.json` for destructive commands and configured secret paths; `permissions.json` is `yolo`, so sensitive-tool approvals are not runtime confirmations
 
-| Tier              | When                              | What happens                                                    |
-| ----------------- | --------------------------------- | --------------------------------------------------------------- |
-| 1 — Just do it    | Single-file, small, clear changes | Main agent edits directly                                       |
-| 2 — Talk first    | Multi-file or ambiguous changes   | Agent discusses approach before editing                         |
-| 3 — Write it down | Architectural or broad changes    | Agent writes a plan in `.scratch/plans/` and waits for approval |
+## Enabled packages
 
-### Agent roles
+`settings.json` is the source of truth. Current package entries:
 
-| Role     | Model        | Purpose                                               |
-| -------- | ------------ | ----------------------------------------------------- |
-| main     | gpt-5.5      | Planning, coordination, user interaction, small edits |
-| scout    | gpt-5.4-mini | Fast read-only reconnaissance                         |
-| worker   | gpt-5.4      | Implementation from specific instructions             |
-| reviewer | gpt-5.4      | Review against plan and coding standards              |
+| Entry                            | Purpose                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| `extensions/claude-ui`           | Terminal UI customization                                                      |
+| `packages/pi-subagents`          | Subagent orchestration, roles, prompt recipes                                  |
+| `npm:pi-mcp-adapter`             | Lazy MCP loading                                                               |
+| `npm:pi-lens`                    | AST-aware code tooling; ast-grep skill only                                    |
+| `npm:pi-web-access`              | Web search and content extraction                                              |
+| `packages/pi-memory-md`          | Git-backed markdown memory                                                     |
+| `npm:@aliou/pi-guardrails`       | Command/path safety policies                                                   |
+| `npm:@aliou/pi-toolchain`        | Preferred CLI enforcement                                                      |
+| `npm:pi-ask-user`                | Structured user decision UI                                                    |
+| `packages/context-mode`          | Large-output processing plus Pi extension hooks/commands; selected skills only |
+| `npm:pi-intercom`                | Local session coordination                                                     |
+| `packages/pi-codex-retry`        | Recoverable Codex transport retry                                              |
+| `packages/pi-slipstream-compact` | Validated compaction replacement                                               |
+| `packages/pi-goal-supervisor`    | `/goal` continuation supervisor                                                |
+| `npm:pisesh`                     | Session management helper                                                      |
+| `npm:pi-btw`                     | `/btw` side conversations plus bundled `btw` skill                             |
 
-### Tool priority
+## MCP servers
 
-1. **Tree-sitter** for symbol-aware code navigation.
-2. **context7** for library and framework documentation.
-3. **Configured preferred CLIs** for the current host and project.
-4. **Grep/Glob/Read** when structural tools do not apply.
+| Server         | Mode              | Purpose                                                                                                                         |
+| -------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `tree-sitter`  | direct/keep-alive | Symbols, definitions, patterns, codebase maps                                                                                   |
+| `context7`     | lazy              | Library/framework docs                                                                                                          |
+| `nvim`         | lazy              | Editor buffers, cursor, selections, diagnostics                                                                                 |
+| `context-mode` | lazy              | Large-output analysis/indexing                                                                                                  |
+| `notion`       | lazy remote OAuth | Notion access; external/private MCP policy in `AGENTS.md`                                                                       |
+| `google_docs`  | lazy local OAuth  | Sources `mcp-oauth/google_docs/env.sh`; runs `npx -y @a-bonus/google-docs-mcp@1.10.0`; covers Docs and Drive-capable operations |
+| `slack`        | lazy local OAuth  | Sources `mcp-oauth/slack/env.sh`; runs `${PI_SLACK_MCP_SERVER_BIN:-$HOME/.local/bin/slack-mcp-server-patched}`                  |
 
-### Git policy
+OAuth env/token files are ignored and must not be committed. External/private MCP content access and mutations are governed by `AGENTS.md`; with `permissions.json` in `yolo`, those approvals are prompt policy rather than runtime-enforced confirmations.
 
-The agent can inspect git state with `git log`, `git diff`, `git status`, `git blame`, and `git show`.
-
-Git mutations are intentionally blocked by guardrails. Staging, committing, pushing, rebasing, resetting, and branch operations are manual.
-
-### Scratch workspace
-
-```
-.scratch/           (gitignored, per-project)
-├── research/       scout findings
-├── plans/          change plans with assumptions
-├── reviews/        reviewer output
-└── sessions/       continuation notes
-```
-
-## Packages
-
-| Package                | Purpose                                          |
-| ---------------------- | ------------------------------------------------ |
-| `extensions/claude-ui` | Local terminal UI customization                  |
-| `pi-subagents`         | Scout/worker/reviewer delegation                 |
-| `pi-mcp-adapter`       | Lazy MCP loading                                 |
-| `pi-lens`              | AST-aware code tooling                           |
-| `pi-web-access`        | Web search and content extraction                |
-| `pi-memory-md`         | Git-backed markdown memory                       |
-| `@aliou/pi-guardrails` | Command and path safety policies                 |
-| `@aliou/pi-toolchain`  | Preferred CLI enforcement                        |
-| `pi-ask-user`          | Structured user decision UI                      |
-| `context-mode`         | Large-output processing outside the main context |
-
-## MCP Servers
-
-| Server       | Mode                     | Purpose                                                             |
-| ------------ | ------------------------ | ------------------------------------------------------------------- |
-| tree-sitter  | Direct tools, keep-alive | Code symbols, definitions, patterns, and maps                       |
-| context7     | Lazy                     | Library/framework documentation lookup                              |
-| nvim         | Lazy                     | Editor buffers, cursor, selections, and diagnostics when configured |
-| context-mode | Lazy                     | Large-output analysis and indexing                                  |
-| notion       | Lazy remote OAuth        | Notion workspace access via official remote MCP                     |
-| google_docs  | Lazy local OAuth         | Google Docs/Drive read/write via local `@a-bonus/google-docs-mcp`   |
-| slack        | Lazy local user OAuth    | Slack read/search/write via local `slack-mcp-server`                |
-
-`google_docs` is sensitive. `AGENTS.md` requires explicit user approval before any `google_docs_*` tool call other than schema inspection, and per-action approval for every mutation or destructive operation.
-
-`slack` reads secrets from ignored `mcp-oauth/slack/env.sh`. Use a Slack user OAuth token (`SLACK_MCP_XOXP_TOKEN`) to post as yourself, and prefer `SLACK_MCP_ADD_MESSAGE_TOOL` with explicit channel IDs instead of unrestricted posting. This config runs a locally patched `~/.local/bin/slack-mcp-server-patched`; the patch is saved at `packages/slack-mcp-server-channel-types.patch` and adds `SLACK_MCP_CHANNEL_TYPES`. Set `SLACK_MCP_CHANNEL_TYPES=public_channel` to avoid private-channel, DM, and group-DM read scopes during startup channel caching. With that setting, the expected user scopes are `chat:write`, `channels:read`, `channels:history`, `users:read`, and `search:read`.
+Slack scope minimization depends on the patched local Slack server. Prefer `SLACK_MCP_CHANNEL_TYPES=public_channel` and `SLACK_MCP_ADD_MESSAGE_TOOL` with explicit channel IDs. Expected reduced user scopes are `chat:write`, `channels:read`, `channels:history`, `users:read`, and `search:read`.
 
 ## Setup
 
 Prerequisites:
 
-- pi coding agent
-- Node.js/npm for npm-hosted packages and the local tree-sitter MCP server
-- uv/uvx for optional Python-based MCP servers
-- context7-mcp on PATH for library documentation lookup
+- Pi coding agent
+- Node.js/npm for npm packages and local MCP servers
+- `uv` / `uvx` for Python-based tools
+- `context7-mcp` on `PATH` for docs lookup
+- `ast-grep` on `PATH` for the local tree-sitter MCP pattern tools
 
 ```bash
 cd ~/.config/pi
@@ -141,35 +92,33 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-Tracked config uses relative paths where possible. `setup.sh` links this repository to `~/.pi/agent`, so relative local package and MCP paths resolve from the Pi agent directory.
+`setup.sh` links this repo to `~/.pi/agent`, so relative local package and MCP paths resolve from the Pi agent directory. If `~/.pi/agent` is already a symlink to another path, the script repoints it to this repo.
 
-## Publishing Safety
+## Runtime files not tracked
 
-This repository intentionally excludes local runtime and secret-bearing files:
+This repo intentionally excludes secrets, sessions, caches, logs, and dependency installs. Current `.gitignore` coverage includes:
 
-- `auth.json`
+- `.scratch/`
 - `sessions/`
 - `run-history.jsonl`
 - `mcp-cache.json`
-- `mcp-onboarding.json`
 - `pi-crash.log`
+- `/auth.json`
 - `**/node_modules`
-- `.scratch/`
+- `__pycache__/`, `*.py[cod]`, `.ruff_cache/`, `.pytest_cache/`
+- `mcp-onboarding.json`
+- `/mcp-oauth`
+- `/intercom`
+- `/.cache`
+- `/.pi-lens/`
+- `/compact-backups`
+- `/favorites.json`
+- `/pisesh-meta.json`
 
-## Local Host Customization
+## Related docs
 
-`APPEND_SYSTEM.md` is the host-specific overlay. Replace it with your own operating system, editor, terminal, package manager, clipboard, database, git workflow, and cloud/tooling details before reusing this config.
-
-The rest of the tracked config should stay portable. If a detail only applies to one machine or one private work environment, put it in `APPEND_SYSTEM.md` or an ignored local file, not in `AGENTS.md`, `USAGE.md`, or the general README.
-
-## Design Decisions
-
-- **Tree-sitter first**: Code navigation should start from symbols and structure instead of raw text search.
-- **Read-only git**: The agent can inspect repository state but does not mutate git history or staging state.
-- **File-backed scratch space**: Research, plans, reviews, and continuation notes are written to `.scratch/` instead of being pushed directly into the conversation.
-- **Role-based delegation**: Scout, worker, and reviewer agents have narrow responsibilities.
-- **Skills over prompt bloat**: Specialized workflows live in skills and load only when needed.
-- **Guardrails over prompts alone**: Destructive shell and git operations are blocked by configuration, not just instructions.
-- **Lazy integrations**: MCP servers and heavier workflows are loaded on demand unless they need to be direct tools.
-
-See `DESIGN.md` for more detail and `ATTRIBUTIONS.md` for upstream sources and copied/adapted files.
+- `AGENTS.md`: agent policy and workflow routing
+- `APPEND_SYSTEM.md`: local host/toolchain overlay
+- `DESIGN.md`: rationale for the config structure
+- `USAGE.md`: human-facing usage guide
+- `ATTRIBUTIONS.md`: copied/adapted upstream files and influences

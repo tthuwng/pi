@@ -17,35 +17,39 @@ description: |
   Subagent routing is handled automatically via PreToolUse hook.
 ---
 
-# Context Mode: Default for All Large Output
+# Context Mode: Default for Large Output
 
 ## MANDATORY RULE
 
 <context_mode_logic>
-  <mandatory_rule>
-    Default to context-mode for ALL commands. Only use Bash for guaranteed-small-output operations.
-  </mandatory_rule>
+<mandatory_rule>
+Use context-mode for commands, files, tool outputs, API calls, logs, tests, builds, or datasets that may produce large output or need server-side analysis. Do not use it as a blanket replacement for normal Pi tools or bounded shell execution.
+</mandatory_rule>
 </context_mode_logic>
 
-Bash whitelist (safe to run directly):
-- **File mutations**: `mkdir`, `mv`, `cp`, `rm`, `touch`, `chmod`
-- **Git writes**: `git add`, `git commit`, `git push`, `git checkout`, `git branch`, `git merge`
-- **Navigation**: `cd`, `pwd`, `which`
-- **Process control**: `kill`, `pkill`
-- **Package management**: `npm install`, `npm publish`, `pip install`
-- **Simple output**: `echo`, `printf`
+Use normal Pi tools for:
 
-**Everything else → `ctx_execute` or `ctx_execute_file`.** Any command that reads, queries, fetches, lists, logs, tests, builds, diffs, inspects, or calls an external service. This includes ALL CLIs (gh, aws, kubectl, docker, terraform, wrangler, fly, heroku, gcloud, etc.) — there are thousands and we cannot list them all.
+- exact small file reads before editing;
+- exact edits and writes;
+- tree-sitter, ast-grep, and LSP code intelligence;
+- small grep/find/ls lookups where direct output is already bounded.
 
-**When uncertain, use context-mode.** Every KB of unnecessary context reduces the quality and speed of the entire session.
+Use Bash directly only for bounded commands that genuinely need shell execution, such as tests/builds/package commands, read-only git inspection, cloud/database CLIs with narrow filters, and small purpose-built scripts. Root prompt policy still controls destructive shell commands, mutating git, sudo, secret paths, and user approval requirements.
+
+Use `ctx_execute`, `ctx_execute_file`, indexing, or search for commands that read, query, fetch, list, log, test, build, diff, inspect, or call external services when their output may exceed the useful context budget or needs analysis before summarization.
+
+When uncertain about output size, prefer context-mode. Every KB of unnecessary context reduces the quality and speed of the session.
 
 ## Decision Tree
 
 ```
 About to run a command / read a file / call an API?
 │
-├── Command is on the Bash whitelist (file mutations, git writes, navigation, echo)?
-│   └── Use Bash
+├── Need an exact small file read for editing or source inspection?
+│   └── Use normal Pi read/tree-sitter/LSP/ast-grep tools
+│
+├── Command genuinely needs shell execution and has bounded output?
+│   └── Use Bash, subject to root prompt safety and git rules
 │
 ├── Output MIGHT be large or you're UNSURE?
 │   └── Use context-mode ctx_execute or ctx_execute_file
@@ -84,27 +88,27 @@ About to run a command / read a file / call an API?
 
 ## When to Use Each Tool
 
-| Situation | Tool | Example |
-|-----------|------|---------|
-| Hit an API endpoint | `ctx_execute` | `fetch('http://localhost:3000/api/orders')` |
-| Run CLI that returns data | `ctx_execute` | `gh pr list`, `aws s3 ls`, `kubectl get pods` |
-| Run tests | `ctx_execute` | `npm test`, `pytest`, `go test ./...` |
-| Git operations | `ctx_execute` | `git log --oneline -50`, `git diff HEAD~5` |
-| Docker/K8s inspection | `ctx_execute` | `docker stats --no-stream`, `kubectl describe pod` |
-| Read a log file | `ctx_execute_file` | Parse access.log, error.log, build output |
-| Read a data file | `ctx_execute_file` | Analyze CSV, JSON, YAML, XML |
-| Read source code to analyze | `ctx_execute_file` | Count functions, find patterns, extract metrics |
-| Fetch web docs | `ctx_fetch_and_index` | Index React/Next.js/Zod docs, then search |
-| Playwright snapshot | `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | Save to file, index server-side, query |
-| Playwright snapshot (one-shot) | `browser_snapshot(filename)` → `ctx_execute_file(path)` | Save to file, extract in sandbox |
-| Playwright console/network | `browser_*(filename)` → `ctx_execute_file(path)` | Save to file, analyze in sandbox |
-| MCP output (already in context) | Use directly | Don't re-index — it's already loaded |
-| MCP output (need multi-query) | `ctx_execute` to save → `ctx_index(path)` → `ctx_search` | Save to file first, index server-side |
-| Wipe indexed KB content | `ctx_purge(confirm: true)` | Permanently deletes all indexed content |
+| Situation                                    | Tool                                                            | Example                                            |
+| -------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| Hit an API endpoint                          | `ctx_execute`                                                   | `fetch('http://localhost:3000/api/orders')`        |
+| Run CLI that returns sizable data            | `ctx_execute`                                                   | `gh pr list`, `aws s3 ls`, `kubectl get pods`      |
+| Run tests with potentially large output      | `ctx_execute`                                                   | `npm test`, `pytest`, `go test ./...`              |
+| Read-only git operations with sizable output | `ctx_execute`                                                   | `git log --oneline -50`, `git diff HEAD~5`         |
+| Docker/K8s inspection                        | `ctx_execute`                                                   | `docker stats --no-stream`, `kubectl describe pod` |
+| Read a log file                              | `ctx_execute_file`                                              | Parse access.log, error.log, build output          |
+| Read a data file                             | `ctx_execute_file`                                              | Analyze CSV, JSON, YAML, XML                       |
+| Read source code to analyze                  | `ctx_execute_file`                                              | Count functions, find patterns, extract metrics    |
+| Fetch web docs                               | `ctx_fetch_and_index`                                           | Index React/Next.js/Zod docs, then search          |
+| Playwright snapshot                          | `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | Save to file, index server-side, query             |
+| Playwright snapshot (one-shot)               | `browser_snapshot(filename)` → `ctx_execute_file(path)`         | Save to file, extract in sandbox                   |
+| Playwright console/network                   | `browser_*(filename)` → `ctx_execute_file(path)`                | Save to file, analyze in sandbox                   |
+| MCP output (already in context)              | Use directly                                                    | Don't re-index — it's already loaded               |
+| MCP output (need multi-query)                | `ctx_execute` to save → `ctx_index(path)` → `ctx_search`        | Save to file first, index server-side              |
+| Wipe indexed KB content                      | `ctx_purge(confirm: true)`                                      | Permanently deletes all indexed content            |
 
 ## Automatic Triggers
 
-Use context-mode for ANY of these, without being asked:
+Use context-mode for these when output may be large, needs filtering/summarization, or benefits from server-side analysis:
 
 - **API debugging**: "hit this endpoint", "call the API", "check the response", "find the bug in the response"
 - **Log analysis**: "check the logs", "what errors", "read access.log", "debug the 500s"
@@ -117,14 +121,16 @@ Use context-mode for ANY of these, without being asked:
 - **Code metrics**: "count lines", "find TODOs", "function count", "analyze codebase"
 - **Web docs lookup**: "look up the docs", "check the API reference", "find examples"
 
+For bounded one-shot commands with small expected output, use the normal Pi tool or Bash path allowed by root policy instead.
+
 ## Language Selection
 
-| Situation | Language | Why |
-|-----------|----------|-----|
-| HTTP/API calls, JSON | `javascript` | Native fetch, JSON.parse, async/await |
-| Data analysis, CSV, stats | `python` | csv, statistics, collections, re |
-| Shell commands with pipes | `shell` | grep, awk, jq, native tools |
-| File pattern matching | `shell` | find, wc, sort, uniq |
+| Situation                 | Language     | Why                                   |
+| ------------------------- | ------------ | ------------------------------------- |
+| HTTP/API calls, JSON      | `javascript` | Native fetch, JSON.parse, async/await |
+| Data analysis, CSV, stats | `python`     | csv, statistics, collections, re      |
+| Shell commands with pipes | `shell`      | grep, awk, jq, native tools           |
+| File pattern matching     | `shell`      | find, wc, sort, uniq                  |
 
 ## Search Query Strategy
 
@@ -148,7 +154,7 @@ Use context-mode for ANY of these, without being asked:
 2. **Write analysis code, not just data dumps.** Don't `console.log(JSON.stringify(data))` — analyze first, print findings.
 3. **Be specific in output.** Print bug details with IDs, line numbers, exact values — not just counts.
 4. **For files you need to EDIT**: Use the normal Read tool. context-mode is for analysis, not editing.
-5. **For Bash whitelist commands only**: Use Bash for file mutations, git writes, navigation, process control, package install, and echo. Everything else goes through context-mode.
+5. **Bash is not a safety whitelist**: use Bash only when shell execution is needed and output is bounded. Root prompt policy still forbids or gates destructive commands, mutating git, sudo, secret paths, and other sensitive operations.
 6. **Never use `ctx_index(content: large_data)`.** Use `ctx_index(path: ...)` to read files server-side. The `content` parameter sends data through context as a tool parameter — use it only for small inline text.
 7. **Always use `filename` parameter** on Playwright tools (`browser_snapshot`, `browser_console_messages`, `browser_network_requests`). Without it, the full output enters context.
 8. **Don't re-index data already in context.** If an MCP tool returned data in a previous response, it's already loaded — use it directly or save to file first.
@@ -156,13 +162,13 @@ Use context-mode for ANY of these, without being asked:
 ## Sandboxed Data Workflow
 
 <sandboxed_data_workflow>
-  <critical_rule>
-    When using tools that support saving to a file: ALWAYS use the 'filename' parameter.
-    NEVER return large raw datasets directly to context.
-  </critical_rule>
-  <workflow>
-    LargeDataTool(filename: "path") → mcp__context-mode__ctx_index(path: "path") → ctx_search()
-  </workflow>
+<critical_rule>
+When using tools that support saving to a file: ALWAYS use the 'filename' parameter.
+NEVER return large raw datasets directly to context.
+</critical_rule>
+<workflow>
+LargeDataTool(filename: "path") → `mcp__context-mode__ctx_index(path: "path")` → ctx_search()
+</workflow>
 </sandboxed_data_workflow>
 
 This is the universal pattern for context preservation regardless of
@@ -171,33 +177,39 @@ the source tool (Playwright, GitHub API, AWS CLI, etc.).
 ## Examples
 
 ### Debug an API endpoint
+
 ```javascript
-const resp = await fetch('http://localhost:3000/api/orders');
+const resp = await fetch("http://localhost:3000/api/orders");
 const { orders } = await resp.json();
 
 const bugs = [];
-const negQty = orders.filter(o => o.quantity < 0);
-if (negQty.length) bugs.push(`Negative qty: ${negQty.map(o => o.id).join(', ')}`);
+const negQty = orders.filter((o) => o.quantity < 0);
+if (negQty.length)
+  bugs.push(`Negative qty: ${negQty.map((o) => o.id).join(", ")}`);
 
-const nullFields = orders.filter(o => !o.product || !o.customer);
-if (nullFields.length) bugs.push(`Null fields: ${nullFields.map(o => o.id).join(', ')}`);
+const nullFields = orders.filter((o) => !o.product || !o.customer);
+if (nullFields.length)
+  bugs.push(`Null fields: ${nullFields.map((o) => o.id).join(", ")}`);
 
 console.log(`${orders.length} orders, ${bugs.length} bugs found:`);
-bugs.forEach(b => console.log(`- ${b}`));
+bugs.forEach((b) => console.log(`- ${b}`));
 ```
 
 ### Analyze test output
+
 ```shell
 npm test 2>&1
 echo "EXIT=$?"
 ```
 
 ### Check GitHub PRs
+
 ```shell
 gh pr list --json number,title,state,reviewDecision --jq '.[] | "\(.number) [\(.state)] \(.title) — \(.reviewDecision // "no review")"'
 ```
 
 ### Read and analyze a large file
+
 ```python
 # FILE_CONTENT is pre-loaded by ctx_execute_file
 import json
@@ -259,12 +271,12 @@ browser_network_requests(includeStatic: false, filename: "/tmp/network.md")
 
 ### CRITICAL: Why `filename` + `path` is mandatory
 
-| Approach | Context cost | Correct? |
-|----------|-------------|----------|
-| `browser_snapshot()` → raw into context | **135K tokens** | NO |
-| `browser_snapshot()` → `ctx_index(content: raw)` | **270K tokens** (doubled!) | NO |
-| `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | **~430B** | YES |
-| `browser_snapshot(filename)` → `ctx_execute_file(path)` | **~250B** | YES |
+| Approach                                                        | Context cost               | Correct? |
+| --------------------------------------------------------------- | -------------------------- | -------- |
+| `browser_snapshot()` → raw into context                         | **135K tokens**            | NO       |
+| `browser_snapshot()` → `ctx_index(content: raw)`                | **270K tokens** (doubled!) | NO       |
+| `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | **~430B**                  | YES      |
+| `browser_snapshot(filename)` → `ctx_execute_file(path)`         | **~250B**                  | YES      |
 
 ### Key Rule
 

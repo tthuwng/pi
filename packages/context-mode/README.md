@@ -43,11 +43,15 @@ Context Mode is an MCP server that solves all four sides of this problem:
 
    ```js
    // Before: 47 × Read() = 700 KB.  After: 1 × ctx_execute() = 3.6 KB.
-   ctx_execute("javascript", `
+   ctx_execute(
+     "javascript",
+     `
      const files = fs.readdirSync('src').filter(f => f.endsWith('.ts'));
      files.forEach(f => console.log(f + ': ' + fs.readFileSync('src/'+f,'utf8').split('\\n').length + ' lines'));
-   `);
+   `,
+   );
    ```
+
 4. **Output Compression** — Terse like caveman. Technical substance exact. Only fluff die. Drop articles, filler (just/really/basically), pleasantries, hedging. Fragments OK. Short synonyms. Code unchanged. Pattern: [thing] [action] [reason]. [next step]. Auto-expand for security warnings, irreversible actions, and user confusion. ~65-75% output token reduction with full technical accuracy.
 
 <a href="https://www.youtube.com/watch?v=QUHrntlfPo4">
@@ -85,12 +89,12 @@ All checks should show `[x]`. The doctor validates runtimes, hooks, FTS5, and pl
 
 **Routing:** Automatic. The SessionStart hook injects routing instructions at runtime — no file is written to your project. The plugin registers all hooks (PreToolUse, PostToolUse, PreCompact, SessionStart) and 11 MCP tools — six sandbox tools (`ctx_batch_execute`, `ctx_execute`, `ctx_execute_file`, `ctx_index`, `ctx_search`, `ctx_fetch_and_index`) plus five meta-tools (`ctx_stats`, `ctx_doctor`, `ctx_upgrade`, `ctx_purge`, `ctx_insight`).
 
-| Slash Command | What it does |
-|---|---|
-| `/context-mode:ctx-stats` | Context savings — per-tool breakdown, tokens consumed, savings ratio. |
-| `/context-mode:ctx-doctor` | Diagnostics — runtimes, hooks, FTS5, plugin registration, versions. |
-| `/context-mode:ctx-upgrade` | Pull latest, rebuild, migrate cache, fix hooks. |
-| `/context-mode:ctx-purge` | Permanently delete all indexed content from the knowledge base. |
+| Slash Command               | What it does                                                                                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/context-mode:ctx-stats`   | Context savings — per-tool breakdown, tokens consumed, savings ratio.                                                                                                                    |
+| `/context-mode:ctx-doctor`  | Diagnostics — runtimes, hooks, FTS5, plugin registration, versions.                                                                                                                      |
+| `/context-mode:ctx-upgrade` | Pull latest, rebuild, migrate cache, fix hooks.                                                                                                                                          |
+| `/context-mode:ctx-purge`   | Permanently delete all indexed content from the knowledge base.                                                                                                                          |
 | `/context-mode:ctx-insight` | Personal analytics dashboard — 90 metrics, 37 insight patterns, 4 composite scores (productivity, quality, delegation, context health) across 23 event categories. Opens a local web UI. |
 
 > **Note:** Slash commands are a Claude Code plugin feature. On other platforms, type `ctx stats`, `ctx doctor`, `ctx upgrade`, or `ctx insight` in the chat — the model calls the MCP tool automatically. See [Utility Commands](#utility-commands).
@@ -147,25 +151,45 @@ This gives you all 11 MCP tools without automatic routing. The model can still u
        "BeforeTool": [
          {
            "matcher": "run_shell_command|read_file|read_many_files|grep_search|search_file_content|web_fetch|activate_skill|mcp__plugin_context-mode",
-           "hooks": [{ "type": "command", "command": "context-mode hook gemini-cli beforetool" }]
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook gemini-cli beforetool"
+             }
+           ]
          }
        ],
        "AfterTool": [
          {
            "matcher": "",
-           "hooks": [{ "type": "command", "command": "context-mode hook gemini-cli aftertool" }]
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook gemini-cli aftertool"
+             }
+           ]
          }
        ],
        "PreCompress": [
          {
            "matcher": "",
-           "hooks": [{ "type": "command", "command": "context-mode hook gemini-cli precompress" }]
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook gemini-cli precompress"
+             }
+           ]
          }
        ],
        "SessionStart": [
          {
            "matcher": "",
-           "hooks": [{ "type": "command", "command": "context-mode hook gemini-cli sessionstart" }]
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook gemini-cli sessionstart"
+             }
+           ]
          }
        ]
      }
@@ -225,13 +249,22 @@ Full config reference: [`configs/gemini-cli/settings.json`](configs/gemini-cli/s
    {
      "hooks": {
        "PreToolUse": [
-         { "type": "command", "command": "context-mode hook vscode-copilot pretooluse" }
+         {
+           "type": "command",
+           "command": "context-mode hook vscode-copilot pretooluse"
+         }
        ],
        "PostToolUse": [
-         { "type": "command", "command": "context-mode hook vscode-copilot posttooluse" }
+         {
+           "type": "command",
+           "command": "context-mode hook vscode-copilot posttooluse"
+         }
        ],
        "SessionStart": [
-         { "type": "command", "command": "context-mode hook vscode-copilot sessionstart" }
+         {
+           "type": "command",
+           "command": "context-mode hook vscode-copilot sessionstart"
+         }
        ]
      }
    }
@@ -274,13 +307,22 @@ Full hook config including PreCompact: [`configs/vscode-copilot/hooks.json`](con
    {
      "hooks": {
        "PreToolUse": [
-         { "type": "command", "command": "context-mode hook jetbrains-copilot pretooluse" }
+         {
+           "type": "command",
+           "command": "context-mode hook jetbrains-copilot pretooluse"
+         }
        ],
        "PostToolUse": [
-         { "type": "command", "command": "context-mode hook jetbrains-copilot posttooluse" }
+         {
+           "type": "command",
+           "command": "context-mode hook jetbrains-copilot posttooluse"
+         }
        ],
        "SessionStart": [
-         { "type": "command", "command": "context-mode hook jetbrains-copilot sessionstart" }
+         {
+           "type": "command",
+           "command": "context-mode hook jetbrains-copilot sessionstart"
+         }
        ]
      }
    }
@@ -404,13 +446,13 @@ Full configs: [`configs/cursor/hooks.json`](configs/cursor/hooks.json) | [`confi
 
    The `mcp` entry registers all 11 MCP tools. The `plugin` entry enables hooks — OpenCode calls the plugin's TypeScript functions directly before and after each tool execution, blocking dangerous commands and enforcing sandbox routing.
 
-3. *(Optional)* Copy the routing rules file. The model needs an `AGENTS.md` file for routing awareness:
+3. _(Optional)_ Copy the routing rules file. The model needs an `AGENTS.md` file for routing awareness:
 
    ```bash
    cp node_modules/context-mode/configs/opencode/AGENTS.md AGENTS.md
    ```
 
-   This tells the model which tools to use and which commands are blocked. Without it, hooks still enforce routing — but the model won't know *why* a command was denied.
+   This tells the model which tools to use and which commands are blocked. Without it, hooks still enforce routing — but the model won't know _why_ a command was denied.
 
 4. Restart OpenCode.
 
@@ -454,7 +496,7 @@ Full configs: [`configs/opencode/opencode.json`](configs/opencode/opencode.json)
 
    The `mcp` entry registers all 11 MCP tools. The `plugin` entry enables hooks — KiloCode calls the plugin's TypeScript functions directly before and after each tool execution, blocking dangerous commands and enforcing sandbox routing.
 
-3. *(Optional)* Copy the routing rules file. KiloCode shares the OpenCode plugin architecture, so the model needs an `AGENTS.md` file for routing awareness:
+3. _(Optional)_ Copy the routing rules file. KiloCode shares the OpenCode plugin architecture, so the model needs an `AGENTS.md` file for routing awareness:
 
    ```bash
    cp node_modules/context-mode/configs/opencode/AGENTS.md AGENTS.md
@@ -534,11 +576,54 @@ Full documentation: [`docs/adapters/openclaw.md`](docs/adapters/openclaw.md)
    ```json
    {
      "hooks": {
-       "PreToolUse": [{ "matcher": "local_shell|shell|shell_command|exec_command|container.exec|Bash|Shell|grep_files|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file|mcp__plugin_context-mode_context-mode__ctx_batch_execute", "hooks": [{ "type": "command", "command": "context-mode hook codex pretooluse" }] }],
-       "PostToolUse": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex posttooluse" }] }],
-       "SessionStart": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex sessionstart" }] }],
-       "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex userpromptsubmit" }] }],
-       "Stop": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex stop" }] }]
+       "PreToolUse": [
+         {
+           "matcher": "local_shell|shell|shell_command|exec_command|container.exec|Bash|Shell|grep_files|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file|mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook codex pretooluse"
+             }
+           ]
+         }
+       ],
+       "PostToolUse": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook codex posttooluse"
+             }
+           ]
+         }
+       ],
+       "SessionStart": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook codex sessionstart"
+             }
+           ]
+         }
+       ],
+       "UserPromptSubmit": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook codex userpromptsubmit"
+             }
+           ]
+         }
+       ],
+       "Stop": [
+         {
+           "hooks": [
+             { "type": "command", "command": "context-mode hook codex stop" }
+           ]
+         }
+       ]
      }
    }
    ```
@@ -592,11 +677,61 @@ Full documentation: [`docs/adapters/openclaw.md`](docs/adapters/openclaw.md)
    ```json
    {
      "hooks": {
-       "PreToolUse": [{ "matcher": "run_shell_command|read_file|read_many_files|grep_search|web_fetch|agent|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file|mcp__plugin_context-mode_context-mode__ctx_batch_execute", "hooks": [{ "type": "command", "command": "context-mode hook qwen-code pretooluse" }] }],
-       "PostToolUse": [{ "matcher": "", "hooks": [{ "type": "command", "command": "context-mode hook qwen-code posttooluse" }] }],
-       "SessionStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "context-mode hook qwen-code sessionstart" }] }],
-       "PreCompact": [{ "matcher": "", "hooks": [{ "type": "command", "command": "context-mode hook qwen-code precompact" }] }],
-       "UserPromptSubmit": [{ "matcher": "", "hooks": [{ "type": "command", "command": "context-mode hook qwen-code userpromptsubmit" }] }]
+       "PreToolUse": [
+         {
+           "matcher": "run_shell_command|read_file|read_many_files|grep_search|web_fetch|agent|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file|mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook qwen-code pretooluse"
+             }
+           ]
+         }
+       ],
+       "PostToolUse": [
+         {
+           "matcher": "",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook qwen-code posttooluse"
+             }
+           ]
+         }
+       ],
+       "SessionStart": [
+         {
+           "matcher": "",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook qwen-code sessionstart"
+             }
+           ]
+         }
+       ],
+       "PreCompact": [
+         {
+           "matcher": "",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook qwen-code precompact"
+             }
+           ]
+         }
+       ],
+       "UserPromptSubmit": [
+         {
+           "matcher": "",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "context-mode hook qwen-code userpromptsubmit"
+             }
+           ]
+         }
+       ]
      }
    }
    ```
@@ -691,7 +826,10 @@ Full configs: [`configs/antigravity/mcp_config.json`](configs/antigravity/mcp_co
      "description": "Context-mode hooks for context window protection",
      "hooks": {
        "preToolUse": [
-         { "matcher": "execute_bash|fs_read|@context-mode/ctx_execute|@context-mode/ctx_execute_file|@context-mode/ctx_batch_execute", "command": "context-mode hook kiro pretooluse" }
+         {
+           "matcher": "execute_bash|fs_read|@context-mode/ctx_execute|@context-mode/ctx_execute_file|@context-mode/ctx_batch_execute",
+           "command": "context-mode hook kiro pretooluse"
+         }
        ],
        "postToolUse": [
          { "matcher": "*", "command": "context-mode hook kiro posttooluse" }
@@ -802,7 +940,7 @@ Full configs: [`configs/kiro/mcp.json`](configs/kiro/mcp.json) | [`configs/kiro/
 
 **Verify:** In a Pi session, type `ctx stats`. Context-mode tools should appear and respond.
 
-**Routing:** Automatic. The extension registers all key lifecycle events (`tool_call`, `tool_result`, `session_start`, `session_before_compact`), providing full session continuity and routing enforcement.
+**Routing:** Automatic. The extension registers Pi lifecycle events (`tool_call`, `tool_result`, `session_start`, `session_before_compact`), providing high session continuity and routing enforcement. Pi does not expose the UserPromptSubmit hook used by some other clients.
 
 </details>
 
@@ -848,18 +986,18 @@ npm install -g context-mode
 
 ## Tools
 
-| Tool | What it does | Context saved |
-|---|---|---|
-| `ctx_batch_execute` | Run multiple commands + search multiple queries in ONE call. Opt-in `concurrency: 1-8` for I/O-bound batches. | 986 KB → 62 KB |
-| `ctx_execute` | Run code in 11 languages. Only stdout enters context. | 56 KB → 299 B |
-| `ctx_execute_file` | Process files in sandbox. Raw content never leaves. | 45 KB → 155 B |
-| `ctx_index` | Chunk markdown into FTS5 with BM25 ranking. | 60 KB → 40 B |
-| `ctx_search` | Query indexed content with multiple queries in one call. | On-demand retrieval |
-| `ctx_fetch_and_index` | Fetch URL, chunk and index. 24h TTL cache — repeat calls skip network. `force: true` to bypass. Pass `requests: [{url, source}, ...]` + `concurrency: 1-8` for parallel multi-URL. | 60 KB → 40 B |
-| `ctx_stats` | Show context savings, call counts, and session statistics. | — |
-| `ctx_doctor` | Diagnose installation: runtimes, hooks, FTS5, versions. | — |
-| `ctx_upgrade` | Upgrade to latest version from GitHub, rebuild, reconfigure hooks. | — |
-| `ctx_purge` | Permanently deletes all indexed content from the knowledge base. | — |
+| Tool                  | What it does                                                                                                                                                                       | Context saved       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `ctx_batch_execute`   | Run multiple commands + search multiple queries in ONE call. Opt-in `concurrency: 1-8` for I/O-bound batches.                                                                      | 986 KB → 62 KB      |
+| `ctx_execute`         | Run code in 11 languages. Only stdout enters context.                                                                                                                              | 56 KB → 299 B       |
+| `ctx_execute_file`    | Process files in sandbox. Raw content never leaves.                                                                                                                                | 45 KB → 155 B       |
+| `ctx_index`           | Chunk markdown into FTS5 with BM25 ranking.                                                                                                                                        | 60 KB → 40 B        |
+| `ctx_search`          | Query indexed content with multiple queries in one call.                                                                                                                           | On-demand retrieval |
+| `ctx_fetch_and_index` | Fetch URL, chunk and index. 24h TTL cache — repeat calls skip network. `force: true` to bypass. Pass `requests: [{url, source}, ...]` + `concurrency: 1-8` for parallel multi-URL. | 60 KB → 40 B        |
+| `ctx_stats`           | Show context savings, call counts, and session statistics.                                                                                                                         | —                   |
+| `ctx_doctor`          | Diagnose installation: runtimes, hooks, FTS5, versions.                                                                                                                            | —                   |
+| `ctx_upgrade`         | Upgrade to latest version from GitHub, rebuild, reconfigure hooks.                                                                                                                 | —                   |
+| `ctx_purge`           | Permanently deletes all indexed content from the knowledge base.                                                                                                                   | —                   |
 
 ## How the Sandbox Works
 
@@ -927,14 +1065,14 @@ Context Mode captures every meaningful event during your session and persists th
 
 Session continuity requires 5 hooks working together:
 
-| Hook | Role | Claude Code | Gemini CLI | VS Code Copilot | JetBrains Copilot | Cursor | OpenCode | KiloCode | OpenClaw | Codex CLI | Antigravity | Kiro | Zed | Pi |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **PreToolUse** | Enforces sandbox routing before tool execution | Yes | -- | -- | -- | Yes | -- | -- | -- | Yes | -- | Yes | -- | ✓ (via tool_call event) |
-| **PostToolUse** | Captures events after each tool call | Yes | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | ✓ (via tool_result event) |
-| **UserPromptSubmit** | Captures user decisions and corrections | Yes | -- | -- | -- | -- | Plugin (via chat.message) | Plugin (via chat.message) | -- | Yes | -- | -- | -- | -- |
-| **PreCompact** | Builds snapshot before compaction | Yes | Yes | Yes | Yes | -- | Plugin | Plugin | Plugin | -- | -- | -- | -- | ✓ (via session_before_compact) |
-| **SessionStart** | Restores state after compaction or resume | Yes | Yes | Yes | Yes | -- | ✓ (via experimental.chat.system.transform) | ✓ (via experimental.chat.system.transform) | Plugin | Yes | -- | -- | -- | ✓ (via session_start event) |
-| | **Session completeness** | **Full** | **High** | **High** | **High** | **Partial** | **Full** | **Full** | **High** | **Partial** | **--** | **Partial** | **--** | **High** |
+| Hook                 | Role                                           | Claude Code | Gemini CLI | VS Code Copilot | JetBrains Copilot |   Cursor    |                  OpenCode                  |                  KiloCode                  | OpenClaw |  Codex CLI  | Antigravity |    Kiro     |  Zed   |               Pi               |
+| -------------------- | ---------------------------------------------- | :---------: | :--------: | :-------------: | :---------------: | :---------: | :----------------------------------------: | :----------------------------------------: | :------: | :---------: | :---------: | :---------: | :----: | :----------------------------: |
+| **PreToolUse**       | Enforces sandbox routing before tool execution |     Yes     |     --     |       --        |        --         |     Yes     |                     --                     |                     --                     |    --    |     Yes     |     --      |     Yes     |   --   |    ✓ (via tool_call event)     |
+| **PostToolUse**      | Captures events after each tool call           |     Yes     |    Yes     |       Yes       |        Yes        |     Yes     |                   Plugin                   |                   Plugin                   |  Plugin  |     Yes     |     --      |     Yes     |   --   |   ✓ (via tool_result event)    |
+| **UserPromptSubmit** | Captures user decisions and corrections        |     Yes     |     --     |       --        |        --         |     --      |         Plugin (via chat.message)          |         Plugin (via chat.message)          |    --    |     Yes     |     --      |     --      |   --   |               --               |
+| **PreCompact**       | Builds snapshot before compaction              |     Yes     |    Yes     |       Yes       |        Yes        |     --      |                   Plugin                   |                   Plugin                   |  Plugin  |     --      |     --      |     --      |   --   | ✓ (via session_before_compact) |
+| **SessionStart**     | Restores state after compaction or resume      |     Yes     |    Yes     |       Yes       |        Yes        |     --      | ✓ (via experimental.chat.system.transform) | ✓ (via experimental.chat.system.transform) |  Plugin  |     Yes     |     --      |     --      |   --   |  ✓ (via session_start event)   |
+|                      | **Session completeness**                       |  **Full**   |  **High**  |    **High**     |     **High**      | **Partial** |                  **Full**                  |                  **Full**                  | **High** | **Partial** |   **--**    | **Partial** | **--** |            **High**            |
 
 > **Note:** Full session continuity (capture + snapshot + restore) works on **Claude Code**, **Gemini CLI**, **VS Code Copilot**, **JetBrains Copilot**, **OpenCode**, and **KiloCode**. **OpenCode** and **KiloCode** use `experimental.chat.system.transform` as a SessionStart surrogate to inject the routing block and restore prior sessions, plus `chat.message` for user-prompt capture; full SessionStart hook support is not yet available ([#14808](https://github.com/sst/opencode/issues/14808), [#5409](https://github.com/sst/opencode/issues/5409)), but prior-session continuity and user-decision capture work fully. **Cursor** captures tool events via `preToolUse`/`postToolUse`, but `sessionStart` is currently rejected by Cursor's validator ([forum report](https://forum.cursor.com/t/unknown-hook-type-sessionstart/149566)), so session restore after compaction is not available yet. **OpenClaw** uses native gateway plugin hooks (`api.on()`) for full session continuity. **Pi Coding Agent** provides high session continuity via extension hooks (`tool_call`, `tool_result`, `session_start`, `session_before_compact`). **Codex CLI** provides partial hook-based session tracking through PreToolUse, PostToolUse, SessionStart, UserPromptSubmit, and Stop; MCP tools work. **Antigravity**, **Kiro**, and **Zed** have no hook support in the current release, so session tracking is not available.
 
@@ -943,31 +1081,31 @@ Session continuity requires 5 hooks working together:
 
 Every tool call passes through hooks that extract structured events:
 
-| Category | Events | Priority | Captured By |
-|---|---|---|---|
-| **Files** | read, edit, write, glob, grep | Critical (P1) | PostToolUse |
-| **Tasks** | create, update, complete | Critical (P1) | PostToolUse |
-| **Plans** | enter, exit, approved, rejected, file write | Critical (P1) | PostToolUse |
-| **Rules** | CLAUDE.md / GEMINI.md / AGENTS.md paths + content | Critical (P1) | SessionStart |
-| **User Prompts** | Every user message (for last-prompt restore) | Critical (P1) | UserPromptSubmit |
-| **Decisions** | User corrections, preferences ("use X instead", "don't do Y") | High (P2) | UserPromptSubmit |
-| **Git** | checkout, commit, merge, rebase, stash, push, pull, diff, status | High (P2) | PostToolUse |
-| **Errors** | Tool failures, non-zero exit codes | High (P2) | PostToolUse |
-| **Error Resolution** | Error → fix pairs detected across sequential tool calls | High (P2) | PostToolUse |
-| **Constraints** | Discovered limitations ("not supported", "permission denied") | High (P2) | PostToolUse |
-| **Blockers** | "blocked on", "waiting for", "depends on" — tracked until resolved | High (P2) | UserPromptSubmit |
-| **Rejected Approaches** | Tool calls denied by user (PreToolUse → PostToolUse marker) | High (P2) | PreToolUse |
-| **Environment** | cwd changes, venv, nvm, conda, worktree, package installs | High (P2) | PostToolUse |
-| **Agent Findings** | Completed subagent results (first 500 chars) | High (P2) | PostToolUse |
-| **Iteration Loops** | Same tool called 3+ times with similar input (retry detection) | High (P2) | PostToolUse |
-| **Latency** | Tool calls exceeding 5s (tool name + duration in ms) | Normal (P3) | PreToolUse |
-| **MCP Tools** | All `mcp__*` tool calls with usage counts | Normal (P3) | PostToolUse |
-| **Subagents** | Agent tool launches and completions | Normal (P3) | PostToolUse |
-| **Skills** | Slash command invocations | Normal (P3) | PostToolUse |
-| **External Refs** | URLs, GitHub issue references (#123), deduped | Normal (P3) | PostToolUse |
-| **Role** | Persona / behavioral directives ("act as senior engineer") | Normal (P3) | UserPromptSubmit |
-| **Intent** | Session mode classification (investigate, implement, review) | Low (P4) | UserPromptSubmit |
-| **Data** | Large user-pasted data references (>1 KB) | Low (P4) | UserPromptSubmit |
+| Category                | Events                                                             | Priority      | Captured By      |
+| ----------------------- | ------------------------------------------------------------------ | ------------- | ---------------- |
+| **Files**               | read, edit, write, glob, grep                                      | Critical (P1) | PostToolUse      |
+| **Tasks**               | create, update, complete                                           | Critical (P1) | PostToolUse      |
+| **Plans**               | enter, exit, approved, rejected, file write                        | Critical (P1) | PostToolUse      |
+| **Rules**               | CLAUDE.md / GEMINI.md / AGENTS.md paths + content                  | Critical (P1) | SessionStart     |
+| **User Prompts**        | Every user message (for last-prompt restore)                       | Critical (P1) | UserPromptSubmit |
+| **Decisions**           | User corrections, preferences ("use X instead", "don't do Y")      | High (P2)     | UserPromptSubmit |
+| **Git**                 | checkout, commit, merge, rebase, stash, push, pull, diff, status   | High (P2)     | PostToolUse      |
+| **Errors**              | Tool failures, non-zero exit codes                                 | High (P2)     | PostToolUse      |
+| **Error Resolution**    | Error → fix pairs detected across sequential tool calls            | High (P2)     | PostToolUse      |
+| **Constraints**         | Discovered limitations ("not supported", "permission denied")      | High (P2)     | PostToolUse      |
+| **Blockers**            | "blocked on", "waiting for", "depends on" — tracked until resolved | High (P2)     | UserPromptSubmit |
+| **Rejected Approaches** | Tool calls denied by user (PreToolUse → PostToolUse marker)        | High (P2)     | PreToolUse       |
+| **Environment**         | cwd changes, venv, nvm, conda, worktree, package installs          | High (P2)     | PostToolUse      |
+| **Agent Findings**      | Completed subagent results (first 500 chars)                       | High (P2)     | PostToolUse      |
+| **Iteration Loops**     | Same tool called 3+ times with similar input (retry detection)     | High (P2)     | PostToolUse      |
+| **Latency**             | Tool calls exceeding 5s (tool name + duration in ms)               | Normal (P3)   | PreToolUse       |
+| **MCP Tools**           | All `mcp__*` tool calls with usage counts                          | Normal (P3)   | PostToolUse      |
+| **Subagents**           | Agent tool launches and completions                                | Normal (P3)   | PostToolUse      |
+| **Skills**              | Slash command invocations                                          | Normal (P3)   | PostToolUse      |
+| **External Refs**       | URLs, GitHub issue references (#123), deduped                      | Normal (P3)   | PostToolUse      |
+| **Role**                | Persona / behavioral directives ("act as senior engineer")         | Normal (P3)   | UserPromptSubmit |
+| **Intent**              | Session mode classification (investigate, implement, review)       | Low (P4)      | UserPromptSubmit |
+| **Data**                | Large user-pasted data references (>1 KB)                          | Low (P4)      | UserPromptSubmit |
 
 </details>
 
@@ -1049,18 +1187,18 @@ Detailed event data is also indexed into FTS5 for on-demand retrieval via `ctx_s
 
 ## Platform Compatibility
 
-| Feature | Claude Code | Qwen Code | Gemini CLI | VS Code Copilot | JetBrains Copilot | Cursor | OpenCode | KiloCode | OpenClaw | Codex CLI | Antigravity | Kiro | Zed | Pi |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| MCP Server | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| PreToolUse Hook | Yes | Yes | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
-| PostToolUse Hook | Yes | Yes | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
-| SessionStart Hook | Yes | Yes | Yes | Yes | Yes | -- | ✓ (via experimental.chat.system.transform) | ✓ (via experimental.chat.system.transform) | Plugin | Yes | -- | -- | -- | Yes (extension) |
-| PreCompact Hook | Yes | Yes | Yes | Yes | Yes | -- | Plugin | Plugin | Plugin | -- | -- | -- | -- | Yes (extension) |
-| Can Modify Args | Yes | Yes | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | -- | -- | -- | -- | Yes (extension) |
-| Can Block Tools | Yes | Yes | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
-| Utility Commands (ctx) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes (/ctx-stats, /ctx-doctor) |
-| Slash Commands | Yes | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-| Plugin Marketplace | Yes | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+| Feature                | Claude Code | Qwen Code | Gemini CLI | VS Code Copilot | JetBrains Copilot | Cursor |                  OpenCode                  |                  KiloCode                  | OpenClaw | Codex CLI | Antigravity | Kiro | Zed |              Pi               |
+| ---------------------- | :---------: | :-------: | :--------: | :-------------: | :---------------: | :----: | :----------------------------------------: | :----------------------------------------: | :------: | :-------: | :---------: | :--: | :-: | :---------------------------: |
+| MCP Server             |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                    Yes                     |                    Yes                     |   Yes    |    Yes    |     Yes     | Yes  | Yes |              Yes              |
+| PreToolUse Hook        |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                   Plugin                   |                   Plugin                   |  Plugin  |    Yes    |     --      | Yes  | --  |        Yes (extension)        |
+| PostToolUse Hook       |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                   Plugin                   |                   Plugin                   |  Plugin  |    Yes    |     --      | Yes  | --  |        Yes (extension)        |
+| SessionStart Hook      |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |   --   | ✓ (via experimental.chat.system.transform) | ✓ (via experimental.chat.system.transform) |  Plugin  |    Yes    |     --      |  --  | --  |        Yes (extension)        |
+| PreCompact Hook        |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |   --   |                   Plugin                   |                   Plugin                   |  Plugin  |    --     |     --      |  --  | --  |        Yes (extension)        |
+| Can Modify Args        |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                   Plugin                   |                   Plugin                   |  Plugin  |    --     |     --      |  --  | --  |        Yes (extension)        |
+| Can Block Tools        |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                   Plugin                   |                   Plugin                   |  Plugin  |    Yes    |     --      | Yes  | --  |        Yes (extension)        |
+| Utility Commands (ctx) |     Yes     |    Yes    |    Yes     |       Yes       |        Yes        |  Yes   |                    Yes                     |                    Yes                     |   Yes    |    Yes    |     Yes     | Yes  | Yes | Yes (/ctx-stats, /ctx-doctor) |
+| Slash Commands         |     Yes     |    --     |     --     |       --        |        --         |   --   |                     --                     |                     --                     |    --    |    --     |     --      |  --  | --  |              --               |
+| Plugin Marketplace     |     Yes     |    --     |     --     |       --        |        --         |   --   |                     --                     |                     --                     |    --    |    --     |     --      |  --  | --  |              --               |
 
 > **OpenCode** uses a TypeScript plugin paradigm — hooks run as in-process functions via `tool.execute.before`, `tool.execute.after`, `experimental.session.compacting`, `experimental.chat.system.transform`, and `chat.message`, providing full routing enforcement, session continuity, and user-prompt capture. The `experimental.chat.system.transform` hook acts as a SessionStart surrogate to inject the routing block and restore prior sessions. The `chat.message` hook captures user prompts and decisions (UserPromptSubmit equivalent).
 >
@@ -1080,20 +1218,20 @@ Hooks intercept tool calls programmatically — they can block dangerous command
 
 > **Note:** Routing instruction files were previously auto-written to project directories on first session start. This was disabled to prevent git tree pollution ([#158](https://github.com/mksglu/context-mode/issues/158), [#164](https://github.com/mksglu/context-mode/issues/164)). Hook-capable platforms (Claude Code, Gemini CLI, VS Code Copilot, JetBrains Copilot, Cursor, OpenCode, OpenClaw, Codex CLI) inject routing via hooks and need no file. Non-hook platforms (Zed, Kiro, Antigravity) require a one-time manual copy — see each platform's install section.
 
-| Platform | Hooks | Instruction File | With Hooks | Without Hooks |
-|---|:---:|---|:---:|:---:|
-| Claude Code | Yes (auto) | [`CLAUDE.md`](configs/claude-code/CLAUDE.md) | **~98% saved** | ~60% saved |
-| Gemini CLI | Yes | [`GEMINI.md`](configs/gemini-cli/GEMINI.md) | **~98% saved** | ~60% saved |
-| VS Code Copilot | Yes | [`copilot-instructions.md`](configs/vscode-copilot/copilot-instructions.md) | **~98% saved** | ~60% saved |
-| JetBrains Copilot | Yes | [`copilot-instructions.md`](configs/vscode-copilot/copilot-instructions.md) | **~98% saved** | ~60% saved |
-| Cursor | Yes | [`context-mode.mdc`](configs/cursor/context-mode.mdc) | **~98% saved** | ~60% saved |
-| OpenCode | Plugin | [`AGENTS.md`](configs/opencode/AGENTS.md) | **~98% saved** | ~60% saved |
-| OpenClaw | Plugin | [`AGENTS.md`](configs/openclaw/AGENTS.md) | **~98% saved** | ~60% saved |
-| Codex CLI | Yes | [`AGENTS.md`](configs/codex/AGENTS.md) | **~98% saved** | ~60% saved |
-| Antigravity | -- | [`GEMINI.md`](configs/antigravity/GEMINI.md) | -- | ~60% saved |
-| Kiro | Yes | [`KIRO.md`](configs/kiro/KIRO.md) | **~98% saved** | ~60% saved |
-| Zed | -- | [`AGENTS.md`](configs/zed/AGENTS.md) | -- | ~60% saved |
-| Pi | ✓ | [`AGENTS.md`](configs/pi/AGENTS.md) | **~98% saved** | ~60% saved |
+| Platform          |   Hooks    | Instruction File                                                            |   With Hooks   | Without Hooks |
+| ----------------- | :--------: | --------------------------------------------------------------------------- | :------------: | :-----------: |
+| Claude Code       | Yes (auto) | [`CLAUDE.md`](configs/claude-code/CLAUDE.md)                                | **~98% saved** |  ~60% saved   |
+| Gemini CLI        |    Yes     | [`GEMINI.md`](configs/gemini-cli/GEMINI.md)                                 | **~98% saved** |  ~60% saved   |
+| VS Code Copilot   |    Yes     | [`copilot-instructions.md`](configs/vscode-copilot/copilot-instructions.md) | **~98% saved** |  ~60% saved   |
+| JetBrains Copilot |    Yes     | [`copilot-instructions.md`](configs/vscode-copilot/copilot-instructions.md) | **~98% saved** |  ~60% saved   |
+| Cursor            |    Yes     | [`context-mode.mdc`](configs/cursor/context-mode.mdc)                       | **~98% saved** |  ~60% saved   |
+| OpenCode          |   Plugin   | [`AGENTS.md`](configs/opencode/AGENTS.md)                                   | **~98% saved** |  ~60% saved   |
+| OpenClaw          |   Plugin   | [`AGENTS.md`](configs/openclaw/AGENTS.md)                                   | **~98% saved** |  ~60% saved   |
+| Codex CLI         |    Yes     | [`AGENTS.md`](configs/codex/AGENTS.md)                                      | **~98% saved** |  ~60% saved   |
+| Antigravity       |     --     | [`GEMINI.md`](configs/antigravity/GEMINI.md)                                |       --       |  ~60% saved   |
+| Kiro              |    Yes     | [`KIRO.md`](configs/kiro/KIRO.md)                                           | **~98% saved** |  ~60% saved   |
+| Zed               |     --     | [`AGENTS.md`](configs/zed/AGENTS.md)                                        |       --       |  ~60% saved   |
+| Pi                |     ✓      | [`AGENTS.md`](configs/pi/AGENTS.md)                                         | **~98% saved** |  ~60% saved   |
 
 Without hooks, one unrouted `curl` or Playwright snapshot can dump 56 KB into context — wiping out an entire session's worth of savings.
 
@@ -1114,28 +1252,27 @@ ctx insight     → personal analytics dashboard (opens local web UI)
 **From your terminal** — run directly without an AI session:
 
 ```bash
-context-mode doctor
+context-mode doctor           # diagnostic report for runtime, hooks, FTS5, and package setup
 context-mode upgrade
 context-mode insight          # opens analytics dashboard in browser
-bash scripts/ctx-debug.sh    # full diagnostic report for bug reports
 ```
 
-The debug script collects OS info, runtime versions, better-sqlite3 status, adapter detection, config files (redacted), hook validation, FTS5/SQLite test, executor test, process check, session databases, and environment variables into a single pasteable markdown report.
+`context-mode doctor` reports runtime versions, SQLite support, package setup, hook availability, and related diagnostics.
 
 Works on **all platforms**. On Claude Code, slash commands (`/ctx-stats`, `/ctx-doctor`, `/ctx-upgrade`, `/ctx-purge`, `/ctx-insight`) are also available.
 
 ## Benchmarks
 
-| Scenario | Raw | Context | Saved |
-|---|---|---|---|
-| Playwright snapshot | 56.2 KB | 299 B | 99% |
-| GitHub Issues (20) | 58.9 KB | 1.1 KB | 98% |
-| Access log (500 requests) | 45.1 KB | 155 B | 100% |
-| Context7 React docs | 5.9 KB | 261 B | 96% |
-| Analytics CSV (500 rows) | 85.5 KB | 222 B | 100% |
-| Git log (153 commits) | 11.6 KB | 107 B | 99% |
-| Test output (30 suites) | 6.0 KB | 337 B | 95% |
-| Repo research (subagent) | 986 KB | 62 KB | 94% |
+| Scenario                  | Raw     | Context | Saved |
+| ------------------------- | ------- | ------- | ----- |
+| Playwright snapshot       | 56.2 KB | 299 B   | 99%   |
+| GitHub Issues (20)        | 58.9 KB | 1.1 KB  | 98%   |
+| Access log (500 requests) | 45.1 KB | 155 B   | 100%  |
+| Context7 React docs       | 5.9 KB  | 261 B   | 96%   |
+| Analytics CSV (500 rows)  | 85.5 KB | 222 B   | 100%  |
+| Git log (153 commits)     | 11.6 KB | 107 B   | 99%   |
+| Test output (30 suites)   | 6.0 KB  | 337 B   | 95%   |
+| Repo research (subagent)  | 986 KB  | 62 KB   | 94%   |
 
 Over a full session: 315 KB of raw output becomes 5.4 KB. Session time extends from ~30 minutes to ~3 hours.
 
@@ -1146,12 +1283,14 @@ Over a full session: 315 KB of raw output becomes 5.4 KB. Session time extends f
 These prompts work out of the box. Run `/context-mode:ctx-stats` after each to see the savings.
 
 **Deep repo research** — 5 calls, 62 KB context (raw: 986 KB, 94% saved)
+
 ```
 Research https://github.com/modelcontextprotocol/servers — architecture, tech stack,
 top contributors, open issues, and recent activity. Then run /context-mode:ctx-stats.
 ```
 
 **Git history analysis** — 1 call, 5.6 KB context
+
 ```
 Clone https://github.com/facebook/react and analyze the last 500 commits:
 top contributors, commit frequency by month, and most changed files.
@@ -1159,12 +1298,14 @@ Then run /context-mode:ctx-stats.
 ```
 
 **Web scraping** — 1 call, 3.2 KB context
+
 ```
 Fetch the Hacker News front page, extract all posts with titles, scores,
 and domains. Group by domain. Then run /context-mode:ctx-stats.
 ```
 
 **Large JSON API** — 7.5 MB raw → 0.9 KB context (99% saved)
+
 ```
 Create a local server that returns a 7.5 MB JSON with 20,000 records and a secret
 hidden at index 13000. Fetch the endpoint, find the hidden record, and show me
@@ -1172,12 +1313,14 @@ exactly what's in it. Then run /context-mode:ctx-stats.
 ```
 
 **Documentation search** — 2 calls, 1.8 KB context
+
 ```
 Fetch the React useEffect docs, index them, and find the cleanup pattern
 with code examples. Then run /context-mode:ctx-stats.
 ```
 
 **Session continuity** — compaction recovery with full state
+
 ```
 Start a multi-step task: "Create a REST API with Express — add routes, tests,
 and error handling." After 20+ tool calls, type: ctx stats to see the session
@@ -1202,16 +1345,8 @@ Context Mode enforces the same permission rules you already use — but extends 
 ```json
 {
   "permissions": {
-    "deny": [
-      "Bash(sudo *)",
-      "Bash(rm -rf /*)",
-      "Read(.env)",
-      "Read(**/.env*)"
-    ],
-    "allow": [
-      "Bash(git:*)",
-      "Bash(npm:*)"
-    ]
+    "deny": ["Bash(sudo *)", "Bash(rm -rf /*)", "Read(.env)", "Read(**/.env*)"],
+    "allow": ["Bash(git:*)", "Bash(npm:*)"]
   }
 }
 ```

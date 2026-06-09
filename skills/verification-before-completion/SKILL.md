@@ -11,11 +11,11 @@ Do not claim success without fresh evidence.
 
 Before saying work is done, fixed, passing, ready, clean, or complete:
 
-1. **Identify** what evidence proves the claim.
-2. **Run or inspect** the evidence after the latest relevant edit.
-3. **Read** the output/result, including exit code and failures.
-4. **Compare** evidence to the actual claim.
-5. **Report** the claim with evidence, or state the limitation directly.
+- [ ] **Identify** what evidence proves the claim.
+- [ ] **Run or inspect** the evidence after the latest relevant edit.
+- [ ] **Read** the output/result, including exit code and failures.
+- [ ] **Compare** evidence to the actual claim.
+- [ ] **Report** the claim with evidence, or state the limitation directly.
 
 If you cannot run a check, say so. Do not convert inability to verify into confidence.
 
@@ -36,16 +36,16 @@ Do not use claim verification for vague claims such as “cleaner” or “bette
 
 ## Evidence by Claim
 
-| Claim                   | Required evidence                                            |
-| ----------------------- | ------------------------------------------------------------ |
-| Tests pass              | Fresh test command output after edits                        |
-| Typecheck/lint clean    | Fresh command output after edits                             |
-| Bug fixed               | Reproduction or regression test passes                       |
-| Feature complete        | Requirements/task checklist plus relevant tests              |
+| Claim                   | Required evidence                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| Tests pass              | Fresh test command output after edits                                                         |
+| Typecheck/lint clean    | Fresh command output after edits                                                              |
+| Bug fixed               | Reproduction or regression test passes                                                        |
+| Feature complete        | Requirements/task checklist plus relevant tests                                               |
 | CLI/TUI behavior        | Repo-native harness, tmux/PTY transcript, or screen capture showing the expected state change |
-| Subagent completed task | Parent inspected subagent summary, diff, and verification    |
-| Config/skill valid      | Frontmatter/path/reference validation or explicit inspection |
-| No behavior change      | Diff inspection showing prompt/docs/config-only change       |
+| Subagent completed task | Parent inspected subagent summary, diff, and verification                                     |
+| Config/skill valid      | Frontmatter/path/reference validation or explicit inspection                                  |
+| No behavior change      | Diff inspection showing prompt/docs/config-only change                                        |
 
 For interactive CLI/TUI claims, prefer the repo's own harness first. If none exists, use a bounded tmux or PTY probe: capture the screen before acting, send one action, wait for a concrete prompt or screen pattern, then capture the result. Prefer deterministic waits over sleeps.
 

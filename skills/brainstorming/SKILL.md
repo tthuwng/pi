@@ -82,7 +82,7 @@ For larger work, present the design in short sections and validate incrementally
 
 If the user corrects direction, revise the design before planning implementation.
 
-### 5. Save design when useful
+### 5. Save material designs
 
 For Tier 3 or complex Tier 2 work, write:
 

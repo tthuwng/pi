@@ -1,174 +1,96 @@
 # Design Decisions
 
-This document explains the current shape of the config without relying on private session history.
+This document explains why the config is shaped this way. It is not the agent policy source; use `AGENTS.md` for that.
 
 ## Goals
 
-- Keep the always-loaded prompt small.
-- Prefer structural code navigation over raw text search.
-- Make risky operations explicit and hard to trigger accidentally.
-- Keep long-running work organized in files, not only in chat context.
-- Use specialized workflows only when they are relevant.
-- Make delegation predictable by giving agents narrow roles.
+- Keep always-loaded instructions concise
+- Keep agent behavior stronger than human docs
+- Put workflow detail in skills, not root prompt prose
+- Make risky operations explicit and hard to trigger accidentally
+- Keep large research/plans/reviews in files
+- Give subagents narrow, self-contained contracts
 
-## Core Principles
+## Authority split
 
-### Tree-sitter first
+| Surface                      | Role                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `AGENTS.md`                  | Always-loaded parent-session policy: safety, tool routing, workflow triggers, memory rules                      |
+| `APPEND_SYSTEM.md`           | Local machine, stack, commands, language conventions where possible                                             |
+| `skills/`                    | On-demand workflow manuals                                                                                      |
+| `agents/`                    | Local subagent role contracts; same-name files override packaged builtins and may not inherit all parent policy |
+| `settings.json` / `mcp.json` | Runtime config registries for packages, models, UI, compaction, and MCP servers                                 |
+| `extensions/`                | Auto-discovered local runtime behavior: commands, UI helpers, todos, and guardrails                             |
+| `README.md`                  | Repository map and setup                                                                                        |
+| `USAGE.md`                   | Human quick-start guide                                                                                         |
 
-Code navigation starts with structure:
+## Core choices
 
-- symbol search for definitions
-- document symbols for file overview
-- symbol definitions for targeted reads
-- structural pattern search for code patterns
+### Structural tools first
 
-Raw text search still exists, but it is not the default for understanding code.
+Code navigation should start from symbols and AST structure. Text search remains useful for logs, comments, config text, URLs, and fallback cases.
 
-### Read-only git
+### Read-only git by default
 
-The agent can inspect git state but does not mutate it.
+The agent can inspect git state but does not mutate staging, history, refs, or branch state. The user remains responsible for commits, branches, merges, rebases, pushes, and stacked-PR operations.
 
-Allowed git operations are limited to read-only commands such as:
+### Guardrails plus prompt policy
 
-- `git status`
-- `git diff`
-- `git log`
-- `git show`
-- `git blame`
-
-Staging, committing, pushing, rebasing, resetting, stashing, and branch manipulation stay manual. This keeps repository state under user control.
-
-### Guardrails are configuration, not just instructions
-
-Prompt instructions are useful, but high-risk operations should also be blocked at the tool layer.
-
-`extensions/guardrails.json` denies destructive shell patterns and git mutations. `permissions.json` can stay low-friction because the safety boundary is encoded in guardrails.
-
-### Scratch files for durable work
-
-`.scratch/` is the working area for agent-produced artifacts:
-
-```
-.scratch/
-├── research/    # scout findings
-├── plans/       # implementation plans
-├── reviews/     # review output
-└── sessions/    # continuation notes
-```
-
-This keeps large intermediate reasoning and reports out of the main conversation until they are needed.
-
-### Roles over generic delegation
-
-Subagents are split by responsibility:
-
-| Role            | Purpose                                    |
-| --------------- | ------------------------------------------ |
-| scout           | Read-only reconnaissance and summarization |
-| worker          | Implementation from explicit instructions  |
-| reviewer        | Review against plan and coding standards   |
-| general-purpose | Fallback role for uncategorized tasks      |
-
-The main agent remains responsible for user discussion, planning, tradeoffs, and final decisions.
+Prompt rules are not enough for high-risk operations. `extensions/guardrails.json` blocks destructive shell patterns, git mutations, and configured auth/token paths, while `AGENTS.md` states the operating policy. Guardrails are not a full sandbox; with `permissions.json` in `yolo`, external/private MCP approval gates are prompt policy rather than runtime-enforced confirmations.
 
 ### Skills over prompt bloat
 
-Specialized workflows live in `skills/` instead of being fully embedded in `AGENTS.md`.
+Detailed procedures live in skills so the base prompt stays smaller:
 
-This keeps the base prompt smaller while still making workflows available when needed. Examples:
+- `manager-workflow`: tiering and implementation flow
+- `brainstorming`: vague/design work
+- `writing-plans`: approved multi-step plans
+- `systematic-debugging`: root-cause workflow
+- `test-driven-development`: behavior-change testing discipline
+- `review`: review standards
+- `verification-before-completion`: final evidence gate
+- `pi-subagents`: parallel/adversarial workflows
 
-- `manager-workflow` for tiered implementation flow
-- `systematic-debugging` for bug investigation
-- `review` for code review
-- `session-reader` for session JSONL analysis
-- `self-improve` for config retrospectives
+### Subagent prompts stay self-contained
+
+Scout/worker/reviewer prompts intentionally repeat some safety and workflow rules because child agents may use replacement prompts and may not inherit root instructions.
+
+### Scratch files for intermediate work
+
+`.scratch/` is gitignored and holds research, plans, reviews, compaction artifacts, and continuation notes. This keeps large intermediate artifacts inspectable without flooding the conversation.
 
 ### Lazy integrations by default
 
-MCP servers and packages should be lazy unless they need to be visible every turn.
+MCP servers and heavier workflows load on demand unless they need direct-tool availability. Tree-sitter stays direct because code navigation is core behavior.
 
-Current split:
+## Package selection rationale
 
-| Integration  | Loading strategy          | Reason                                                    |
-| ------------ | ------------------------- | --------------------------------------------------------- |
-| tree-sitter  | Direct tools / keep-alive | Core code navigation should be immediately available      |
-| context7     | Lazy                      | Documentation lookup is only needed for library questions |
-| nvim         | Lazy                      | Editor state is only needed on request                    |
-| context-mode | Lazy                      | Large-output processing is situational                    |
+The complete enabled-package inventory belongs in `settings.json` and is summarized in `README.md`. The design categories are:
 
-## Workflow Shape
+- **Delegation:** subagents, review gates, research/decision workflows
+- **Memory:** durable markdown memory delivered into prompt context
+- **Code intelligence:** AST-aware search/refactoring and direct tree-sitter tools
+- **Large-output handling:** context-mode indexing/analysis outside the main prompt
+- **Research:** web/content access and library-doc lookup
+- **Safety/tooling:** guardrails plus preferred CLI enforcement
+- **Interaction:** structured user questions, inter-session coordination, session helpers
+- **Resilience:** compaction, goal continuation, and recoverable transport retries
 
-### Three implementation tiers
+## Local-only assumptions
 
-| Tier   | Use when                               | Behavior                                                             |
-| ------ | -------------------------------------- | -------------------------------------------------------------------- |
-| Tier 1 | Small, single-file, unambiguous change | Main agent edits directly                                            |
-| Tier 2 | Multi-file or ambiguous change         | Discuss approach before editing                                      |
-| Tier 3 | Architectural or broad change          | Write plan to `.scratch/plans/`, mark assumptions, wait for approval |
+This is a personal config, not a turnkey distribution. Before reuse, review every authority surface, not only `AGENTS.md`:
 
-The point is not process for its own sake. The tiering exists to slow down only when coordination risk is high.
-
-### Planning artifacts
-
-Plans, research, and reviews are files, not hidden conversation state. This makes them easier to inspect, edit, reuse, and discard.
-
-### Review loop
-
-Implementation work should be followed by review when the change is non-trivial. Review output goes in `.scratch/reviews/` and should focus on actionable issues.
-
-## Package Choices
-
-| Package                | Why it is included                                          |
-| ---------------------- | ----------------------------------------------------------- |
-| `pi-subagents`         | Delegation across scout, worker, and reviewer roles         |
-| `pi-mcp-adapter`       | Lazy loading for MCP servers                                |
-| `pi-lens`              | AST-aware search/navigation helpers                         |
-| `pi-web-access`        | Web search and content extraction                           |
-| `pi-memory-md`         | Durable markdown memory                                     |
-| `@aliou/pi-guardrails` | Tool-layer safety policies                                  |
-| `@aliou/pi-toolchain`  | Preferred CLI enforcement                                   |
-| `pi-ask-user`          | Structured user decision prompts                            |
-| `context-mode`         | Large-output analysis without flooding conversation context |
-| `extensions/claude-ui` | Local terminal UI customization                             |
-
-## Notable Extensions
-
-| Extension            | Purpose                                                                 |
-| -------------------- | ----------------------------------------------------------------------- |
-| `answer.ts`          | Extract questions from an assistant response and answer them one by one |
-| `files.ts`           | Browse repo files and session-referenced files through a TUI            |
-| `todos/`             | File-backed task tracking                                               |
-| `continue.ts`        | Write continuation notes and start fresh context                        |
-| `compact-advisor.ts` | Context-size notice and threshold-compaction continuation shim          |
-| `guardrails.json`    | Deny destructive shell and git operations                               |
-
-Copied and adapted extension sources are listed in `ATTRIBUTIONS.md`.
-
-## Personal Assumptions
-
-This is a personal config, not a turnkey distribution. Reusers should review:
-
-- `APPEND_SYSTEM.md` for operating system, editor, shell, and project conventions
-- `settings.json` for provider, model, packages, and absolute paths
-- `mcp.json` for MCP commands and absolute paths
+- `APPEND_SYSTEM.md` for OS/editor/package-manager/cloud details
+- `settings.json` for model, packages, memory, compaction, and paths
+- `mcp.json` for MCP commands and OAuth dependencies
+- `extensions/` for auto-discovered local runtime behavior and commands
 - `permissions.json` for permission mode
-- `extensions/guardrails.json` for command policy
+- `extensions/guardrails.json` for command and secret-path policy
 
-## Public Repo Hygiene
+## Public repo hygiene
 
-The repository should not track runtime state, local credentials, session logs, or dependency installs.
+Tracked files should exclude credentials, sessions, caches, logs, generated artifacts, and dependency installs. See `.gitignore` and `README.md` for the current exclusion list.
 
-Ignored files include:
+## Attribution
 
-- `auth.json`
-- `sessions/`
-- `run-history.jsonl`
-- `mcp-cache.json`
-- `mcp-onboarding.json`
-- `pi-crash.log`
-- `.scratch/`
-- `**/node_modules`
-
-## Sources and Attribution
-
-This config is influenced by public pi configs, pi ecosystem packages, and agent workflow writeups. Copied or closely adapted files are documented in `ATTRIBUTIONS.md` with source repositories and licenses.
+Copied or closely adapted files are documented in `ATTRIBUTIONS.md` with source repositories and licenses.

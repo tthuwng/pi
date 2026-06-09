@@ -41,11 +41,11 @@ If unsure, classify as Tier 2.
 
 Before the first mutating tool call, internally verify:
 
-1. Did I state the tier to the user?
-2. Is there any placement/design decision?
-3. Will this touch tests/docs/config?
-4. Did the user explicitly approve if Tier 2+?
-5. Which TDD scenario applies if behavior changes?
+- [ ] Did I state the tier to the user?
+- [ ] Is there any placement/design decision?
+- [ ] Will this touch tests/docs/config?
+- [ ] Did the user explicitly approve if Tier 2+?
+- [ ] Which TDD scenario applies if behavior changes?
 
 If any answer requires approval, stop and ask. Do not continue into file edits, worker dispatch, or multi-step execution while a material question is unresolved.
 
@@ -92,45 +92,28 @@ The user can always escalate. If they say "wait", "let's talk", or "hold on" —
 
 Load or apply these skills when their trigger fits:
 
-| Situation                                             | Skill                            |
-| ----------------------------------------------------- | -------------------------------- |
-| Vague idea, new behavior, design/placement decision   | `brainstorming`                  |
-| Approved requirements need task breakdown             | `writing-plans`                  |
-| New behavior, logic change, or bug fix implementation | `test-driven-development`        |
-| Test failure, bug, crash, unexpected behavior         | `systematic-debugging`           |
-| Code/spec/plan review or review feedback evaluation   | `review`; escalate to `pi-subagents` review patterns when parallel/adversarial/fresh review would improve quality |
-| Before done/fixed/passing claims                      | `verification-before-completion` |
+| Situation                                                   | Skill                                                                                                             |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Vague idea, new behavior, design/placement decision         | `brainstorming`                                                                                                   |
+| Approved requirements need task breakdown                   | `writing-plans`                                                                                                   |
+| New behavior or logic change                                | `test-driven-development`                                                                                         |
+| Bug, test failure, crash, flaky behavior, unexpected output | `systematic-debugging` first; use TDD for the fix after root cause is supported                                   |
+| Code/spec/plan review or review feedback evaluation         | `review`; escalate to `pi-subagents` review patterns when parallel/adversarial/fresh review would improve quality |
+| Before done/fixed/passing claims                            | `verification-before-completion`                                                                                  |
 
 Do not stack heavy workflow on tiny Tier 1 edits.
 
-## Natural-Language Subagent Recipe Routing
+## Subagent Recipe Routing
 
-The user does not need to name slash commands. Route ordinary requests to the matching `pi-subagents` recipe when independent context, adversarial pressure, or parallel evidence would improve quality.
+`pi-subagents` owns detailed natural-language recipe routing, prompt shortcut semantics, and proposal-verification mechanics. Do not duplicate its full recipe matrix here.
 
-| User says or implies | Use this pattern |
-| --- | --- |
-| “review this”, “check this”, “does this look right?” | `review` skill plus `/parallel-review` pattern when adversarial/fresh reviewers add value |
-| “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
-| “verify your proposal and do it”, “pressure-test this approach, then start”, “if it survives, implement it” | proposal-verification gate first: review the parent proposal itself before implementation scouting, worker handoff, or file hunting |
-| “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
-| “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
-| “ask me what you need first”, “clarify before planning”, “figure out the unknowns” | `/gather-context-and-clarify` pattern |
-| “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
-| “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
-| “research and decide”, “look at docs/source and recommend”, “what should we use?” | `/research-decision` pattern |
-| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with generator fanout plus mandatory reviewer/filter fan-in |
-| “think through the architecture”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
-| “clean this up”, “deslop”, “make it less verbose” | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized |
+Implementation-specific routing rules:
 
-These are shape-based routing rules, not keyword triggers. Choose the smallest useful workflow that adds independent evidence. For high-impact or ambiguous work, prefer adversarial fanout; for tiny Tier 1 edits, do not add process just to use subagents.
-
-### Proposal-Verification Gate
-
-When this parent session has proposed a plan, architecture, workflow, diagnosis, or implementation approach, and the user asks to verify, pressure-test, review, argue both sides, research/decide, or “do it if it survives,” first treat the parent proposal as the review target. Prefer `subagent({ workflow: "builtin.quality-gate", task: "Proposal to verify: ..." })` for a foreground proposal gate; use `builtin.research-decision` when local/external evidence is needed before choosing. Run a proposal-level `/quality-gate`, `/quick-adversarial-check`, `/adversarial-debate`, or `/research-decision` shape as appropriate. Do not dispatch scouts/planners/workers to find implementation locations until the parent has synthesized a proposal verdict (`PASS` / `FAIL` / `INCONCLUSIVE`) and implementation is still approved.
-
-Because implementation depends on the gate result, prefer foreground/wait-and-inspect delegation for this gate. Use async only when there is real independent work to do before the verdict; do not leave a final-answer-dependent proposal gate as “pending” and call the task done.
-
-The gate fails if the first delegated work is implementation-placement scouting, worker handoff, file hunting, or an unresolved async review promise instead of an inspected proposal verdict.
+- Load `pi-subagents` when independent context, adversarial pressure, or parallel evidence would materially improve implementation planning, review, research, handoff, or cleanup.
+- Enter review requests through `review`, vague product/design requests through `brainstorming`, and implementation work through this skill before applying any subagent recipe.
+- Apply fixes from review feedback only when the user explicitly authorizes writing; use one writer/fix pass at a time, then fresh review.
+- If the user asks to verify or pressure-test a parent proposal before implementation, complete and inspect the proposal gate before scouting implementation locations or dispatching workers.
+- For tiny Tier 1 edits, skip extra subagent process unless a concrete risk makes independent evidence materially useful.
 
 ## Delegation Rules
 
@@ -194,9 +177,8 @@ For approved plan execution with subagents:
 
 ### Research Phase
 
-- For nontrivial, ambiguous, high-impact, or externally grounded work, prefer a quality-first fanout instead of a single scout when independent evidence will improve the plan.
-- Route ordinary user language to the matching `pi-subagents` recipe; the user does not need to name a slash command. Examples: “research and decide” → `/research-decision`, concrete “give me options” → `/generate-filter`, “think through the architecture / argue both sides” → `/adversarial-debate`, “check this assumption” → `/quick-adversarial-check`. Vague ideas, new behavior, or design-placement questions still enter through `brainstorming` first.
-- Use the `pi-subagents` prompt recipes directly when they fit: `/parallel-research` for evidence gathering, `/research-decision` for recommendations, `/generate-filter` for option generation, `/adversarial-debate` for competing approaches, and `/quick-adversarial-check` for assumption attacks.
+- For nontrivial, ambiguous, high-impact, or externally grounded work, use quality-first fanout when independent evidence materially improves the plan.
+- Route ordinary user language to the matching `pi-subagents` recipe; the user does not need to name a slash command. Keep detailed recipe examples in the `pi-subagents` skill so this workflow does not become a second routing authority.
 - Dispatch scout agents for codebase exploration.
 - Scouts can run in parallel (e.g., 5 scouts analyzing different modules) when their scopes are distinct.
 - Give each child a distinct angle and output contract; avoid duplicate vague agents.
@@ -216,11 +198,11 @@ For approved plan execution with subagents:
 ### Review Phase
 
 - Dispatch reviewer agents after implementation unless the change is truly Tier 1/trivial or the user requested no review.
-- Prefer a fresh-context parallel review gate for nontrivial work: correctness/regressions, tests/verification, and simplicity/maintainability. Add security, ops/resource, UX, or architecture reviewers when relevant.
+- Prefer a fresh-context parallel review gate for nontrivial work when independent review materially improves evidence: correctness/regressions, tests/verification, and simplicity/maintainability. Add security, ops/resource, UX, or architecture reviewers when relevant.
 - Use `/parallel-review` or `/quality-gate` patterns directly through `subagent(...)` when they fit.
 - Use `/quick-adversarial-check` before committing to a diagnosis, architecture direction, or user-facing claim that has meaningful uncertainty.
 - Reviewer checks against the plan and coding standards.
-- For plan execution, prefer spec compliance review first, then code quality review.
+- For plan execution, prefer spec compliance review first, then code quality review when needed.
 - Reviewer writes findings to `.scratch/reviews/` or returns concise inline output when artifacts are unnecessary.
 - Parent synthesizes reviewer disagreements; do not blindly apply every suggestion.
 - Address must-fix findings before presenting to user.

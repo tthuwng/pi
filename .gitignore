@@ -17,15 +17,14 @@ pi-crash.log
 __pycache__/
 *.py[cod]
 .ruff_cache/
+.pytest_cache/
 
 # Pi onboarding/runtime state
 mcp-onboarding.json
-/mcp-oauth/notion
-/mcp-oauth/google_docs
-/mcp-oauth/slack
+/mcp-oauth
 /intercom
 /.cache
 /compact-backups
-/mcp-oauth/sha256-31f61ed3e6e210c5f3f729345968bdbcf267cf0fbfec31eac02ed9966ba1d067/tokens.json
+/.pi-lens/
 /favorites.json
 /pisesh-meta.json

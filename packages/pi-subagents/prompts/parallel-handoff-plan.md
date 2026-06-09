@@ -1,8 +1,8 @@
 ---
-description: Parallel research/context builders into an implementation handoff plan
+description: Parallel research/context builders into planner-ready handoff context
 ---
 
-Use parallel subagents to understand the request, compare any external references, inspect the local codebase, and produce a grounded implementation handoff plan with a final implementation-ready meta-prompt.
+Use parallel subagents to understand the request, compare any external references, inspect the local codebase, and produce grounded planner-ready handoff context. This recipe prepares context for `manager-workflow`, `planner`, or `writing-plans`; it does not replace planning approval or authorize worker execution.
 
 Primary request, target, or focus:
 
@@ -17,7 +17,7 @@ Use the `subagent` tool in chain mode:
    - `context-builder` for local codebase context.
    - Add a second `context-builder` only when the scope is large enough to benefit from a separate implementation-strategy pass.
 
-2. Second step: a synthesis `context-builder` that reads the parallel findings and writes the final handoff plan and meta-prompt.
+2. Second step: a synthesis `context-builder` that reads the parallel findings and writes planner-ready handoff context and a meta-prompt for the next planning step.
 
 Use distinct output paths under the chain directory. Example outputs:
 
@@ -48,19 +48,19 @@ Implementation-strategy context-builder, when used:
 
 - Compare the external evidence against the local architecture.
 - Propose the safest implementation shape, files likely to change, edge cases, validation commands, and decisions that need approval.
-- Stay review/planning-only unless I explicitly ask for implementation.
+- Stay review/planning-only. Any implementation follow-on must re-enter `manager-workflow` and the applicable planning/approval path before worker launch.
 
 Final synthesis context-builder:
 
-- Read the parallel outputs and produce one concise handoff plan.
+- Read the parallel outputs and produce one concise planner-ready handoff.
 - Include what the feature/change should do, what the external reference teaches, what the local codebase implies, the recommended approach, likely files to change, constraints, non-goals, validation, risks, and unresolved questions.
-- End with a compact implementation-ready meta-prompt for the next worker/planner.
+- End with a compact meta-prompt for the next planner or planning skill, not a worker-ready implementation prompt.
 
 After the chain returns, synthesize the result for me with:
 
 - the recommended approach;
 - artifact paths;
-- the final meta-prompt;
+- the final planner-ready meta-prompt;
 - any questions or assumptions that remain.
 
-Do not start implementation from this command unless I explicitly ask for it.
+Do not start implementation from this command. If I explicitly ask to implement after this handoff, re-enter `manager-workflow` first so tiering, approval, TDD, plan-file, and worker-dispatch rules still apply.

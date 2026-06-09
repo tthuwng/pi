@@ -92,41 +92,42 @@ Those are ordinary Pi requests. Pi decides whether to call `subagent`, which age
 
 ## Common workflows
 
-| Want                     | Ask naturally                                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Get a second opinion     | “Challenge this plan and tell me what I might be missing.”                                                |
-| Solve a hard problem     | “Investigate this bug and recommend the safest next move before we edit.”                                 |
-| Lightweight review       | “Review this diff without editing.”                                                                       |
-| Adversarial review       | “Review this from multiple angles: correctness, tests, and cleanup.”                                      |
-| Quality gate             | “Before finalizing, quality gate this answer/diff.”                                                       |
-| Research and decide      | “Research and decide which approach is best, with evidence and counterarguments.”                         |
-| Generate/filter options  | “Give me options for testing this safely, then filter them to the strongest few.”                         |
-| Debate architecture      | “Think through the architecture and argue both sides before recommending a path.”                         |
-| Clarify first            | “Inspect the relevant context, then ask me the clarification questions that matter.”                       |
-| Cleanup/deslop review    | “Clean this up conceptually and make it less verbose; ask before editing files.”                          |
-| Implement then review    | “Implement the approved plan, then review it before summarizing.”                                         |
-| Execute a plan carefully | “Implement this approved plan, then run reviewers and apply only the feedback that is worth doing now.”   |
-| Scout before planning    | “Inspect the auth flow before planning.”                                                                  |
-| Run in the background    | “Run this in the background.”                                                                             |
-| Browse agents            | “Show me the available subagents.”                                                                        |
-| Use a saved workflow     | “Run the review chain on this branch.”                                                                    |
-| See running work         | “Show active async runs.”                                                                                 |
-| Check setup              | “Check whether subagents are configured correctly.”                                                       |
+| Want                     | Ask naturally                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Get a second opinion     | “Challenge this plan and tell me what I might be missing.”                                              |
+| Solve a hard problem     | “Investigate this bug and recommend the safest next move before we edit.”                               |
+| Lightweight review       | “Review this diff without editing.”                                                                     |
+| Adversarial review       | “Review this from multiple angles: correctness, tests, and cleanup.”                                    |
+| Quality gate             | “Before finalizing, quality gate this answer/diff.”                                                     |
+| Proposal gate            | “Pressure-test this proposal; if it survives, then implement it.”                                       |
+| Research and decide      | “Research and decide which approach is best, with evidence and counterarguments.”                       |
+| Generate/filter options  | “Give me options for testing this safely, then filter them to the strongest few.”                       |
+| Debate architecture      | “Think through the architecture and argue both sides before recommending a path.”                       |
+| Clarify first            | “Inspect the relevant context, then ask me the clarification questions that matter.”                    |
+| Cleanup/deslop review    | “Clean this up conceptually and make it less verbose; ask before editing files.”                        |
+| Implement then review    | “Implement the approved plan, then review it before summarizing.”                                       |
+| Execute a plan carefully | “Implement this approved plan, then run reviewers and apply only the feedback that is worth doing now.” |
+| Scout before planning    | “Inspect the auth flow before planning.”                                                                |
+| Run in the background    | “Run this in the background.”                                                                           |
+| Browse agents            | “Show me the available subagents.”                                                                      |
+| Use a saved workflow     | “Run the review chain on this branch.”                                                                  |
+| See running work         | “Show active async runs.”                                                                               |
+| Check setup              | “Check whether subagents are configured correctly.”                                                     |
 
 The extension ships with builtin agents you can use immediately.
 
 ## Builtin agents in plain English
 
-| Agent             | Use it when you want...                                                                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start. Use `output: false` or explicit unique outputs for parallel scouts. |
+| Agent             | Use it when you want...                                                                                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scout`           | Fast local codebase recon: relevant files, entry points, data flow, risks, and where another agent should start. Use `output: false` or explicit unique outputs for parallel scouts.                      |
 | `researcher`      | External research with sources: official docs, source repos, `code_search`, web docs, specs, benchmarks, recent changes, and a concise brief. If context7 evidence is required, have the parent fetch it. |
-| `planner`         | A concrete implementation plan from existing context. It should read and plan, not edit code.                                                                 |
-| `worker`          | Implementation work, including approved oracle handoffs. It edits files, validates, and escalates unapproved decisions instead of guessing.                   |
-| `reviewer`        | Review and critique. It checks the implementation against the task/plan, tests, edge cases, and simplicity; fixes require an explicit writer/autofix workflow. |
-| `context-builder` | A stronger setup pass before planning: gathers code context and writes handoff material such as `context.md` and `meta-prompt.md`.                            |
-| `oracle`          | A second opinion before acting. It challenges assumptions, catches drift, and recommends the safest next move without editing.                                |
-| `delegate`        | A lightweight general delegate when you want a child agent that behaves close to the parent session.                                                          |
+| `planner`         | A concrete implementation plan from existing context. It should read and plan, not edit code.                                                                                                             |
+| `worker`          | Implementation work, including approved oracle handoffs. It edits files, validates, and escalates unapproved decisions instead of guessing.                                                               |
+| `reviewer`        | Review and critique. It checks the implementation against the task/plan, tests, edge cases, and simplicity; fixes require an explicit writer/autofix workflow.                                            |
+| `context-builder` | A stronger setup pass before planning: gathers code context and writes handoff material such as `context.md` and `meta-prompt.md`.                                                                        |
+| `oracle`          | A second opinion before acting. It challenges assumptions, catches drift, and recommends the safest next move without editing.                                                                            |
+| `delegate`        | A lightweight general delegate for one bounded child task. It is not a parent/orchestrator and must not launch subagents.                                                                                 |
 
 A simple rule of thumb: use `scout` before you understand the code, `researcher` before you trust external facts, `planner` before a bigger change, `worker` to implement, `reviewer` to check, and `oracle` when the decision itself feels risky. Use fresh parallel reviewers for nontrivial review. For library/framework docs, prefer parent-fetched context7 evidence when needed; protected advisory subagents do not receive generic `mcp`.
 
@@ -202,19 +203,19 @@ Child-safety boundaries are enforced at runtime. Spawned child sessions do not r
 
 The package includes reusable prompt templates for common workflows. You do not need to type these commands; parent agents should map normal requests such as “review this”, “research and decide”, “give me options”, or “argue both sides” to the same workflow shapes. The shortcuts are handy when you want to force the exact shape:
 
-| Prompt                        | Use it for                                                                                                  |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `/parallel-review`            | Launch fresh-context reviewers with distinct adversarial angles, then synthesize what to fix.               |
+| Prompt                        | Use it for                                                                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `/parallel-review`            | Launch fresh-context reviewers with distinct adversarial angles, then synthesize what to fix.                                      |
 | `/quality-gate`               | Run a quality-first review gate over a plan, diff, answer, PR, issue, or target, then synthesize `PASS` / `FAIL` / `INCONCLUSIVE`. |
-| `/quick-adversarial-check`    | Quickly attack an assumption, plan, claim, or recommendation before committing to it.                        |
-| `/adversarial-debate`         | Generate competing positions, attack them, and synthesize the disagreement by rubric.                       |
-| `/parallel-research`          | Combine `researcher` and `scout` for external evidence, local code context, and practical tradeoffs.        |
-| `/research-decision`          | Research a decision with external evidence, local context, tradeoff critique, and recommendation.           |
-| `/generate-filter`            | Generate diverse options, run a mandatory reviewer/filter fan-in over concrete options, and return the strongest choices. |
-| `/parallel-context-build`     | Run `context-builder` agents in parallel to produce planning handoff context and meta-prompts.              |
-| `/parallel-handoff-plan`      | Combine external research and `context-builder` passes into an implementation handoff plan and meta-prompt. |
-| `/gather-context-and-clarify` | Scout/research first, then ask the user the clarification questions that matter.                            |
-| `/parallel-cleanup`           | Run review-only cleanup passes after implementation.                                                        |
+| `/quick-adversarial-check`    | Quickly attack an assumption, plan, claim, or recommendation before committing to it.                                              |
+| `/adversarial-debate`         | Generate competing positions, attack them, and synthesize the disagreement by rubric.                                              |
+| `/parallel-research`          | Combine `researcher` and `scout` for external evidence, local code context, and practical tradeoffs.                               |
+| `/research-decision`          | Research a decision with external evidence, local context, tradeoff critique, and recommendation.                                  |
+| `/generate-filter`            | Generate diverse options, run a mandatory reviewer/filter fan-in over concrete options, and return the strongest choices.          |
+| `/parallel-context-build`     | Run `context-builder` agents in parallel to produce planning handoff context and meta-prompts.                                     |
+| `/parallel-handoff-plan`      | Combine external research and `context-builder` passes into an implementation handoff plan and meta-prompt.                        |
+| `/gather-context-and-clarify` | Scout/research first, then ask the user the clarification questions that matter.                                                   |
+| `/parallel-cleanup`           | Run review-only cleanup passes after implementation.                                                                               |
 
 Add `autofix` to `/parallel-review` or `/parallel-cleanup` only when you want the parent to apply synthesized fixes worth doing now after reviewers return. `/quality-gate` is review and synthesis only; use a separate implementation-authorized fix workflow for changes.
 
@@ -309,14 +310,14 @@ Append `[key=value,...]` to an agent name to override defaults for that step:
 /parallel reviewer[skills=code-review+security] "review backend" -> reviewer[model=openai/gpt-5-mini] "review frontend"
 ```
 
-| Key          | Example                                             | Description                                                                                                                                           |
-| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`     | `output=auth-scout-notes.md`                       | Write results to a file. For `/run`, top-level `/parallel`, and background `/chain`, relative paths resolve against cwd or the step cwd; for foreground `/chain` steps, relative paths live under the chain artifact directory. |
-| `outputMode` | `outputMode=file-only`                             | Return only a concise file reference for saved output instead of the full saved content. Requires `output`; default is `inline`.                      |
-| `reads`      | `reads=a.md+b.md`                                  | Read files before executing. `+` separates multiple paths.                                                                                            |
-| `model`      | `model=anthropic/claude-sonnet-4` | Override model for this step.                                                                                                                         |
-| `skills`     | `skills=planning+review`          | Override injected skills. `+` separates multiple skills.                                                                                              |
-| `progress`   | `progress`                        | Enable progress tracking.                                                                                                                             |
+| Key          | Example                           | Description                                                                                                                                                                                                                     |
+| ------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`     | `output=auth-scout-notes.md`      | Write results to a file. For `/run`, top-level `/parallel`, and background `/chain`, relative paths resolve against cwd or the step cwd; for foreground `/chain` steps, relative paths live under the chain artifact directory. |
+| `outputMode` | `outputMode=file-only`            | Return only a concise file reference for saved output instead of the full saved content. Requires `output`; default is `inline`.                                                                                                |
+| `reads`      | `reads=a.md+b.md`                 | Read files before executing. `+` separates multiple paths.                                                                                                                                                                      |
+| `model`      | `model=anthropic/claude-sonnet-4` | Override model for this step.                                                                                                                                                                                                   |
+| `skills`     | `skills=planning+review`          | Override injected skills. `+` separates multiple skills.                                                                                                                                                                        |
+| `progress`   | `progress`                        | Enable progress tracking.                                                                                                                                                                                                       |
 
 Set `output=false`, `reads=false`, or `skills=false` to disable that behavior explicitly. Do not use `output=false` for file-only returns; use `outputMode=file-only` with an `output` path.
 
@@ -428,7 +429,7 @@ Use these fields when an agent should see more:
 | `inheritSkills: true`         | Let the child see Pi’s discovered skills catalog.                                                 |
 | `defaultContext: fork`        | Use forked session context when a launch omits `context`; explicit `context: "fresh"` still wins. |
 
-Builtin agents opt into project instruction inheritance by default so they follow repo-specific rules out of the box. `delegate` also uses append mode because its job is orchestration inside the parent workflow.
+Builtin agents opt into project instruction inheritance by default so they follow repo-specific rules out of the box. `delegate` uses append mode to stay close to parent instructions for a bounded child task, but it is still a child agent and must not launch or orchestrate subagents.
 
 ### Agent frontmatter
 
@@ -652,13 +653,13 @@ These are the parameters the LLM passes when it calls the `subagent` tool. Most 
 // Chain without TUI, suitable for background execution
 { chain: [...], clarify: false, async: true }
 
-// Chain with fan-out/fan-in
+// Chain with isolated writer fan-out/fan-in
 { chain: [
   { agent: "scout", task: "Gather context" },
   { parallel: [
     { agent: "worker", task: "Implement feature A from {previous}" },
     { agent: "worker", task: "Implement feature B from {previous}" }
-  ], concurrency: 2, failFast: true },
+  ], concurrency: 2, failFast: true, worktree: true },
   { agent: "reviewer", task: "Review all changes from {previous}" }
 ]}
 
@@ -719,33 +720,33 @@ Agent definitions are not loaded into context by default. Management actions let
 
 ### Parameter reference
 
-| Param             | Type                          | Default                  | Description                                                                                                                            |
-| ----------------- | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Param             | Type                          | Default                  | Description                                                                                                                                                                                                                                                                                                             |
+| ----------------- | ----------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `workflow`        | string                        | -                        | Builtin workflow selector, currently `builtin.quality-gate`, `builtin.research-decision`, or `builtin.generate-filter`. Requires `task`; mutually exclusive with explicit execution/management fields. Expands to existing foreground/fresh tasks or chains so the parent can inspect and synthesize before proceeding. |
-| `agent`           | string                        | -                        | Agent name for single mode, or target for management actions.                                                                          |
-| `task`            | string                        | -                        | Task string for single mode or builtin workflow target.                                                                                |
-| `action`          | string                        | -                        | `list`, `get`, `create`, `update`, `delete`, `status`, `interrupt`, `resume`, or `doctor`.                                             |
-| `chainName`       | string                        | -                        | Chain name for management actions.                                                                                                     |
-| `config`          | object/string                 | -                        | Agent or chain config for create/update.                                                                                               |
-| `output`          | `string \| false`             | agent default            | Override single-agent output file.                                                                                                     |
-| `outputMode`      | `"inline" \| "file-only"`     | `inline`                 | Return saved output inline or as a concise saved-file reference. `file-only` requires an `output` path; parent synthesis must read the saved artifact before relying on its contents. |
-| `skill`           | `string \| string[] \| false` | agent default            | Override skills or disable all.                                                                                                        |
-| `model`           | string                        | agent default            | Override model.                                                                                                                        |
-| `tasks`           | array                         | -                        | Top-level parallel tasks. Supports `agent`, `task`, `cwd`, `count`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. Relative task outputs resolve against `cwd` or task `cwd`. |
-| `concurrency`     | number                        | config or `4`            | Top-level parallel concurrency.                                                                                                        |
-| `worktree`        | boolean                       | false                    | Create isolated git worktrees for parallel tasks.                                                                                      |
-| `chain`           | array                         | -                        | Sequential and parallel chain steps.                                                                                                   |
-| `context`         | `fresh \| fork`               | agent default or `fresh` | `fork` creates real branched sessions from the parent leaf. Packaged `planner`, `worker`, and `oracle` default to `fork`.              |
-| `chainDir`        | string                        | temp chain dir           | Persistent directory for chain artifacts.                                                                                              |
-| `clarify`         | boolean                       | false                    | Show TUI preview/edit flow when explicitly set to `true`.                                                                              |
-| `agentScope`      | `user \| project \| both`     | `both`                   | Agent discovery scope. Project wins on collisions.                                                                                     |
-| `async`           | boolean                       | false                    | Background execution. Chains require `clarify: false`.                                                                                 |
-| `cwd`             | string                        | runtime cwd              | Override working directory.                                                                                                            |
-| `maxOutput`       | object                        | 200KB, 5000 lines        | Final output truncation limits. Accepted internally; omitted from the compact LLM-facing tool schema.                                  |
-| `artifacts`       | boolean                       | true                     | Write debug artifacts.                                                                                                                 |
-| `includeProgress` | boolean                       | false                    | Include full progress in result.                                                                                                       |
-| `share`           | boolean                       | false                    | Upload session export to GitHub Gist.                                                                                                  |
-| `sessionDir`      | string                        | derived                  | Override session log directory.                                                                                                        |
+| `agent`           | string                        | -                        | Agent name for single mode, or target for management actions.                                                                                                                                                                                                                                                           |
+| `task`            | string                        | -                        | Task string for single mode or builtin workflow target.                                                                                                                                                                                                                                                                 |
+| `action`          | string                        | -                        | `list`, `get`, `create`, `update`, `delete`, `status`, `interrupt`, `resume`, or `doctor`.                                                                                                                                                                                                                              |
+| `chainName`       | string                        | -                        | Chain name for management actions.                                                                                                                                                                                                                                                                                      |
+| `config`          | object/string                 | -                        | Agent or chain config for create/update.                                                                                                                                                                                                                                                                                |
+| `output`          | `string \| false`             | agent default            | Override single-agent output file.                                                                                                                                                                                                                                                                                      |
+| `outputMode`      | `"inline" \| "file-only"`     | `inline`                 | Return saved output inline or as a concise saved-file reference. `file-only` requires an `output` path; parent synthesis must read the saved artifact before relying on its contents.                                                                                                                                   |
+| `skill`           | `string \| string[] \| false` | agent default            | Override skills or disable all.                                                                                                                                                                                                                                                                                         |
+| `model`           | string                        | agent default            | Override model.                                                                                                                                                                                                                                                                                                         |
+| `tasks`           | array                         | -                        | Top-level parallel tasks. Supports `agent`, `task`, `cwd`, `count`, `output`, `outputMode`, `reads`, `progress`, `skill`, and `model`. Relative task outputs resolve against `cwd` or task `cwd`.                                                                                                                       |
+| `concurrency`     | number                        | config or `4`            | Top-level parallel concurrency.                                                                                                                                                                                                                                                                                         |
+| `worktree`        | boolean                       | false                    | Create isolated git worktrees for parallel tasks.                                                                                                                                                                                                                                                                       |
+| `chain`           | array                         | -                        | Sequential and parallel chain steps.                                                                                                                                                                                                                                                                                    |
+| `context`         | `fresh \| fork`               | agent default or `fresh` | `fork` creates real branched sessions from the parent leaf. Packaged `planner`, `worker`, and `oracle` default to `fork`.                                                                                                                                                                                               |
+| `chainDir`        | string                        | temp chain dir           | Persistent directory for chain artifacts.                                                                                                                                                                                                                                                                               |
+| `clarify`         | boolean                       | false                    | Show TUI preview/edit flow when explicitly set to `true`.                                                                                                                                                                                                                                                               |
+| `agentScope`      | `user \| project \| both`     | `both`                   | Agent discovery scope. Project wins on collisions.                                                                                                                                                                                                                                                                      |
+| `async`           | boolean                       | false                    | Background execution. Chains require `clarify: false`.                                                                                                                                                                                                                                                                  |
+| `cwd`             | string                        | runtime cwd              | Override working directory.                                                                                                                                                                                                                                                                                             |
+| `maxOutput`       | object                        | 200KB, 5000 lines        | Final output truncation limits. Accepted internally; omitted from the compact LLM-facing tool schema.                                                                                                                                                                                                                   |
+| `artifacts`       | boolean                       | true                     | Write debug artifacts.                                                                                                                                                                                                                                                                                                  |
+| `includeProgress` | boolean                       | false                    | Include full progress in result.                                                                                                                                                                                                                                                                                        |
+| `share`           | boolean                       | false                    | Upload session export to GitHub Gist.                                                                                                                                                                                                                                                                                   |
+| `sessionDir`      | string                        | derived                  | Override session log directory.                                                                                                                                                                                                                                                                                         |
 
 `context: "fork"` fails fast when the parent session is not persisted, the current leaf is missing, or the branched child session cannot be created. It never silently downgrades to `fresh`. In multi-agent runs, if any requested agent has `defaultContext: fork` and the launch omits `context`, the whole invocation uses forked context; pass `context: "fresh"` when you intentionally want a fresh run.
 

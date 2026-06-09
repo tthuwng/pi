@@ -23,7 +23,7 @@ Default angles:
 3. Practical tradeoff reviewer
    Compare options, attack hidden costs, migration/rollback risk, validation difficulty, maintainability, and second-order effects.
 
-4. User-preference or ops-risk critic, when useful
+4. User-preference or ops-risk critic, when the decision has meaningful workflow, deployment, observability, supportability, or user-preference risk
    Check alignment with known user preferences, workflow friction, tmp/log/session pressure, deployment risk, observability, or supportability.
 
 Recommended runtime shape:

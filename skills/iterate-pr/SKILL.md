@@ -14,7 +14,7 @@ Automate the fix -> present -> user pushes -> monitor -> check -> fix cycle for 
 3. **Fix issues**: use worker subagents for focused implementation when edits are needed.
 4. **Verify locally**: run the same focused check or nearest local equivalent that CI runs.
 5. **Present changes**: show the diff and validation evidence to the user for approval.
-6. **User pushes**: user runs the appropriate git-spice command or git push; the agent never pushes or mutates git state.
+6. **User pushes**: user runs the appropriate version-control command; the agent never pushes or mutates git state.
 7. **Monitor after user push**: use `gh pr checks --watch --fail-fast` when checks are pending, then re-run `gh pr checks --json name,bucket,state,workflow,link` to inspect the full check set.
 8. **Repeat** if new failures appear.
 

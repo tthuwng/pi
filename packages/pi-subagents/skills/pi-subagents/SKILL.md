@@ -33,7 +33,7 @@ For async subagents, prefer event-based progress over timer polling.
 
 Use this protocol for long-running async runs:
 
-- Give each long-running child an explicit progress file path under `.scratch/` when useful.
+- Give each long-running child an explicit progress file path under `.scratch/` whenever phase checkpoints materially improve parent visibility or recovery.
 - Ask children to update progress after meaningful phases, not every few seconds.
 - Ask children to interrupt/notify the parent only when blocked, when scope changes, when a must-fix/high-risk finding appears, or when complete.
 - Do not poll constantly. Check status opportunistically when returning to the task or after several minutes.
@@ -72,26 +72,28 @@ Packaged prompt shortcuts are also available for repeatable workflows. Treat the
 
 ## Applying Prompt Techniques Without Slash Commands
 
+This section is the canonical owner for subagent natural-language recipe routing. Root and manager workflow docs should point here instead of duplicating the full recipe matrix.
+
 The user does not need to name a slash command. Treat ordinary language as workflow intent when the shape is clear, then run the matching pattern directly with `subagent(...)`. Do not wait for the user to say `/quality-gate`, `/adversarial-debate`, or another exact shortcut.
 
 Natural-language routing examples:
 
-| User says or implies | Parent should usually run |
-| --- | --- |
-| “review this”, “check this”, “does this look right?” | `review` skill first; escalate to `/parallel-review` with fresh reviewers when independent review adds value |
-| “before finalizing”, “is this good enough?”, “quality gate this” | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict |
-| “verify your proposal and do it”, “pressure-test this approach, then start”, “if it survives, implement it” | proposal-verification gate first: attack the parent proposal itself before implementation scouting, worker handoff, or file hunting |
-| “address review feedback”, “evaluate these review comments” | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing |
-| “fix, review, fix, review”, “iterate until clean”, “apply the review feedback” | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers |
-| “think about the architecture”, “is this the right approach?”, “argue both sides”, “don’t just agree” | `/adversarial-debate` or `/quick-adversarial-check` depending on scope |
-| “research and decide”, “what should we use?”, “look at docs/source and recommend” | `/research-decision` pattern with researcher + scout + tradeoff reviewer |
-| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear” | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
-| “vague idea”, “new behavior”, “where should this live?” | `brainstorming` skill first; use `/generate-filter` only after the options/rubric shape is clear |
-| “learn this codebase”, “build context before planning” | `/parallel-context-build` pattern |
-| “prepare a handoff”, “study this library/reference and make a worker brief” | `/parallel-handoff-plan` pattern |
-| “clean this up”, “remove slop”, “make it less verbose” | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized |
+| User says or implies                                                                                        | Parent should usually run                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| “review this”, “check this”, “does this look right?”                                                        | `review` skill first; escalate to `/parallel-review` with fresh reviewers when independent review adds value                                                                                                   |
+| “before finalizing”, “is this good enough?”, “quality gate this”                                            | `/quality-gate` pattern; review and synthesis only, ending with a parent `PASS` / `FAIL` / `INCONCLUSIVE` verdict                                                                                              |
+| “verify your proposal and do it”, “pressure-test this approach, then start”, “if it survives, implement it” | proposal-verification gate first: attack the parent proposal itself before implementation scouting, worker handoff, or file hunting                                                                            |
+| “address review feedback”, “evaluate these review comments”                                                 | review-feedback evaluation first; apply fixes only when the user explicitly authorizes writing                                                                                                                 |
+| “fix, review, fix, review”, “iterate until clean”, “apply the review feedback”                              | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers                                                                                                                          |
+| “think about the architecture”, “is this the right approach?”, “argue both sides”, “don’t just agree”       | `/adversarial-debate` or `/quick-adversarial-check` depending on scope                                                                                                                                         |
+| “research and decide”, “what should we use?”, “look at docs/source and recommend”                           | `/research-decision` pattern with researcher + scout + tradeoff reviewer                                                                                                                                       |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear”       | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
+| “vague idea”, “new behavior”, “where should this live?”                                                     | `brainstorming` skill first; use `/generate-filter` only after the options/rubric shape is clear                                                                                                               |
+| “learn this codebase”, “build context before planning”                                                      | `/parallel-context-build` pattern                                                                                                                                                                              |
+| “prepare a handoff”, “study this library/reference and make a worker brief”                                 | `/parallel-handoff-plan` pattern                                                                                                                                                                               |
+| “clean this up”, “remove slop”, “make it less verbose”                                                      | `/parallel-cleanup` pattern; ask before edits unless cleanup/fix was already authorized                                                                                                                        |
 
-These are routing examples, not keyword triggers. Classify by task shape, risk, available evidence, and whether independent context will improve quality. If several mappings fit, choose the smallest useful workflow that still gives independent evidence; for high-impact or ambiguous work, prefer adversarial fanout. Do not bypass the canonical task skill just because a subagent recipe is available: review requests enter through `review`, vague/product/design ideas enter through `brainstorming`, and implementation work enters through `manager-workflow`.
+These are routing examples, not keyword triggers. Classify by task shape, risk, available evidence, and whether independent context will improve quality. If several mappings fit, choose the smallest workflow that still gives material independent evidence; for high-impact or ambiguous work, use adversarial fanout when it materially improves evidence. Do not bypass the canonical task skill just because a subagent recipe is available: review requests enter through `review`, vague/product/design ideas enter through `brainstorming`, and implementation work enters through `manager-workflow`.
 
 The prompt templates in `prompts/` encode workflows the parent agent can run on demand. If the user provides a URL, issue, PR, plan, local file, screenshot, or freeform target, treat that target as the primary scope: read or fetch it before launching children, then include it explicitly in every child task. Do not depend on the parent conversation history when the recipe calls for fresh context.
 
@@ -131,9 +133,24 @@ Use this when the parent is about to claim a plan, answer, implementation, PR, o
 ```typescript
 subagent({
   tasks: [
-    { agent: "reviewer", task: "Quality gate: attack correctness/regression risk for <target>. Inspect files/diffs/sources directly. Do not edit.", output: false, progress: false },
-    { agent: "reviewer", task: "Quality gate: attack tests and verification evidence for <target>. Do not edit.", output: false, progress: false },
-    { agent: "reviewer", task: "Quality gate: attack simplicity and maintainability for <target>. Do not edit.", output: false, progress: false },
+    {
+      agent: "reviewer",
+      task: "Quality gate: attack correctness/regression risk for <target>. Inspect files/diffs/sources directly. Do not edit.",
+      output: false,
+      progress: false,
+    },
+    {
+      agent: "reviewer",
+      task: "Quality gate: attack tests and verification evidence for <target>. Do not edit.",
+      output: false,
+      progress: false,
+    },
+    {
+      agent: "reviewer",
+      task: "Quality gate: attack simplicity and maintainability for <target>. Do not edit.",
+      output: false,
+      progress: false,
+    },
   ],
   concurrency: 3,
   context: "fresh",
@@ -263,16 +280,16 @@ prompt-governed for read-only inspection because Pi has no read-only shell
 permission. Use `worker` or a custom non-advisory agent name for
 mutation-capable roles.
 
-| Agent             | Purpose                                     | Model            | Typical output / role                                 |
-| ----------------- | ------------------------------------------- | ---------------- | ----------------------------------------------------- |
+| Agent             | Purpose                                     | Model            | Typical output / role                                                     |
+| ----------------- | ------------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
 | `scout`           | Fast codebase recon                         | inherits default | Read-only recon; use `output: false` or explicit `.scratch/...` artifacts |
-| `planner`         | Creates implementation plans                | inherits default | Returns a plan; default `output` saves `plan.md`       |
-| `worker`          | Implementation and approved oracle handoffs | inherits default | Single-writer implementation with decision escalation |
-| `reviewer`        | Review specialist                           | inherits default | Review-only; no edit/write tools in the packaged role |
-| `context-builder` | Requirements/codebase handoff builder       | inherits default | Structured handoff context; use chain/artifact paths intentionally |
-| `researcher`      | Web research brief generator                | inherits default | Research brief; use `output: false` or explicit `.scratch/...` artifacts |
-| `delegate`        | Lightweight generic delegate                | inherits default | Advisory delegated work; no edit/write tools in the packaged role |
-| `oracle`          | Decision-consistency advisory review        | inherits default | Advisory review, intercom coordination                |
+| `planner`         | Creates implementation plans                | inherits default | Returns a plan; default `output` saves `plan.md`                          |
+| `worker`          | Implementation and approved oracle handoffs | inherits default | Single-writer implementation with decision escalation                     |
+| `reviewer`        | Review specialist                           | inherits default | Review-only; no edit/write tools in the packaged role                     |
+| `context-builder` | Requirements/codebase handoff builder       | inherits default | Structured handoff context; use chain/artifact paths intentionally        |
+| `researcher`      | Web research brief generator                | inherits default | Research brief; use `output: false` or explicit `.scratch/...` artifacts  |
+| `delegate`        | Lightweight generic delegate                | inherits default | Advisory delegated work; no edit/write tools in the packaged role         |
+| `oracle`          | Decision-consistency advisory review        | inherits default | Advisory review, intercom coordination                                    |
 
 Builtin agents inherit the current Pi default model unless a run, user setting, or project setting overrides `model`. Override builtin defaults before copying full agent files when a small tweak is enough.
 
@@ -384,8 +401,18 @@ or execution thread that can still reference the parent session history.
 ```typescript
 subagent({
   tasks: [
-    { agent: "scout", task: "Explore the auth module", output: false, progress: false },
-    { agent: "reviewer", task: "Review the API client", output: false, progress: false },
+    {
+      agent: "scout",
+      task: "Explore the auth module",
+      output: false,
+      progress: false,
+    },
+    {
+      agent: "reviewer",
+      task: "Review the API client",
+      output: false,
+      progress: false,
+    },
   ],
 });
 ```
@@ -848,7 +875,7 @@ The first `worker` implements the approved plan. The parallel reviewers inspect 
 Keep orchestration authority in the parent session. Child subagents should not launch more subagents, read this skill, or run their own orchestration loops. Spawned subagents do not receive the `pi-subagents` skill, parent-only status/control/slash messages, prior parent `subagent` tool-call/tool-result artifacts, or the `subagent` extension tool. Child context filtering also strips old hidden orchestration-instruction messages when they appear in inherited history. Every child also receives a boundary instruction that says the parent owns orchestration, the child must not propose or run subagents, and implementation children must call real edit/write tools instead of printing pseudo tool calls. Pass children concrete role-specific work instead.
 
 1. Clarify first. This is mandatory. Gather code context with `scout` or `context-builder`, add `researcher` only when external evidence matters, then ask the user clarifying questions with `ask_user` or the available structured question tool until scope, acceptance criteria, constraints, and non-goals are clear.
-2. Plan when useful. For complex work, call `planner` or write a plan doc yourself and get approval before implementation. For simple work, confirm shared understanding and explicitly note why planning is skipped.
+2. Plan for complex or risky work. Call `planner` or write a plan doc yourself and get approval before implementation. For simple work, confirm shared understanding and explicitly note why planning is skipped.
 3. Implement with one writer. After approval, launch `worker` with a proper meta prompt that includes clarified requirements, relevant context, plan path or summary, acceptance criteria, and validation expectations. Packaged `worker` defaults to forked context; pass `context: "fresh"` only when you intentionally want a fresh child.
 4. Review after implementation. After the worker completes, launch parallel fresh-context `reviewer` agents for correctness/regressions, tests/validation, and simplicity/maintainability. Use `output: false` unless review artifacts are explicitly needed.
 5. Synthesize, then run the fix worker. Separate blockers, fixes worth doing now, optional improvements, and feedback to ignore/defer, then launch a forked `worker` to apply fixes worth doing now when the workflow is implementation-authorized. If reviewers found scope/product/architecture choices that were not approved, ask the user first instead of applying them.

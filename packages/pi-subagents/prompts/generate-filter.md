@@ -2,15 +2,17 @@
 description: Generate diverse options, filter by rubric, and return the strongest choices
 ---
 
-Generate and filter options for an idea, design, test strategy, naming problem, implementation approach, research direction, or evaluation rubric.
+Generate and filter options for a scoped idea, clarified design space, test strategy, naming problem, implementation approach, research direction, or evaluation rubric.
 
 Request:
 
 $@
 
-Use this when many candidate ideas are useful but the final answer must be selective. The goal is not to return everything; it is to create diversity, dedupe, attack weak ideas, and keep the best options.
+Use this when the scope and selection rubric are clear enough that many candidate ideas are useful but the final answer must be selective. The goal is not to return everything; it is to create diversity, dedupe, attack weak ideas, and keep the best options.
 
-Use the `subagent` tool with fresh context unless I explicitly ask for forked context. Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete scope and any relevant paths/links in every child task. Do not ask children to edit files. The parent owns final selection and should preserve real tradeoffs. Do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass. Do not run scout-only fanout for this workflow. If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass. Use `output: false` for concise advisory passes. If output artifacts are useful, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory. For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+Entry guard: if the request is still a vague idea, new behavior, design/placement question, or unclear product/workflow decision, route through `brainstorming` first. Return to this recipe only after the target, constraints, and rough selection rubric are clear enough for independent option generation.
+
+Use the `subagent` tool with fresh context unless I explicitly ask for forked context. Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete scope and any relevant paths/links in every child task. Do not ask children to edit files. The parent owns final selection and should preserve real tradeoffs. Once the entry guard is satisfied, do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass. Do not run scout-only fanout for this workflow. If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass. Use `output: false` for concise advisory passes. If output artifacts are useful, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory. For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
 
 Protocol:
 
@@ -23,7 +25,7 @@ Protocol:
 3. Return top choices.
    Return a small set with pros, cons, risks, and next validation step.
 
-Required runtime shape when subagents are available: use runtime chain fan-out/fan-in so the filter pass sees concrete generated options. A top-level parallel call with only generator children is incomplete and must not be scored as success; the reviewer/filter pass is mandatory unless the parent explicitly explains why no child filter is possible and performs the filter over concrete child outputs itself.
+After the entry guard is satisfied, required runtime shape when subagents are available: use runtime chain fan-out/fan-in so the filter pass sees concrete generated options. A top-level parallel call with only generator children is incomplete and must not be scored as success; the reviewer/filter pass is mandatory unless the parent explicitly explains why no child filter is possible and performs the filter over concrete child outputs itself.
 
 ```typescript
 subagent({

@@ -1,11 +1,13 @@
 ---
 name: writing-plans
-description: Use after requirements or design are approved and before multi-step implementation. Produces precise .scratch implementation plans with exact tasks, TDD scenarios, verification commands, and review strategy for Pi workers/reviewers.
+description: Use after requirements or design are approved and the task benefits from a plan file. Produces precise .scratch implementation plans with exact tasks, TDD scenarios, verification commands, and review strategy for Pi workers/reviewers.
 ---
 
 # Writing Plans
 
 Create implementation plans that can be executed without implicit design decisions.
+
+Use this for Tier 3 work or when the user explicitly asks for a written plan. Routine Tier 2 work can proceed from an approved chat plan without a `.scratch/plans/` file.
 
 Plans live in `.scratch/plans/` unless the user explicitly asks for project documentation.
 

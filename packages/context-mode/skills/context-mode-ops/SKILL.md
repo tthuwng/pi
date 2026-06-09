@@ -140,8 +140,8 @@ They MUST be honored on every ops cycle, without exception:
     - `/grill-with-docs` — for every domain-model challenge
     - `/improve-codebase-architecture` — for every refactor opportunity
     - `/context-mode-ops` (this skill) — for every ops wave
-    Skipping a relevant skill because "I can do it directly" is a
-    violation.
+      Skipping a relevant skill because "I can do it directly" is a
+      violation.
 
 12. **Competitive context.** A Codex-equivalent EM exists. The owner
     believes you should outperform it. Ship like you mean it.
@@ -171,7 +171,7 @@ If you cannot verify the claim, ask the reporter for evidence BEFORE writing a s
 1. **Bug reports**: Reproduce locally or request reproduction steps. No repro = no fix.
 2. **Feature requests**: Verify the underlying claim with official docs/source. Never trust LLM assertions about how platforms behave.
 3. **Performance claims**: Benchmark it. "Should be faster" is not evidence.
-4. **Cannot verify?** Comment on the issue asking for `ctx-debug.sh` output and repro steps. Do NOT implement speculatively.
+4. **Cannot verify?** Comment on the issue asking for `npx context-mode doctor` output and repro steps. Do NOT implement speculatively.
 5. Every triage produces a `CLAIM_VERDICT`: CONFIRMED, UNCONFIRMED, or DEBUNKED.
 
 ## TDD-First: BLOCKING GATE
@@ -229,12 +229,12 @@ For every task:
 
 ## Workflow Detection
 
-| User says | Workflow | Reference |
-|-----------|----------|-----------|
-| "triage issue #N", "fix issue", "analyze issue" | Triage | [triage-issue.md](triage-issue.md) |
-| "review PR #N", "merge PR", "check PR" | Review | [review-pr.md](review-pr.md) |
-| "release", "version bump", "publish" | Release | [release.md](release.md) |
-| "linkedin", "marketing", "announce", "write post" | Marketing | [marketing.md](marketing.md) |
+| User says                                         | Workflow  | Reference                          |
+| ------------------------------------------------- | --------- | ---------------------------------- |
+| "triage issue #N", "fix issue", "analyze issue"   | Triage    | [triage-issue.md](triage-issue.md) |
+| "review PR #N", "merge PR", "check PR"            | Review    | [review-pr.md](review-pr.md)       |
+| "release", "version bump", "publish"              | Release   | [release.md](release.md)           |
+| "linkedin", "marketing", "announce", "write post" | Marketing | [marketing.md](marketing.md)       |
 
 ## GitHub CLI (`gh`) Is Mandatory
 
@@ -259,6 +259,7 @@ Never use curl/wget to GitHub API. `gh` handles auth, pagination, and rate limit
 ## Validation (Every Workflow)
 
 Before shipping ANY change, validate per [validation.md](validation.md):
+
 - [ ] **Problem verified** — claim reproduced or confirmed with hard evidence (CLAIM_VERDICT logged)
 - [ ] ENV vars verified against real platform source (not LLM hallucinations)
 - [ ] All 12 adapter tests pass: `npx vitest run tests/adapters/`
@@ -269,6 +270,7 @@ Before shipping ANY change, validate per [validation.md](validation.md):
 ## Docs Must Stay Current
 
 After ANY code change that affects adapters, features, or platform support:
+
 - [ ] Update `docs/platform-support.md` if adapter capabilities changed
 - [ ] Update `README.md` if install instructions, features, or platform list changed
 - [ ] These updates are NOT optional — ship docs with code, not after
