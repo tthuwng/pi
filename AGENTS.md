@@ -116,8 +116,9 @@ This default applies to local, repo-scoped, read-only tools. It never overrides 
 - Use bash only for commands that need shell execution: tests, builds, package managers, read-only git, cloud CLIs, database CLIs, and small scripts
 - Do not use bash for file browsing/searching/reading/slicing when Pi tools fit
 - Keep bash commands bounded and single-purpose
+- For commands that may run long, stream ongoing output, need a server, or require interactive/TUI observation, prefer a named tmux session with an inspectable log or screen capture instead of one silent blocking `bash` call
+- Do not use tmux/log artifacts when the task forbids file artifacts, live probes, or sensitive output capture; ask or provide a user-run command instead
 - Do not use `rm`/`rm -rf` without exact approval for the deletion scope
-- For interactive or long-running commands, prefer named tmux sessions/windows
 
 ### Diffs and changed files
 
@@ -173,6 +174,7 @@ If uncertain, classify higher inside `manager-workflow`. If the user says “wai
 ## Subagents
 
 - Use natural-language routing; the user does not need slash commands
+- When launching subagents, pass explicit task-critical context in the dispatch prompt; do not rely on inherited or forked context. Keep detailed dispatch-packet protocol in `packages/pi-subagents/skills/pi-subagents/SKILL.md` and match task prose with runtime flags
 - Use `scout` for read-only recon, `worker` for one focused implementation task, `reviewer` for evidence-backed review
 - Keep one writer at a time unless isolated worktrees/workspaces are explicitly approved
 - For parallel read-only scouts/reviewers, give distinct angles and `output: false` or unique output paths
@@ -261,6 +263,7 @@ Use:
   plans/       # approved plans with [ASSUMPTION] annotations
   reviews/     # reviewer output
   sessions/    # continuation/session state
+  runs/        # long-running command logs/status when artifacts are allowed
 ```
 
 Quick lookups can stay in context. Deeper research and all plans go to `.scratch/`. Check existing `.scratch/` files before re-researching a topic.

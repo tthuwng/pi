@@ -355,19 +355,22 @@ For persistent tweaks, edit `subagents.agentOverrides` in user or project settin
 
 ## Prompting role subagents
 
-Builtin role agents inherit the current Pi default model unless you override them. When launching them, write the task prompt as a compact contract, not a long procedural script. Define the destination and let the role choose the efficient path.
+Builtin role agents inherit the current Pi default model unless you override them. When launching them, write the task prompt as a compact contract, not a long procedural script. Define the destination and let the role choose the efficient path. Forked context is supplemental, not a substitute for an explicit task packet: pass task-critical context even when the child runs with `context: "fork"`.
 
-A strong subagent prompt usually includes:
+A strong subagent task packet usually includes:
 
-- **Goal**: the concrete outcome the child should produce.
-- **Context/evidence**: relevant plan paths, files, diffs, decisions, or user constraints already approved.
+- **Role and reason**: which role is being used and why this role is useful for this task.
+- **Goal / deliverable**: the concrete outcome the child should produce.
+- **Scope boundaries**: what is in scope, what is out of scope, and which decisions remain with the parent/user.
+- **Context/evidence**: relevant plan paths, files, diffs, decisions, user constraints, and prior child outputs for dependent handoffs.
 - **Success criteria**: what must be true before the child can finish.
+- **Permissions and runtime settings**: edit/no-edit, artifact/no-artifact, live/no-live, and matching `subagent(...)` flags such as `context`, `async`, top-level `artifacts`, child `output`, child `progress`, and `outputMode` when relevant.
 - **Hard constraints**: true invariants only, such as no edits for review-only tasks, one writer thread, child must not run subagents, or escalation for unapproved decisions.
 - **Validation**: targeted checks to run, or the next-best check when validation is impossible.
 - **Output**: the expected summary shape, artifact path, or finding format.
 - **Stop rules**: when to ask through the injected supervisor bridge (`contact_supervisor` when available, generic `intercom` only with a safe documented target), when to stop after enough evidence, and when not to keep searching.
 
-Avoid carrying over old prompt habits that over-specify every step. Use `must`, `always`, and `never` for real invariants; for judgment calls, give decision rules. For example, tell a reviewer to inspect the total effective diff, including staged and unstaged tracked changes plus in-scope untracked file contents, and report only evidence-backed findings, rather than prescribing every file or command. Tell a researcher the retrieval budget: start with broad targeted searches, fetch only the strongest sources, search again only when a required fact is missing, then stop.
+Avoid carrying over old prompt habits that over-specify every step. Use `must`, `always`, and `never` for real invariants; for judgment calls, give decision rules. Prose constraints must match runtime flags: for example, if the task says no repo artifacts, use `artifacts: false` plus child `output: false` and `progress: false`; if parent synthesis depends on the result, set `async: false` or wait and inspect before relying on the child. Tell a reviewer the evidence target and angle, not every command. Tell a researcher the retrieval budget: start with broad targeted searches, fetch only the strongest sources, search again only when a required fact is missing, then stop.
 
 For implementation handoffs, name the approved scope and success criteria more clearly than the process. Good prompts say what to change, what not to change, where the evidence lives, how to validate, and when to escalate. They should not ask the child to create another subagent plan or continue the parent conversation.
 
