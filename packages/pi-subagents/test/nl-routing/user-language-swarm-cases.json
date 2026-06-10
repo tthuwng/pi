@@ -1,0 +1,326 @@
+[
+  {
+    "name": "01-review-please",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review please: review the current sectioned-swarm routing diff for correctness and missing tests.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "fresh review when nontrivial target exists"
+    }
+  },
+  {
+    "name": "02-review-everything-now",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review everything now for the current sectioned-swarm routing change and tell me what actually matters.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "multiple independent angles"
+    }
+  },
+  {
+    "name": "03-review-with-fresh-eyes",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review packages/pi-subagents/skills/pi-subagents/SKILL.md again with fresh eyes please and go though all possible flos.",
+    "thinking": "low",
+    "expected": {
+      "route": "quality-gate",
+      "must": "fresh reviewers and flow coverage"
+    }
+  },
+  {
+    "name": "04-double-check-results",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. double check these results one last time before you say this is ready: packages/pi-subagents npm test reported tests 73, pass 73, fail 0; Prettier check on authored user-language files reported all matched files use Prettier code style.",
+    "thinking": "low",
+    "expected": {
+      "route": "quality-gate",
+      "must": "parent PASS/FAIL/INCONCLUSIVE synthesis"
+    }
+  },
+  {
+    "name": "05-review-your-plan-and-do-it",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review this plan and then do it only if it survives: add user-language swarm trigger tests from my session history. do not start by finding where code lives.",
+    "thinking": "low",
+    "expected": {
+      "route": "proposal-gate",
+      "must": "proposal review before scouting"
+    }
+  },
+  {
+    "name": "06-spawn-many-subagnets",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn many subagnets to review packages/pi-subagents/test/nl-routing/user-language-swarm-cases.json from lots of angles.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "distinct reviewer angles"
+    }
+  },
+  {
+    "name": "07-spawn-many-review-subgantes",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn many many review subgantes for the current user-language routing corpus, be liberal, I want lots of perspective.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "broad sectioned review"
+    }
+  },
+  {
+    "name": "08-spawn-20-usabgnets",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn like 20 usabgnets with different goals and perspectives to review the sectioned-swarm routing prompt changes.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "many-section fanout if scope justifies it"
+    }
+  },
+  {
+    "name": "09-wave-of-reviewers",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. wave of reviewers of all kinds please for packages/pi-subagents/prompts/generate-filter.md.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "heterogeneous reviewers"
+    }
+  },
+  {
+    "name": "10-spawn-swarm-to-research",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn a swarm to reserach more about whether user-language routing tests should use exact phrases or normalized intent, and report back with what we should do.",
+    "thinking": "low",
+    "expected": {
+      "route": "research-decision",
+      "must": "research plus recommendation"
+    }
+  },
+  {
+    "name": "11-compare-everything",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. can you do the checks again, compare everything between packages/pi-subagents/prompts/generate-filter.md and packages/pi-subagents/src/runs/shared/workflows.ts, any differences, and report back",
+    "thinking": "low",
+    "expected": {
+      "route": "review",
+      "must": "comparative review over named targets"
+    }
+  },
+  {
+    "name": "12-what-do-you-recommend",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. research what must be done for user-language swarm triggers, compare exact-phrase tests versus route-shape tests, and tell me what do you recommend.",
+    "thinking": "low",
+    "expected": {
+      "route": "research-decision",
+      "must": "recommendation with tradeoffs"
+    }
+  },
+  {
+    "name": "13-give-ideas-first",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn many subagents to give you ideas of what to test, then prune hard and keep the strongest few",
+    "thinking": "low",
+    "expected": {
+      "route": "generate-filter",
+      "must": "generator fanout plus filter fan-in"
+    }
+  },
+  {
+    "name": "14-come-up-with-live-tests",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn a swarm of subagents to come up with ideas for live tests/unit tests/edge cases",
+    "thinking": "low",
+    "expected": {
+      "route": "generate-filter",
+      "must": "test idea generation and filtering"
+    }
+  },
+  {
+    "name": "15-think-of-tests",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn many subagnets to thikn of tests and edge cases we are missing",
+    "thinking": "low",
+    "expected": {
+      "route": "generate-filter",
+      "must": "edge-case ideation"
+    }
+  },
+  {
+    "name": "16-explain-options-better",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. explain the options better for adapting triggers to my language and help me decide which one is least bad.",
+    "thinking": "low",
+    "expected": {
+      "route": "brainstorming",
+      "must": "clarify options and decision framing before choosing"
+    }
+  },
+  {
+    "name": "17-argue-both-sides",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. support your decision that user-language routing should use normalized intent as the primary oracle with exact typo phrases as fixtures, and have subagents review you and eachother so we do not just agree.",
+    "thinking": "low",
+    "expected": {
+      "route": "quality-gate",
+      "must": "adversarial disagreement handling"
+    }
+  },
+  {
+    "name": "18-review-comments-relevance",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review these comments and see if any are relevant, old, stale, wrong, or just nits: (1) add exact typo-heavy trigger phrases, (2) test every phrase live, (3) delete all anti-triggers.",
+    "thinking": "low",
+    "expected": {
+      "route": "review-feedback",
+      "must": "classify feedback"
+    }
+  },
+  {
+    "name": "19-review-and-go-on",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review this feedback and go on if the fixes are obvious: user-language triggers are missing examples for fresh-eyes review and many subagnets.",
+    "thinking": "low",
+    "expected": {
+      "route": "review-feedback",
+      "must": "evaluate before continuation"
+    }
+  },
+  {
+    "name": "20-fix-review-loop",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. fix review fix review, iterate until no more review feedback for this routing corpus idea, but this is under a no-edit constraint: decide whether to block or offer review-only instead of actually looping.",
+    "thinking": "low",
+    "expected": {
+      "route": "block-or-ask",
+      "must": "fix loop requires edit authorization"
+    }
+  },
+  {
+    "name": "21-dont-stop-until-next-phase",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. go and don't stop until we're at the next phase for reviewing this user-language trigger corpus, use ask_user only if blocked, but do not edit.",
+    "thinking": "low",
+    "expected": {
+      "route": "review-feedback",
+      "must": "continue review-only or ask if blocked"
+    }
+  },
+  {
+    "name": "22-spawn-more-targeted-reviews",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. spawn more targeted reviews for the disagreements from the first pass: one reviewer says exact phrase tests are brittle, another says fuzzy route-shape tests are too weak.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "second targeted read-only swarm"
+    }
+  },
+  {
+    "name": "23-look-through-all-flows",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. go through all edge cases, ALL flows, each code path and each situation for sectioned-swarm routing in packages/pi-subagents/skills/pi-subagents/SKILL.md.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "broad flow audit"
+    }
+  },
+  {
+    "name": "24-review-all-combiatoins",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. review al lcombiatoins and all flows for sectioned-swarm natural-language routing and have another agent review that it's actualy all of them.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review",
+      "must": "cross-check completeness"
+    }
+  },
+  {
+    "name": "25-throughout-my-pi-usage",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. look at all the words I usually say throughout my pi usage and all the times I ask for swarms",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "session-history analysis"
+    }
+  },
+  {
+    "name": "26-grab-many-examples",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. grab many many examples from my conversations of things that should have triggered swarms",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "large sample collection"
+    }
+  },
+  {
+    "name": "27-look-through-skills-subagents",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. look through all my skills and subagents and tell me which ones are being used, amounts per session, totals, etc",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "historical aggregation"
+    }
+  },
+  {
+    "name": "28-go-through-each-benchamr",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. go through each benchamr in this list and tell me what its file is: ProofBench, IOI, SWE-bench, Terminal-Bench.",
+    "thinking": "low",
+    "expected": {
+      "route": "direct",
+      "must": "bounded lookup stays parent-verifiable"
+    }
+  },
+  {
+    "name": "29-private-thread-block",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. sectioned-swarm review the Slack thread about this routing plan, but I did not give a channel or message link",
+    "thinking": "low",
+    "expected": {
+      "route": "block-or-ask",
+      "must": "approval or exact target before private-source read"
+    }
+  },
+  {
+    "name": "30-parallel-writers-refuse",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. launch sectioned workers to edit auth, tests, and docs in parallel",
+    "thinking": "low",
+    "expected": {
+      "route": "block-or-ask",
+      "must": "refuse parallel writers without approval/isolation"
+    }
+  },
+  {
+    "name": "31-tiny-one-sentence",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. one sentence back only: tighten this wording: Agents should use helpful swarms for complex review work but not for tiny answers. This is tiny; do not launch subagents.",
+    "thinking": "low",
+    "expected": {
+      "route": "direct",
+      "mustNot": "subagent"
+    }
+  },
+  {
+    "name": "32-three-shorter-names",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. give me three shorter names, one-line list only, this is tiny",
+    "thinking": "low",
+    "expected": {
+      "route": "direct",
+      "mustNot": "subagent"
+    }
+  },
+  {
+    "name": "33-help-where-left-off",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. help me understand wher ewe left off in the sectioned-swarm trigger work and go through the first plan we had at the beginning.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "session-history reconstruction"
+    }
+  },
+  {
+    "name": "34-check-upstream-compare-local",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. check upstream docs/examples for pi-subagents routing language and see if anything changed compare to my local prompt guidance.",
+    "thinking": "low",
+    "expected": {
+      "route": "research-decision",
+      "must": "external/local comparison"
+    }
+  },
+  {
+    "name": "35-be-very-thorough-subagents",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. be very thouhoug with subagents and spawn a bunch to go through the code",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-context-build",
+      "must": "broad code recon fanout"
+    }
+  },
+  {
+    "name": "36-strict-no-artifacts-block",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. spawn many subagnets to review the routing change inline only, with no files or artifacts.",
+    "thinking": "low",
+    "expected": {
+      "route": "block-or-ask",
+      "must": "strict no-artifact wording forbids subagent launch; ask to relax to no repo artifacts for swarms"
+    }
+  }
+]

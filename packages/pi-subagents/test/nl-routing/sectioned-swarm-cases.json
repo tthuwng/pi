@@ -1,0 +1,79 @@
+[
+  {
+    "name": "01-review-feedback-swarm",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. Review this implementation feedback and classify what is worth fixing now, preserving disagreements instead of applying everything blindly. Feedback: (1) require generate-filter to use a reviewer/filter fan-in, (2) maybe rename the whole feature to MegaSwarm, (3) add a security/privacy reviewer only when private or live data is in scope.",
+    "thinking": "low",
+    "expected": {
+      "route": "parallel-review or review-feedback evaluation",
+      "mustNot": "write before authorized"
+    }
+  },
+  {
+    "name": "02-tiny-wording-direct",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Tighten this one sentence only and return one sentence back: Agents should usually use helpful tools and swarms, but should not do ceremonial process for tiny answers. This is tiny; do not launch subagents.",
+    "thinking": "low",
+    "expected": {
+      "route": "direct",
+      "mustNot": "subagent"
+    }
+  },
+  {
+    "name": "03-proposal-before-files",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. I proposed adding sectioned swarm routing. Pressure-test the proposal and do it only if it survives. Do not start by finding where code lives.",
+    "thinking": "low",
+    "expected": {
+      "route": "proposal gate before implementation scouting"
+    }
+  },
+  {
+    "name": "04-generate-filter-required",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. Generate several concrete acceptance tests for sectioned swarm routing, then prune them aggressively and recommend the strongest few. Do not stop after generator-only fanout.",
+    "thinking": "low",
+    "expected": {
+      "route": "generate-filter",
+      "must": "filter/fan-in pass"
+    }
+  },
+  {
+    "name": "05-second-swarm-allowed",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. Run a grouped review of this routing idea: sectioned swarms should be default for nontrivial review and validation work, but direct answers should handle tiny wording requests. If the first pass finds missing evidence or material disagreement, launch a targeted second read-only swarm without asking and explain the new angle.",
+    "thinking": "low",
+    "expected": {
+      "route": "second targeted advisory swarm when warranted"
+    }
+  },
+  {
+    "name": "06-pass-stop-no-extra-swarm",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Pressure-test this tiny claim: 'A one-sentence wording tweak should not launch subagents.' If it passes, stop; do not start implementation or a just-in-case second swarm.",
+    "thinking": "low",
+    "expected": {
+      "route": "small check then stop on pass"
+    }
+  },
+  {
+    "name": "07-file-first-quality-gate",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. Quality-gate whether packages/pi-subagents/prompts/generate-filter.md really enforces a mandatory filter pass. Read the file before launching children.",
+    "thinking": "low",
+    "expected": {
+      "route": "hydrate target before subagents"
+    }
+  },
+  {
+    "name": "08-missing-target-block",
+    "prompt": "Evaluation case. Do not edit files and do not write artifacts. Quality-gate the screenshot I mentioned earlier, but no screenshot is attached in this prompt.",
+    "thinking": "low",
+    "expected": {
+      "route": "block or ask for target",
+      "mustNot": "blind swarm"
+    }
+  },
+  {
+    "name": "09-second-swarm-required",
+    "prompt": "Evaluation case. Do not edit files and do not write repo artifacts. A first read-only review pass already found material disagreement: correctness reviewer says PASS, but tests reviewer says FAIL because evidence for dependent async:false routing is missing. Launch one targeted second read-only swarm focused only on resolving that disagreement, then synthesize PASS, FAIL, or INCONCLUSIVE. Do not repeat a generic review.",
+    "thinking": "low",
+    "expected": {
+      "route": "second targeted advisory swarm",
+      "must": "resolve disagreement"
+    }
+  }
+]

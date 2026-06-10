@@ -20,17 +20,19 @@ These are examples, not fixed defaults:
    Check for unnecessary complexity, duplicate structure, single-use wrappers, brittle abstractions, confusing names, verbosity, and cleanup that is clearly worth doing.
 
 Choose or adapt angles when the work calls for it:
+
 - TypeScript-heavy changes: include type safety, source-of-truth types, casts, and error-boundary discipline.
 - UI-heavy changes: include UX, accessibility, copy, and visual quality.
 - Security-sensitive changes: include unsafe input/output handling, auth boundaries, privacy, and data exposure.
 - Docs-heavy changes: include clarity, accuracy, completeness, reader flow, and non-robotic prose.
 - Large multi-file changes: consider a fourth reviewer for structural friction, module boundaries, and testability.
 
-Prefer three strong reviewers for normal changes. Use four or five when the work is large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous. Do not spawn many vague reviewers.
+Prefer three strong reviewers for normal changes. Use four or five when the work is large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous. Do not spawn many vague reviewers. For broad grouped reviews or follow-up swarms, use the sectioned-swarm protocol in `packages/pi-subagents/skills/pi-subagents/SKILL.md`: split by named attack surface, and run a second targeted read-only swarm only when it adds a new evidence angle.
 
-Give every reviewer a specific task prompt naming its angle. Prefer `context: "fresh"`, `output: false`, `progress: false`, and deliberate `concurrency` in the runtime call. Ask reviewers to return concise, evidence-backed findings with file/line references and suggested fixes. The response should be review feedback, not a context summary. Reviewers must not edit files unless I explicitly ask for a writer pass.
+Give every reviewer a specific task prompt naming its angle. Prefer `context: "fresh"`, `async: false`, `output: false`, `progress: false`, and deliberate `concurrency` in the runtime call because parent synthesis depends on reviewer output. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; review parent-only or ask to relax that constraint. Ask reviewers to return concise, evidence-backed findings with file/line references and suggested fixes. The response should be review feedback, not a context summary. Reviewers must not edit files unless I explicitly ask for a writer pass.
 
 While reviewers run, do your own narrow inspection if useful. After they return, synthesize the feedback into:
+
 - fixes worth doing now
 - optional improvements
 - feedback to ignore or defer, with a short reason

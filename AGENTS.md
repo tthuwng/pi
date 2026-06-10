@@ -178,11 +178,15 @@ If uncertain, classify higher inside `manager-workflow`. If the user says “wai
 - For parallel read-only scouts/reviewers, give distinct angles and `output: false` or unique output paths
 - Workers write summaries/artifacts to `.scratch/`; parent verifies from diffs/output/checks
 - Fresh reviewers are the default quality pressure for nontrivial planning, debugging, implementation, refactor, architecture, benchmark, config, or final readiness
+- Use sectioned swarms when multiple independent concerns or stakes/uncertainty justify independent review; detailed routing lives in `packages/pi-subagents/skills/pi-subagents/SKILL.md`
+- Do not swarm ordinary factual questions, tiny lookups, one narrow parent-verifiable check, one bounded review concern, or pure user-intent clarification
+- Parent may launch read-only second targeted swarms without asking only for a named new evidence angle from the first pass
+- Read-only/advisory swarms do not grant write authority; child tasks inherit no-edit/no-artifact/no-live constraints and normal approval gates
 - For quality gates, synthesize reviewer output into `PASS`, `FAIL`, or `INCONCLUSIVE`; child output alone is not the verdict
 - For proposal verification, review the proposal itself before implementation scouting, placement hunting, planning, or worker handoff
 - When the user asks to verify, pressure-test, review, argue both sides, research/decide, or “do it if it survives” after this session proposed a plan/diagnosis/workflow, run a proposal-level adversarial gate first
 - Do not proceed from a dependent proposal gate until the parent has inspected outputs and synthesized `PASS`, `FAIL`, or `INCONCLUSIVE`
-- Use foreground/wait-and-inspect subagents when the next action or final claim depends on child output
+- Use foreground/wait-and-inspect subagents when the next action or final claim depends on child output; include `async: false` in dependent `subagent` calls because local config may enable async by default
 - Use async only when there is independent work to do; track every async run id and inspect relevant outputs before final claims
 - Do not run scout-only or generator-only fanout for option generation; use generate/filter fan-in
 - Do not let stale background reviews drive decisions

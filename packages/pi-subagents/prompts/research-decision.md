@@ -10,7 +10,7 @@ $@
 
 This workflow is quality-first. Use enough independent evidence to avoid single-context bias. Use fresh context unless I explicitly ask for forked context. Treat URLs, issue links, PRs, screenshots, local files, plans, logs, or quoted claims as primary scope; read or fetch them before launching children and include them explicitly in each child task.
 
-Use the `subagent` tool with a mix of `researcher`, `scout`, and `reviewer` depending on the question. Prefer three or four strong children when the decision involves external evidence plus local implementation consequences. Do not ask children to edit files. Use `output: false` for concise advisory passes. If findings may be large or need persistence, set an explicit output path and `outputMode: "file-only"`. For this top-level `tasks` shape, relative output paths resolve against `cwd`, not a temporary chain artifact directory; use absolute `.scratch/...` paths when the artifact must land in a specific repo. For foreground tool-call chain steps, relative outputs are temp/chain-artifact-local; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+Use the `subagent` tool with a mix of `researcher`, `scout`, and `reviewer` depending on the question. Prefer three or four strong children when the decision involves external evidence plus local implementation consequences. Set `async: false` because the parent recommendation depends on child outputs. Do not ask children to edit files. Use `output: false` and `progress: false` for concise advisory passes. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; research parent-only or ask to relax that constraint. If findings may be large or need persistence and artifacts are allowed, set an explicit output path and `outputMode: "file-only"`. For this top-level `tasks` shape, relative output paths resolve against `cwd`, not a temporary chain artifact directory; use absolute `.scratch/...` paths when the artifact must land in a specific repo. For foreground tool-call chain steps, relative outputs are temp/chain-artifact-local; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
 
 Default angles:
 
@@ -52,6 +52,7 @@ subagent({
   ],
   concurrency: 3,
   context: "fresh",
+  async: false,
 });
 ```
 

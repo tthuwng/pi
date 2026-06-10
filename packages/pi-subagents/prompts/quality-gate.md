@@ -10,7 +10,7 @@ $@
 
 This workflow is quality-first. Do not avoid useful reviewers merely to save cost. Use fresh context unless I explicitly ask for forked context. Before launching children, hydrate the target: read/fetch the referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete target and any relevant paths/links in every child task. The child reviewers should inspect the target directly from files, diffs, linked sources, commands, or fetched content; they must not rely on the main conversation history.
 
-Use the `subagent` tool with parallel fresh-context reviewers. Prefer three strong reviewers for normal work and add a fourth or fifth when the target is large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous. Do not spawn duplicate vague reviewers.
+Use the `subagent` tool with parallel fresh-context reviewers and set `async: false` because the parent verdict depends on child output. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false` and keep every child `output: false` and `progress: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; gate parent-only or ask to relax that constraint. Prefer three strong reviewers for normal work and add a fourth or fifth when the target is large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous. Do not spawn duplicate vague reviewers. For broader grouped gates or missing-evidence follow-ups, use the sectioned-swarm protocol in `packages/pi-subagents/skills/pi-subagents/SKILL.md`: name the new evidence angle before launching any second targeted read-only swarm.
 
 Default angles:
 
@@ -55,6 +55,7 @@ subagent({
   ],
   concurrency: 3,
   context: "fresh",
+  async: false,
 });
 ```
 

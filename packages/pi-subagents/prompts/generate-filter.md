@@ -12,7 +12,7 @@ Use this when the scope and selection rubric are clear enough that many candidat
 
 Entry guard: if the request is still a vague idea, new behavior, design/placement question, or unclear product/workflow decision, route through `brainstorming` first. Return to this recipe only after the target, constraints, and rough selection rubric are clear enough for independent option generation.
 
-Use the `subagent` tool with fresh context unless I explicitly ask for forked context. Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete scope and any relevant paths/links in every child task. Do not ask children to edit files. The parent owns final selection and should preserve real tradeoffs. Once the entry guard is satisfied, do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass. Do not run scout-only fanout for this workflow. If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass. Use `output: false` for concise advisory passes. If output artifacts are useful, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory. For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+Use the `subagent` tool with fresh context unless I explicitly ask for forked context. Set `async: false` because parent filtering and recommendation depend on child outputs. Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete scope and any relevant paths/links in every child task. Do not ask children to edit files. The parent owns final selection and should preserve real tradeoffs. Once the entry guard is satisfied, do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass. Do not run scout-only fanout for this workflow. If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass. Use `output: false` and `progress: false` for concise advisory passes. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; answer parent-only or ask to relax that constraint. If output artifacts are useful and allowed, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory. For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
 
 Protocol:
 
@@ -22,10 +22,13 @@ Protocol:
 2. Filter and dedupe.
    Run a reviewer/filter pass over the generated options, not just a generic rubric pass. The filter should remove duplicates, reject low-evidence ideas, rank by rubric, and identify the strongest counterargument. Do not stop after the generator fanout; if the first call only generated options, immediately run the filter pass before answering.
 
-3. Return top choices.
+3. Deepen only when warranted.
+   After the reviewer/filter pass, use the sectioned-swarm protocol in `packages/pi-subagents/skills/pi-subagents/SKILL.md` for a second targeted read-only swarm only when the shortlist needs a named new angle, such as deeper attack, local feasibility, external evidence, or validation design. Do not repeat broad generation.
+
+4. Return top choices.
    Return a small set with pros, cons, risks, and next validation step.
 
-After the entry guard is satisfied, required runtime shape when subagents are available: use runtime chain fan-out/fan-in so the filter pass sees concrete generated options. A top-level parallel call with only generator children is incomplete and must not be scored as success; the reviewer/filter pass is mandatory unless the parent explicitly explains why no child filter is possible and performs the filter over concrete child outputs itself.
+After the entry guard is satisfied, required runtime shape when subagents are available: use runtime chain fan-out/fan-in so the filter pass sees concrete generated options. A top-level parallel call with only generator children is incomplete and must not be scored as success. The child reviewer/filter fan-in is mandatory; if a child reviewer/filter cannot run, stop as blocked or `INCONCLUSIVE` instead of completing with parent-only filtering.
 
 ```typescript
 subagent({
@@ -61,6 +64,7 @@ subagent({
     },
   ],
   context: "fresh",
+  async: false,
 });
 ```
 

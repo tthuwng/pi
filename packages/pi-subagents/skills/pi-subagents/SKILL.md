@@ -76,6 +76,58 @@ This section is the canonical owner for subagent natural-language recipe routing
 
 The user does not need to name a slash command. Treat ordinary language as workflow intent when the shape is clear, then run the matching pattern directly with `subagent(...)`. Do not wait for the user to say `/quality-gate`, `/adversarial-debate`, or another exact shortcut.
 
+### Observed user-language swarm triggers
+
+Adapt to the user's actual phrasing, including typos, shorthand, and repetition. Treat these as high-signal shapes when the request is nontrivial or asks for multiple independent views:
+
+- `review`, `review please`, `review everything`, `review again`, `review with fresh eyes`, `check the diff`, `double check`, `triple check`, `verify one last time` -> review or quality-gate depending on whether a verdict is needed.
+- `review your proposal`, `review your plan and then do it`, `pressure-test ... and do it only if it survives`, `if it survives`, `don't start by finding where code lives` -> proposal gate before scouting or implementation.
+- `spawn many subagnets`, `spawn many many review subgantes`, `spawn a bunch of subagents`, `spawn 20 subagnets`, `wave of reviewers`, `different goals and perspectives` -> sectioned read-only fanout with distinct angles; keep no-edit/no-live constraints. Do not interpret requested numbers literally: `spawn 20` means broad section coverage, never launch 20 children unless the task is a truly shardable matrix with an explicit reducer. Cap to the smallest material fanout.
+- `give you ideas`, `come up with ideas for tests`, `think of tests`, `prune`, `filter`, `strongest few`, `what do you recommend`, `compare everything between X and Y`, `help me decide between concrete options`, `least bad option` -> generate/filter or research-decision; do not stop at raw generator output when filtering or concrete decision support is requested. Vague `explain the options better` / `help me decide` requests enter brainstorming first until the options and rubric are clear. `Compare everything between named targets` is review, research-decision, or parallel-review depending on scope; use at least one advisory child unless it is a tiny parent-verifiable lookup. `Do the checks again` plus `compare everything` is not tiny; use an advisory child before the parent synthesis.
+- `look at all the words I usually say`, `throughout my pi usage`, `grab many many examples`, `all the times I ask`, `go through each code path`, `go through all edge cases`, `ALL flows`, `review al lcombiatoins` -> parallel context build, session-history analysis, or broad audit swarm.
+- `go on`, `don't stop`, `keep going`, `review ... and go on`, `until no more review feedback`, `iterate`, `fix review fix`, `spawn more targeted reviews` -> continue the approved loop; use review-feedback evaluation or fix-review-fix when writing is already authorized.
+
+Typos like `subagnets`, `subgantes`, `usabgnets`, `rerach`, `benchamr`, `combiatoins`, and `langauge` should not weaken the trigger when the task shape is clear. Still apply anti-triggers: tiny one-sentence wording tasks, ordinary factual questions, one narrow parent-verifiable check, pure clarification, and strict no-artifact constraints stay direct.
+
+### Constraint precedence
+
+Apply task constraints before swarm enthusiasm:
+
+- Strict no-artifact wording such as `do not write artifacts`, `no files`, or `inline only` means no subagents. Child sessions, debug logs, temp output, and runtime state are filesystem artifacts, even when repo files are untouched. Route parent-only or block-or-ask to relax the constraint.
+- Repo-scoped artifact wording such as `no repo artifacts`, `no project artifacts`, or `don't write .scratch files` still allows advisory subagents, but every call must set `artifacts: false`; every child/step must use `output: false` and `progress: false`; and chain steps must not configure output paths.
+- Artifact-oriented recipes such as `parallel-context-build` and `parallel-handoff-plan` are not valid under strict no-artifact wording. Under repo-scoped artifact wording, downgrade to inline advisory fanout or use parent-only synthesis instead of file-output context artifacts.
+
+### Sectioned swarm protocol
+
+Use sectioned swarms when independent agents can add distinct evidence, attack surfaces, or verification paths across two or more independent concerns, or when stakes/uncertainty justify parallel review. Do not use subagents as ritual compliance: ordinary factual questions, tiny wording/name tasks, one narrow parent-verifiable lookup, one bounded review concern, and pure user-intent clarification should stay direct.
+
+Default to sectioned swarms for these shapes:
+
+- review, check, pressure-test, or quality-gate work;
+- feedback on the parent agent's own work;
+- revision/fix loops after review feedback;
+- proposal/design/architecture decisions before implementation;
+- broad test, edge-case, live-validation, safety, observability, UX, or resource-risk ideation;
+- nontrivial final readiness claims.
+
+Use the smallest recipe-specific fanout that still adds material evidence. Numeric guidance is non-binding and subordinate to each recipe: normal review and quality gates usually use three reviewers; large, security-sensitive, ops-heavy, architecture-heavy, or ambiguous work may use four or five; broad multi-section ideation or audits may use six to nine across named sections; 12+ children fit only shardable matrices with explicit slices, artifacts, and reducer/filter stages. Do not add duplicate vague agents.
+
+Group children by independent concern, not by count: for example correctness, tests/verification, maintainability, security/privacy, ops/resource, UX/docs, local-code scout, external researcher, edge cases, observability, or simplification. The parent classifies sections before launch, passes concrete targets into every child, waits for any group needed for the next synthesis, and then dedupes/ranks across sections.
+
+The parent may launch read-only second targeted swarms without asking when the first swarm exposes a named missing-evidence gap, material reviewer disagreement, a new specialist risk, a shortlist that needs deeper attack/refinement, or accepted fixes that need fresh re-review. The follow-up must name the new angle or evidence target. Do not run a second swarm just to repeat the same generic review.
+
+Read-only/advisory swarms do not grant write authority. Edits require explicit user approval or an already-authorized write workflow. Child tasks inherit the strictest active task constraints: review-only, no-edit, no-artifact, and no-live-probe constraints remain in force unless that scope was already explicitly authorized. Strict no-artifact means no subagents; repo-scoped no-artifact means `artifacts: false`, child `output: false`, child `progress: false`, and no chain output paths. Private MCP reads/mutations, live/cloud/database/destructive actions, production-affecting checks, and behavior/architecture/security/data/scope decisions still require the normal approval gates. Missing private/external targets block before subagents: if the user asks for Slack/Notion/Google Docs/private thread review without an exact target and explicit read approval, ask or request pasted content directly instead of launching a swarm to decide that. Parallel writer requests also block before child launch when edits, isolation, or worktrees are not authorized; block directly and do not launch reviewers, workers, delegates, or scouts just to confirm the obvious authorization failure. `Launch sectioned workers to edit` under no-edit or missing isolation is blocked directly, not converted into read-only reviewer/delegate fanout. Do not downgrade an unauthorized `worker`/`edit` request into child fanout. Do not fan out private MCP, cloud, database, or live-system access by default; the parent should do approved narrow reads and pass sanitized findings down.
+
+Use foreground or wait-and-inspect when the next answer, verdict, or final claim depends on child output. For dependent recipe calls, set `async: false` explicitly because local config may enable `asyncByDefault`; builtin workflows already do this. Use async only when there is real independent work; record the run id and inspect artifacts/status before relying on results. Treat `file-only` artifacts and compact completion receipts as pointers, not evidence, until the parent reads them. The parent may synthesize `PASS` / `FAIL` / `INCONCLUSIVE` only after inspecting all relevant fresh child outputs; unresolved material async work, stale outputs, or unreconciled contradictions force `INCONCLUSIVE` until resolved.
+
+Compact recipe names:
+
+- Idea generation -> filter -> targeted second swarm.
+- Review -> fix -> fresh re-review.
+- Design debate -> decision.
+- Research + local recon -> handoff plan.
+- Test/live-validation ideation -> safety-filtered validation ladder.
+
 Natural-language routing examples:
 
 | User says or implies                                                                                        | Parent should usually run                                                                                                                                                                                      |
@@ -190,7 +242,7 @@ Use this when many candidate ideas are useful but the output must be selective. 
 
 ### Parallel context-build technique
 
-Use this before planning or implementation when a stronger handoff is needed. Run a chain with one parallel step of `context-builder` agents rather than top-level parallel tasks, so relative output files live under the temporary chain directory. Give every task a distinct output path such as `context-build/request-and-scope.md`, `context-build/codebase-and-patterns.md`, and `context-build/validation-and-risks.md`. Choose two or three builders: request/scope, codebase/patterns, and validation/risks. Each builder must read every relevant file needed to understand its slice, follow imports/callers/tests/docs/config, use parent-provided context7 evidence when available for library/framework documentation, otherwise use local source/official docs/source repos/`code_search`/web search, and include a compact `meta-prompt` section. The parent synthesizes the outputs into important context, recommended next meta-prompt, open questions, assumptions, and artifact paths.
+Use this before planning or implementation when a stronger handoff is needed. Run a chain with one parallel step of `context-builder` agents rather than top-level parallel tasks, so relative output files live under the temporary chain directory. Give every task a distinct output path such as `context-build/request-and-scope.md`, `context-build/codebase-and-patterns.md`, and `context-build/validation-and-risks.md`. Choose two or three builders: request/scope, codebase/patterns, and validation/risks. Each builder must read every relevant file needed to understand its slice, follow imports/callers/tests/docs/config, use parent-provided context7 evidence when available for library/framework documentation, otherwise use local source/official docs/source repos/`code_search`/web search, and include a compact `meta-prompt` section. The parent synthesizes the outputs into important context, recommended next meta-prompt, open questions, assumptions, and artifact paths. Strict no-artifact prompts block this recipe; repo-scoped no-artifact prompts require an inline parent-only or advisory fallback with `artifacts: false`, `output: false`, `progress: false`, and no configured chain output paths.
 
 Example shape:
 
