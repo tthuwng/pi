@@ -57,7 +57,7 @@ pi/
 | `packages/pi-codex-retry`        | Recoverable Codex transport retry                                              |
 | `packages/pi-slipstream-compact` | Validated compaction replacement                                               |
 | `packages/pi-goal-supervisor`    | `/goal` continuation supervisor                                                |
-| `npm:pisesh`                     | Session management helper                                                      |
+| `packages/pisesh`                | Local session management helper                                                |
 | `npm:pi-btw`                     | `/btw` side conversations plus bundled `btw` skill                             |
 
 ## MCP servers

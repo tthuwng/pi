@@ -16,6 +16,7 @@ These files are copied verbatim or closely adapted from upstream repositories. T
 | `skills/session-reader/scripts/read_session.py` | [`HazAT/pi-config`](https://github.com/HazAT/pi-config) `skills/session-reader/scripts/read_session.py` | Copied verbatim             | MIT              |
 | `skills/self-improve/SKILL.md`                  | [`HazAT/pi-config`](https://github.com/HazAT/pi-config) `skills/self-improve/SKILL.md`                  | Closely adapted             | MIT              |
 | `skills/session-reader/SKILL.md`                | [`HazAT/pi-config`](https://github.com/HazAT/pi-config) `skills/session-reader/SKILL.md`                | Closely adapted             | MIT              |
+| `packages/pisesh/`                              | [`Blue-B/pisesh`](https://github.com/Blue-B/pisesh)                                                       | Locally modified adaptation | MIT              |
 
 ## Local runtime surfaces
 

@@ -1,0 +1,56 @@
+{
+  "name": "pisesh",
+  "version": "0.1.9",
+  "description": "Bookmark, search, and resume pi coding-agent sessions with a fast keyboard-driven TUI.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "session",
+    "bookmark",
+    "tui",
+    "cli",
+    "ai",
+    "coding-agent",
+    "resume",
+    "favorites"
+  ],
+  "homepage": "https://github.com/Blue-B/pisesh#readme",
+  "bugs": {
+    "url": "https://github.com/Blue-B/pisesh/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Blue-B/pisesh.git"
+  },
+  "license": "MIT",
+  "author": "Blue-B <source_vs@naver.com>",
+  "type": "commonjs",
+  "bin": {
+    "pisesh": "./bin/pisesh"
+  },
+  "files": [
+    "bin/",
+    "extensions/",
+    "lib/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/sesh.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/Blue-B/pisesh/main/assets/preview.png"
+  },
+  "scripts": {
+    "test": "node --check bin/pisesh && node --check lib/cleanup.js && node --test test/current-session.test.mjs test/cleanup.test.mjs test/extension-load.test.mjs && echo 'pisesh: syntax, current-session, cleanup, and extension load behavior OK'",
+    "prepublishOnly": "npm test"
+  },
+  "devDependencies": {
+    "jiti": "^2.7.0"
+  }
+}

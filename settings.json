@@ -86,7 +86,7 @@
     "packages/pi-codex-retry",
     "packages/pi-slipstream-compact",
     "packages/pi-goal-supervisor",
-    "npm:pisesh",
+    "packages/pisesh",
     "npm:pi-btw"
   ],
   "subagents": {
