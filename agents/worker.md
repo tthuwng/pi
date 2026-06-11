@@ -10,7 +10,6 @@ inheritProjectContext: true
 inheritSkills: false
 defaultContext: fork
 defaultReads: context.md, plan.md
-defaultProgress: true
 ---
 
 # Worker Agent
