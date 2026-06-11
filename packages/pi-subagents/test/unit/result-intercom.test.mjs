@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildSubagentResultIntercomPayload } from "../../src/intercom/result-intercom.ts";
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const { buildSubagentResultIntercomPayload } = await loadTs("../../src/intercom/result-intercom.ts");
+const {
 	normalizeSingleOutputOverride,
 	resolveSingleOutputPath,
-} from "../../src/runs/shared/single-output.ts";
+} = await loadTs("../../src/runs/shared/single-output.ts");
 
 test("builds compact subagent result intercom messages", () => {
 	const longSummary = `${"line one ".repeat(40)}\n${"line two ".repeat(40)}`;

@@ -4,12 +4,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const {
 	agentCanMutateWorkspace,
 	findSharedCwdChainParallelWriterError,
 	findSharedCwdParallelWriterError,
 	resolveGuardTaskCwd,
-} from "../../src/runs/shared/parallel-writer-guard.ts";
+} = await loadTs("../../src/runs/shared/parallel-writer-guard.ts");
 
 const worker = { name: "worker", tools: ["read", "edit", "write"] };
 const reviewer = { name: "reviewer", tools: ["read", "grep", "bash"] };

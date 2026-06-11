@@ -4,10 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const {
 	mergeAgentsForScope,
 	sanitizeProtectedAdvisoryAgentTools,
-} from "../../src/agents/agent-selection.ts";
+} = await loadTs("../../src/agents/agent-selection.ts");
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(testDir, "../..");

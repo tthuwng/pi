@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isRetryableModelFailure } from "../../src/runs/shared/model-fallback.ts";
+import { loadTs } from "../support/load-ts.mjs";
+
+const { isRetryableModelFailure } = await loadTs("../../src/runs/shared/model-fallback.ts");
 
 test("classifies websocket transport closures as retryable model failures", () => {
 	assert.equal(

@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { compactChildEventForAsyncLog } from "../../src/runs/background/child-event-log.ts";
+import { loadTs } from "../support/load-ts.mjs";
+
+const { compactChildEventForAsyncLog } = await loadTs("../../src/runs/background/child-event-log.ts");
 
 function serialized(value) {
 	return JSON.stringify(value);

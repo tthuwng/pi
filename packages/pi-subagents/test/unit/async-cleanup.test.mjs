@@ -4,7 +4,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { cleanupOldAsyncRunDirs } from "../../src/shared/async-cleanup.ts";
+import { loadTs } from "../support/load-ts.mjs";
+
+const { cleanupOldAsyncRunDirs } = await loadTs("../../src/shared/async-cleanup.ts");
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-05-26T12:00:00.000Z");

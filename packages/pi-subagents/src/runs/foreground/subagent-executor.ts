@@ -1031,6 +1031,10 @@ function validateExecutionInput(
 	return null;
 }
 
+export function resolveRequestedAsync(params: { async?: boolean }, asyncByDefault: boolean): boolean {
+	return params.async ?? asyncByDefault;
+}
+
 function getRequestedModeLabel(params: SubagentParamsLike): Details["mode"] {
 	if ((params.chain?.length ?? 0) > 0) return "chain";
 	if ((params.tasks?.length ?? 0) > 0) return "parallel";
@@ -3011,7 +3015,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		} catch (error) {
 			return toExecutionErrorResult(effectiveParams, error);
 		}
-		const requestedAsync = effectiveParams.async ?? deps.asyncByDefault;
+		const requestedAsync = resolveRequestedAsync(effectiveParams, deps.asyncByDefault);
 		const backgroundRequestedWhileClarifying =
 			hasTasks && requestedAsync && effectiveParams.clarify === true;
 		const effectiveAsync =

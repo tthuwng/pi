@@ -341,16 +341,16 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		completionSeen: new Map(),
 		watcher: null,
 		watcherRestartTimer: null,
+		watcherScanTimer: null,
 		resultFileCoalescer: {
 			schedule: () => false,
 			clear: () => {},
 		},
 	};
 
-	const { startResultWatcher, primeExistingResults, stopResultWatcher } =
+	const { startResultWatcher, primeExistingResults: rescanExistingResults, stopResultWatcher } =
 		createResultWatcher(pi, state, RESULTS_DIR, 10 * 60 * 1000);
 	startResultWatcher();
-	primeExistingResults();
 
 	const runtimeCleanup = () => {
 		stopWidgetAnimation();
@@ -674,7 +674,7 @@ DIAGNOSTICS:
 		clearPendingForegroundControlNotices(state);
 		resetJobs(ctx);
 		restoreSlashFinalSnapshots(ctx.sessionManager.getEntries());
-		primeExistingResults();
+		rescanExistingResults();
 	};
 
 	pi.on("session_start", (_event, ctx) => {

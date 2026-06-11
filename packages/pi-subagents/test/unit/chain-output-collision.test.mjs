@@ -4,10 +4,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const {
 	resolveChainOutputPath,
 	validateUniqueChainOutputPath,
-} from "../../src/runs/shared/chain-output-paths.ts";
+} = await loadTs("../../src/runs/shared/chain-output-paths.ts");
 
 test("foreground chain output paths resolve relative to the chain directory", () => {
 	assert.equal(

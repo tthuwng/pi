@@ -4,10 +4,12 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const {
 	resolvePiPackageRootFromEntry,
 	resolveWindowsPiCliScript,
-} from "../../src/runs/shared/pi-spawn.ts";
+} = await loadTs("../../src/runs/shared/pi-spawn.ts");
 
 function makePackageRoot(name) {
 	const root = mkdtempSync(join(tmpdir(), "pi-subagents-pi-root-"));

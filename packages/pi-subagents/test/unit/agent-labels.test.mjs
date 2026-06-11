@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const {
 	formatChainStepLabel,
 	formatParallelAgentLabel,
-} from "../../src/shared/agent-labels.ts";
+} = await loadTs("../../src/shared/agent-labels.ts");
 
 test("formatParallelAgentLabel compacts repeated agent names", () => {
 	assert.equal(

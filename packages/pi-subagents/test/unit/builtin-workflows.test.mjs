@@ -2,12 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { SubagentParams } from "../../src/extension/schemas.ts";
-import { applyForceTopLevelAsyncOverrideForExecution } from "../../src/runs/background/top-level-async.ts";
-import {
+import { loadTs } from "../support/load-ts.mjs";
+
+const { SubagentParams } = await loadTs("../../src/extension/schemas.ts");
+const { applyForceTopLevelAsyncOverrideForExecution } = await loadTs(
+	"../../src/runs/background/top-level-async.ts",
+);
+const {
 	BUILTIN_WORKFLOW_IDS,
 	expandBuiltinWorkflowParams,
-} from "../../src/runs/shared/workflows.ts";
+} = await loadTs("../../src/runs/shared/workflows.ts");
 
 test("lists the initial builtin workflow ids", () => {
 	assert.deepEqual(

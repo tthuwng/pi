@@ -407,6 +407,7 @@ export interface SubagentState {
 	completionSeen: Map<string, number>;
 	watcher: FSWatcher | null;
 	watcherRestartTimer: ReturnType<typeof setTimeout> | null;
+	watcherScanTimer: ReturnType<typeof setInterval> | null;
 	resultFileCoalescer: {
 		schedule(file: string, delayMs?: number): boolean;
 		clear(): void;
