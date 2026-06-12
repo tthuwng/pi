@@ -54,7 +54,8 @@
       "sessionEnd": []
     },
     "tape": {
-      "enabled": false
+      "enabled": true,
+      "onlyGit": false
     }
   },
   "packages": [
