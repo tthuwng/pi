@@ -97,6 +97,34 @@ Apply task constraints before swarm enthusiasm:
 - Repo-scoped artifact wording such as `no repo artifacts`, `no project artifacts`, or `don't write .scratch files` still allows advisory subagents, but every call must set `artifacts: false`; every child/step must use `output: false` and `progress: false`; and chain steps must not configure output paths.
 - Artifact-oriented recipes such as `parallel-context-build` and `parallel-handoff-plan` are not valid under strict no-artifact wording. Under repo-scoped artifact wording, downgrade to inline advisory fanout or use parent-only synthesis instead of file-output context artifacts.
 
+### Execution shape ladder
+
+Choose the smallest shape that adds material evidence:
+
+1. Parent-only for tiny, parent-verifiable, or pure-clarification work.
+2. One targeted advisory child when exactly one missing evidence axis needs an independent read.
+3. Quick adversarial check for small scoped proposals, assumptions, diagnoses, or decisions.
+4. Full sectioned swarm or quality gate for multi-concern, high-impact, ambiguous, or final-readiness work.
+
+Do not wrap a single child in a top-level `tasks: [...]` call with `concurrency: 1`; use `agent: "reviewer"`, `agent: "scout"`, or another single-agent call instead.
+
+### Runtime chain vs swarm routing
+
+Use plain top-level swarms (`tasks: [...]`) when children are independent and the parent only needs parallel evidence collection: review, quality gate, sectioned audit, or broad parallel recon.
+
+Use runtime `chain` when any later step depends on concrete output from an earlier step or parallel group through `{previous}` or `{chain_dir}`. Prefer a chain with an initial `parallel` group over disconnected swarm launches for:
+
+- generate -> filter/rank/recommend;
+- debate/proposals -> attack -> optional repair/synthesis;
+- research + local recon -> tradeoff critique/recommendation;
+- context-build -> synthesis/handoff/meta-prompt;
+- scout or context-builder -> planner;
+- any request shaped as “first X, then use that to do Y”.
+
+For options, ideas, test cases, names, comparisons, decisions, and “strongest few” requests, generator-only or scout-only fanout is incomplete. A reducer/filter/reviewer step must see the concrete generated outputs before the parent recommends, ranks, or claims completion.
+
+Saved `.chain.md` workflows are useful for repeatable sequential pipelines. Use runtime `chain` arrays for fan-out/fan-in patterns with parallel groups until saved-chain serialization supports parallel groups.
+
 ### Sectioned swarm protocol
 
 Use sectioned swarms when independent agents can add distinct evidence, attack surfaces, or verification paths across two or more independent concerns, or when stakes/uncertainty justify parallel review. Do not use subagents as ritual compliance: ordinary factual questions, tiny wording/name tasks, one narrow parent-verifiable lookup, one bounded review concern, and pure user-intent clarification should stay direct.
@@ -122,7 +150,7 @@ Use foreground or wait-and-inspect when the next answer, verdict, or final claim
 
 Compact recipe names:
 
-- Idea generation -> filter -> targeted second swarm.
+- Idea generation -> chain fan-out -> filter/reducer fan-in -> targeted second swarm only for named gaps.
 - Review -> fix -> fresh re-review.
 - Design debate -> decision.
 - Research + local recon -> handoff plan.
@@ -139,7 +167,7 @@ Natural-language routing examples:
 | “fix, review, fix, review”, “iterate until clean”, “apply the review feedback”                              | implementation-authorized review/fix loop; one writer at a time, then fresh reviewers                                                                                                                          |
 | “think about the architecture”, “is this the right approach?”, “argue both sides”, “don’t just agree”       | `/adversarial-debate` or `/quick-adversarial-check` depending on scope                                                                                                                                         |
 | “research and decide”, “what should we use?”, “look at docs/source and recommend”                           | `/research-decision` pattern with researcher + scout + tradeoff reviewer                                                                                                                                       |
-| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear”       | prefer `subagent({ workflow: "builtin.generate-filter", task: "..." })` for foreground fan-out/fan-in; otherwise use `/generate-filter` pattern with diverse generators and a mandatory reviewer/filter fan-in |
+| “give me concrete options”, “generate candidates”, “brainstorm test cases/names after scope is clear”       | prefer runtime `subagent({ chain: [...] })` fan-out/fan-in or `subagent({ workflow: "builtin.generate-filter", task: "..." })`; diverse generators must feed a mandatory reviewer/filter fan-in |
 | “vague idea”, “new behavior”, “where should this live?”                                                     | `brainstorming` skill first; use `/generate-filter` only after the options/rubric shape is clear                                                                                                               |
 | “learn this codebase”, “build context before planning”                                                      | `/parallel-context-build` pattern                                                                                                                                                                              |
 | “prepare a handoff”, “study this library/reference and make a worker brief”                                 | `/parallel-handoff-plan` pattern                                                                                                                                                                               |
