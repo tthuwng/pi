@@ -116,8 +116,8 @@ This default applies to local, repo-scoped, read-only tools. It never overrides 
 - Use bash only for commands that need shell execution: tests, builds, package managers, read-only git, cloud CLIs, database CLIs, and small scripts
 - Do not use bash for file browsing/searching/reading/slicing when Pi tools fit
 - Keep bash commands bounded and single-purpose
-- For commands that may run long, stream ongoing output, need a server, or require interactive/TUI observation, prefer a named tmux session with an inspectable log or screen capture instead of one silent blocking `bash` call
-- Do not use tmux/log artifacts when the task forbids file artifacts, live probes, or sensitive output capture; ask or provide a user-run command instead
+- For any command likely to run long, produce large or streaming output, wait on external services, start/watch a server, tail logs, run tests/builds with uncertain duration, or require interactive/TUI observation: use a named `tmux` session and capture output to an inspectable log/status file under `.scratch/runs/` or another task-appropriate path instead of one silent blocking `bash` call. Poll or inspect the log/screen, and stop/clean up the session when done unless the user wants it left running
+- Do not use `tmux`/log artifacts when the task forbids file artifacts, live probes, or sensitive output capture; ask or provide a user-run command instead
 - Do not use `rm`/`rm -rf` without exact approval for the deletion scope
 
 ### Diffs and changed files
