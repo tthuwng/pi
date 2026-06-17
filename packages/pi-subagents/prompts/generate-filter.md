@@ -12,7 +12,23 @@ Use this when the scope and selection rubric are clear enough that many candidat
 
 Entry guard: if the request is still a vague idea, new behavior, design/placement question, or unclear product/workflow decision, route through `brainstorming` first. Return to this recipe only after the target, constraints, and rough selection rubric are clear enough for independent option generation.
 
-Use the `subagent` tool with fresh context unless I explicitly ask for forked context. Set `async: false` because parent filtering and recommendation depend on child outputs. Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope. Include that concrete scope and any relevant paths/links in every child task. Do not ask children to edit files. The parent owns final selection and should preserve real tradeoffs. Once the entry guard is satisfied, do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass. Do not run scout-only fanout for this workflow. If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass. Use `output: false` and `progress: false` for concise advisory passes. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; answer parent-only or ask to relax that constraint. If output artifacts are useful and allowed, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory. For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+Runtime policy:
+
+- Use the `subagent` tool with fresh context unless I explicitly ask for forked context.
+- Set `async: false` because parent filtering and recommendation depend on child outputs.
+- Before launching children, hydrate the request: read/fetch any referenced file, diff, URL, issue, PR, plan, log, screenshot, or quoted claim enough to name the concrete scope.
+- Include that concrete scope and any relevant paths/links in every child task.
+- Do not ask children to edit files.
+- The parent owns final selection and should preserve real tradeoffs.
+- Once the entry guard is satisfied, do not satisfy this prompt by brainstorming alone when subagents are available; the value comes from independent generators and a filtering pass.
+- Do not run scout-only fanout for this workflow.
+- If local repo constraints matter, add at most one bounded `scout`, but still include option generator children and a reviewer/filter pass.
+- Use `output: false` and `progress: false` only for concise advisory passes whose returned inline text the parent or next chain step will inspect.
+- If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`.
+- If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; answer parent-only or ask to relax that constraint.
+- If output artifacts are useful, large, or durable and allowed, set an explicit output path and `outputMode: "file-only"`; use an absolute path when the artifact must land in a specific repo `.scratch/` directory.
+- For foreground tool-call chain steps, relative outputs are chain-artifact-local; for top-level `tasks`, relative outputs resolve against `cwd`; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+- When a downstream reducer receives file-only references through `{previous}`, its task must explicitly read those referenced artifact paths before filtering or synthesis.
 
 Protocol:
 

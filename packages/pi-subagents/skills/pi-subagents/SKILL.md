@@ -204,6 +204,14 @@ Read-only/advisory swarms do not grant write authority. Edits require explicit u
 
 Use foreground or wait-and-inspect when the next answer, verdict, or final claim depends on child output. For dependent recipe calls, set `async: false` explicitly because local config may enable `asyncByDefault`; builtin workflows already do this. Use async only when there is real independent work; record the run id and inspect artifacts/status before relying on results. Treat `file-only` artifacts and compact completion receipts as pointers, not evidence, until the parent reads them. The parent may synthesize `PASS` / `FAIL` / `INCONCLUSIVE` only after inspecting all relevant fresh child outputs; unresolved material async work, stale outputs, or unreconciled contradictions force `INCONCLUSIVE` until resolved.
 
+Evidence visibility controls the output policy:
+
+- `output: false` is acceptable for bounded foreground fanout when the returned inline child text is small enough to inspect immediately; it is not a substitute for inspection.
+- If child findings may be large, need durability across turns, or feed a later reducer that cannot safely consume inline text, give each child a distinct saved output path and use `outputMode: "file-only"`.
+- The parent or downstream reducer must read the referenced artifact paths before synthesis.
+- Under repo-scoped no-artifact constraints, keep `artifacts: false`, `output: false`, and `progress: false`, but constrain children to concise findings.
+- Return `INCONCLUSIVE` or ask to relax the constraint when the actual inline output is insufficient.
+
 Compact recipe names:
 
 - Idea generation -> chain fan-out -> filter/reducer fan-in -> targeted second swarm only for named gaps.
@@ -259,7 +267,7 @@ Incorrect first actions:
 
 The parent must synthesize `PASS` / `FAIL` / `INCONCLUSIVE` before proceeding. Since implementation depends on that verdict, run the gate foreground or wait-and-inspect its artifacts before making the next claim unless there is genuine independent work to do. Do not leave a final-answer-dependent proposal gate as an unresolved async promise. Implementation may continue only when the proposal survives the gate and the approved implementation scope still permits edits.
 
-For fresh adversarial or research fanout, prefer explicit call shapes with `context: "fresh"`, deliberate `concurrency`, `progress: false`, and either `output: false` for concise advisory passes or distinct `.scratch/...` output paths plus `outputMode: "file-only"` for large artifacts. Avoid parallel writers unless `worktree: true` or separate isolated workspaces are explicitly approved; if a natural-language parallel-writer request cannot safely use clean worktrees/isolated workspaces, refuse that shape and fall back to one writer plus parallel read-only reviewers/scouts.
+For fresh adversarial or research fanout, prefer explicit call shapes with `context: "fresh"`, deliberate `concurrency`, `progress: false`, and either `output: false` for concise advisory passes that will be inspected inline or distinct `.scratch/...` output paths plus `outputMode: "file-only"` for large artifacts that will be read before synthesis. Avoid parallel writers unless `worktree: true` or separate isolated workspaces are explicitly approved; if a natural-language parallel-writer request cannot safely use clean worktrees/isolated workspaces, refuse that shape and fall back to one writer plus parallel read-only reviewers/scouts.
 
 ### Parallel review technique
 

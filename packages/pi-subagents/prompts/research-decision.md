@@ -10,7 +10,24 @@ $@
 
 This workflow is quality-first. Use enough independent evidence to avoid single-context bias. Use fresh context unless I explicitly ask for forked context. Treat URLs, issue links, PRs, screenshots, local files, plans, logs, or quoted claims as primary scope; read or fetch them before launching children and include them explicitly in each child task.
 
-Use the `subagent` tool with a mix of `researcher`, `scout`, and `reviewer` depending on the question. Prefer three or four strong children when the decision involves external evidence plus local implementation consequences. Set `async: false` because the parent recommendation depends on child outputs. Do not ask children to edit files. Use `output: false` and `progress: false` for concise advisory passes. If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`. If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; research parent-only or ask to relax that constraint. If findings may be large or need persistence and artifacts are allowed, set an explicit output path and `outputMode: "file-only"`. For this top-level `tasks` shape, relative output paths resolve against `cwd`, not a temporary chain artifact directory; use absolute `.scratch/...` paths when the artifact must land in a specific repo. For foreground tool-call chain steps, relative outputs are temp/chain-artifact-local; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+Runtime policy:
+
+- Use the `subagent` tool with a mix of `researcher`, `scout`, and `reviewer` depending on the question.
+- Prefer three or four strong children when the decision involves external evidence plus local implementation consequences.
+- Set `async: false` because the parent recommendation depends on child outputs.
+- Do not ask children to edit files.
+- Use `output: false` and `progress: false` only for concise advisory passes whose returned inline text the parent will inspect before recommending.
+- If the user says `no repo artifacts`, `no project artifacts`, or `don't write .scratch files`, also set top-level `artifacts: false`.
+- If the user says strict `do not write artifacts`, `no files`, or `inline only`, do not launch subagents; research parent-only or ask to relax that constraint.
+- If findings may be large, need persistence, or may be needed across turns and artifacts are allowed, set an explicit output path and `outputMode: "file-only"`.
+- For this top-level `tasks` shape, relative output paths resolve against `cwd`, not a temporary chain artifact directory; use absolute `.scratch/...` paths when the artifact must land in a specific repo.
+- For foreground tool-call chain steps, relative outputs are temp/chain-artifact-local; slash-command background `/chain` relative outputs resolve against cwd or the step cwd.
+
+Before parent synthesis:
+
+- Never synthesize a recommendation from compact receipts, child session directories, or file-only pointers alone.
+- Inspect actual inline child text or read each referenced saved artifact first.
+- If repo-scoped no-artifact constraints leave only insufficient inline summaries, return `INCONCLUSIVE` or ask to relax the constraint.
 
 Default angles:
 

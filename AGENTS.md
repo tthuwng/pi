@@ -117,6 +117,7 @@ This default applies to local, repo-scoped, read-only tools. It never overrides 
 - Do not use bash for file browsing/searching/reading/slicing when Pi tools fit
 - Keep bash commands bounded and single-purpose
 - For any command likely to run long, produce large or streaming output, wait on external services, start/watch a server, tail logs, run tests/builds with uncertain duration, or require interactive/TUI observation: use a named `tmux` session and capture output to an inspectable log/status file under `.scratch/runs/` or another task-appropriate path instead of one silent blocking `bash` call. Poll or inspect the log/screen, and stop/clean up the session when done unless the user wants it left running
+- For commands with Rich/TUI/progress output that should remain visible to users, preserve the command's TTY in tmux: do not pipe the command through `tee`; start it directly in tmux and, if logging is needed, attach logging with `tmux pipe-pane -o ...` so `tmux capture-pane` and the log remain inspectable without disabling live rendering
 - Do not use `tmux`/log artifacts when the task forbids file artifacts, live probes, or sensitive output capture; ask or provide a user-run command instead
 - Do not use `rm`/`rm -rf` without exact approval for the deletion scope
 
@@ -188,6 +189,7 @@ If uncertain, classify higher inside `manager-workflow`. If the user says “wai
 - For proposal verification, review the proposal itself before implementation scouting, placement hunting, planning, or worker handoff
 - When the user asks to verify, pressure-test, review, argue both sides, research/decide, or “do it if it survives” after this session proposed a plan/diagnosis/workflow, run a proposal-level adversarial gate first
 - Do not proceed from a dependent proposal gate until the parent has inspected outputs and synthesized `PASS`, `FAIL`, or `INCONCLUSIVE`
+- When parent synthesis depends on child findings, inspect actual returned inline text or read every referenced saved artifact before deciding; compact receipts, session directories, and file-only pointers are not evidence
 - Use foreground/wait-and-inspect subagents when the next action or final claim depends on child output; include `async: false` in dependent `subagent` calls because local config may enable async by default
 - Use async only when there is independent work to do; track every async run id and inspect relevant outputs before final claims
 - If a canonical recipe matches the task shape, use it directly with `subagent(...)`; do not wait for slash commands or exact workflow names
