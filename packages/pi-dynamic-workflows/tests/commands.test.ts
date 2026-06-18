@@ -9,6 +9,7 @@ import dynamicWorkflows, {
 	createWorkflowRun,
 	startWorkflowRun,
 } from "../src/index.js";
+import { readAgentViewState } from "../src/agent-view-store.js";
 import type { PlannedWorkflowParams, WorkflowSpec } from "../src/types.js";
 
 interface RegisteredCommand {
@@ -38,6 +39,7 @@ function setup() {
 	const root = tempDir();
 	const packageDir = path.join(root, "package-workflows");
 	const runDir = path.join(root, "runs");
+	const agentViewStorePath = path.join(root, "agent-view.json");
 	fs.mkdirSync(packageDir, { recursive: true });
 	fs.writeFileSync(
 		path.join(packageDir, "demo.workflow.json"),
@@ -106,7 +108,11 @@ function setup() {
 		},
 	};
 
-	dynamicWorkflows(pi as never, { packageWorkflowDir: packageDir, runDir });
+	dynamicWorkflows(pi as never, {
+		packageWorkflowDir: packageDir,
+		runDir,
+		agentViewStorePath,
+	});
 	return {
 		commands,
 		messages,
@@ -115,6 +121,7 @@ function setup() {
 		ctx,
 		root,
 		runDir,
+		agentViewStorePath,
 		inputHandlers,
 	};
 }
@@ -127,6 +134,11 @@ test("registers workflow commands and lists workflows", async () => {
 	assert.ok(commands.has("workflow-export"));
 	assert.ok(commands.has("workflow-cancel"));
 	assert.ok(commands.has("workflow-save"));
+	assert.ok(commands.has("team-create"));
+	assert.ok(commands.has("team-run"));
+	assert.ok(commands.has("team-status"));
+	assert.ok(commands.has("team-send"));
+	assert.ok(commands.has("team-stop"));
 
 	await commands.get("workflows")!.handler("", ctx);
 	assert.match(JSON.stringify(messages.at(-1)), /demo/);
@@ -316,6 +328,98 @@ test("workflow-save copies the run workflow spec without overwriting", async () 
 		message: `Refusing to overwrite existing file: ${target}`,
 		type: "error",
 	});
+});
+
+test("team-create creates a persistent agent team", async () => {
+	const { commands, ctx, agentViewStorePath, notifications } = setup();
+
+	await commands
+		.get("team-create")!
+		.handler("Auth Team -- review=reviewer,tests=scout", ctx);
+
+	const [team] = readAgentViewState(agentViewStorePath).teams;
+	assert.equal(team?.id, "auth-team");
+	assert.deepEqual(
+		team?.members.map((member) => [member.id, member.agent]),
+		[
+			["review", "reviewer"],
+			["tests", "scout"],
+		],
+	);
+	assert.deepEqual(notifications.at(-1), {
+		message: "Created agent team 'auth-team'.",
+		type: "info",
+	});
+});
+
+test("team-run dispatches a persistent team task", async () => {
+	const { commands, events, ctx, agentViewStorePath } = setup();
+	let request:
+		| {
+				requestId?: string;
+				params?: { tasks?: Array<{ agent?: string; task?: string }> };
+		  }
+		| undefined;
+	events.on("subagent:slash:request", (payload) => {
+		request = payload as typeof request;
+		events.emit("subagent:slash:started", { requestId: request?.requestId });
+		events.emit("subagent:slash:response", {
+			requestId: request?.requestId,
+			isError: false,
+			result: { content: [{ type: "text", text: "team result" }] },
+		});
+	});
+
+	await commands.get("team-create")!.handler("Auth Team -- review=reviewer", ctx);
+	await commands.get("team-run")!.handler("auth-team -- audit auth", ctx);
+
+	assert.equal(request?.params?.tasks?.[0]?.agent, "reviewer");
+	assert.match(request?.params?.tasks?.[0]?.task ?? "", /audit auth/);
+	const [task] = readAgentViewState(agentViewStorePath).teams[0]?.tasks ?? [];
+	assert.equal(task?.status, "completed");
+	assert.equal(task?.resultText, "team result");
+});
+
+test("team-status and team-send render team state", async () => {
+	const { commands, ctx, messages } = setup();
+
+	await commands.get("team-create")!.handler("Research Team -- docs=scout", ctx);
+	await commands
+		.get("team-send")!
+		.handler("research-team/docs -- Check primary docs first.", ctx);
+	await commands.get("team-status")!.handler("research-team", ctx);
+
+	assert.match(JSON.stringify(messages.at(-1)), /Research Team/);
+	assert.match(JSON.stringify(messages.at(-1)), /Check primary docs first/);
+});
+
+test("team-stop cancels a running team task", async () => {
+	const { commands, events, ctx, agentViewStorePath } = setup();
+	let cancelled: unknown;
+	events.on("subagent:slash:request", (payload) => {
+		const request = payload as { requestId?: string };
+		events.emit("subagent:slash:started", { requestId: request.requestId });
+	});
+	events.on("subagent:slash:cancel", (payload) => {
+		cancelled = payload;
+		events.emit("subagent:slash:response", {
+			requestId: (payload as { requestId?: string }).requestId,
+			isError: true,
+			errorText: "cancelled",
+		});
+	});
+
+	await commands.get("team-create")!.handler("Cancel Team -- review=reviewer", ctx);
+	const running = commands.get("team-run")!.handler("cancel-team -- long review", ctx);
+	await new Promise((resolve) => setImmediate(resolve));
+	const taskId = readAgentViewState(agentViewStorePath).teams[0]?.tasks[0]?.id;
+	assert.ok(taskId);
+	await commands.get("team-stop")!.handler(`cancel-team/${taskId}`, ctx);
+	await running;
+
+	const task = readAgentViewState(agentViewStorePath).teams[0]?.tasks[0];
+	assert.deepEqual(cancelled, { requestId: task?.requestId });
+	assert.equal(task?.status, "cancelled");
 });
 
 function demoWorkflow(): WorkflowSpec {

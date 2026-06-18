@@ -32,6 +32,17 @@ import {
 	WorkflowRunsComponent,
 	type TuiComponentLike,
 } from "./workflows-tui.js";
+import {
+	appendTeamMessage,
+	createAgentViewTeam,
+	defaultAgentViewStorePath,
+	readAgentViewState,
+} from "./agent-view-store.js";
+import {
+	cancelAgentTeamTask,
+	runAgentTeamTask,
+} from "./agent-team-runner.js";
+import type { AgentTeam } from "./agent-view-store.js";
 import type { WorkflowChainStep, WorkflowSpec } from "./types.js";
 
 interface CommandSpec {
@@ -84,6 +95,7 @@ export interface DynamicWorkflowsOptions {
 	userWorkflowDir?: string;
 	projectWorkflowDir?: string | null;
 	runDir?: string;
+	agentViewStorePath?: string;
 	autoRoute?: WorkflowAutoRouteMode | boolean;
 	defaultWorkflowName?: string;
 }
@@ -137,6 +149,111 @@ function parseRunSaveArgs(
 	const targetPath = args.slice(delimiter + 4).trim();
 	if (!runId || !targetPath) return undefined;
 	return { runId, targetPath };
+}
+
+function parseTeamCreateArgs(
+	args: string,
+):
+	| {
+			name: string;
+			members: Array<{ id: string; agent: string }>;
+	  }
+	| undefined {
+	const delimiter = args.indexOf(" -- ");
+	if (delimiter === -1) return undefined;
+	const name = args.slice(0, delimiter).trim();
+	const memberText = args.slice(delimiter + 4).trim();
+	if (!name || !memberText) return undefined;
+	const members = memberText.split(",").map((entry) => {
+		const memberDelimiter = entry.indexOf("=");
+		return {
+			id: entry.slice(0, memberDelimiter).trim(),
+			agent: entry.slice(memberDelimiter + 1).trim(),
+		};
+	});
+	if (members.some((member) => !member.id || !member.agent)) return undefined;
+	return { name, members };
+}
+
+function parseTeamTaskArgs(
+	args: string,
+): { teamId: string; taskText: string } | undefined {
+	const delimiter = args.indexOf(" -- ");
+	if (delimiter === -1) return undefined;
+	const teamId = args.slice(0, delimiter).trim();
+	const taskText = args.slice(delimiter + 4).trim();
+	if (!teamId || !taskText) return undefined;
+	return { teamId, taskText };
+}
+
+function parseTeamMessageArgs(
+	args: string,
+): { teamId: string; targetId: string; text: string } | undefined {
+	const parsed = parseTeamTaskArgs(args);
+	if (!parsed) return undefined;
+	const [teamId, targetId] = parsed.teamId.split("/");
+	if (!teamId) return undefined;
+	return { teamId, targetId: targetId || "team", text: parsed.taskText };
+}
+
+function parseTeamStopArgs(
+	args: string,
+): { teamId: string; taskId: string } | undefined {
+	const [teamId, taskId] = args.trim().split("/");
+	if (!teamId || !taskId) return undefined;
+	return { teamId, taskId };
+}
+
+function formatTeam(team: AgentTeam): string[] {
+	const memberLines = team.members.length
+		? team.members.map(
+				(member) =>
+					`  - ${member.id}: ${member.agent} (${member.status})`,
+			)
+		: ["  - no members"];
+	const taskLines = team.tasks.length
+		? team.tasks.map(
+				(task) =>
+					`  - ${task.id}: ${task.status} — ${task.text}${task.resultText ? ` — ${task.resultText}` : ""}${task.errorText ? ` — ${task.errorText}` : ""}`,
+			)
+		: ["  - no tasks"];
+	const messageLines = team.messages.length
+		? team.messages
+				.slice(-5)
+				.map((message) => `  - ${message.targetId}: ${message.text}`)
+		: ["  - no messages"];
+	return [
+		`### ${team.name} (${team.id})`,
+		"members:",
+		...memberLines,
+		"tasks:",
+		...taskLines,
+		"messages:",
+		...messageLines,
+	];
+}
+
+function formatTeamStatus(storePath: string, targetId: string): string {
+	const teams = readAgentViewState(storePath).teams;
+	const selected = targetId
+		? teams.filter(
+				(team) =>
+					team.id === targetId || team.tasks.some((task) => task.id === targetId),
+			)
+		: teams;
+	return [
+		"## Agent teams",
+		"",
+		...(selected.length ? selected.flatMap(formatTeam) : ["No agent teams found."]),
+	].join("\n");
+}
+
+function sendDynamicMessage(pi: PiLike, content: string): void {
+	pi.sendMessage?.({
+		customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
+		display: true,
+		content,
+	});
 }
 
 function formatWorkflowList(
@@ -221,6 +338,8 @@ export default function dynamicWorkflows(
 	options: DynamicWorkflowsOptions = {},
 ): void {
 	const runDir = options.runDir ?? defaultRunDir();
+	const agentViewStorePath =
+		options.agentViewStorePath ?? defaultAgentViewStorePath();
 	const load = (ctx: ContextLike) => {
 		const dirs = defaultWorkflowDirs(
 			ctx.cwd,
@@ -481,6 +600,105 @@ export default function dynamicWorkflows(
 			fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 			fs.copyFileSync(workflow.filePath, targetPath);
 			notify(ctx, `Saved workflow '${workflow.name}' to ${targetPath}`);
+		},
+	});
+
+	pi.registerCommand?.("team-create", {
+		description:
+			"Create an agent team: /team-create <name> -- <member>=<agent>[,<member>=<agent>]",
+		handler: (args, ctx) => {
+			const parsed = parseTeamCreateArgs(args);
+			if (!parsed) {
+				notify(
+					ctx,
+					"Usage: /team-create <name> -- <member>=<agent>[,<member>=<agent>]",
+					"error",
+				);
+				return;
+			}
+			try {
+				const team = createAgentViewTeam(agentViewStorePath, parsed);
+				notify(ctx, `Created agent team '${team.id}'.`);
+			} catch (error) {
+				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+			}
+		},
+	});
+
+	pi.registerCommand?.("team-run", {
+		description: "Run an agent team: /team-run <team-id> -- <task>",
+		handler: async (args, ctx) => {
+			const parsed = parseTeamTaskArgs(args);
+			if (!parsed) {
+				notify(ctx, "Usage: /team-run <team-id> -- <task>", "error");
+				return;
+			}
+			const task = await runAgentTeamTask(
+				agentViewStorePath,
+				pi,
+				ctx,
+				parsed.teamId,
+				parsed.taskText,
+			);
+			if (task.status === "failed") {
+				notify(ctx, task.errorText ?? `Team task '${task.id}' failed.`, "error");
+			} else {
+				notify(ctx, `Team task '${task.id}' ${task.status}.`);
+			}
+		},
+	});
+
+	pi.registerCommand?.("team-status", {
+		description: "Show agent team status: /team-status [team-or-task-id]",
+		handler: (args) => {
+			sendDynamicMessage(pi, formatTeamStatus(agentViewStorePath, args.trim()));
+		},
+	});
+
+	pi.registerCommand?.("team-send", {
+		description:
+			"Send a team note: /team-send <team-id>[/member-id] -- <message>",
+		handler: (args, ctx) => {
+			const parsed = parseTeamMessageArgs(args);
+			if (!parsed) {
+				notify(
+					ctx,
+					"Usage: /team-send <team-id>[/member-id] -- <message>",
+					"error",
+				);
+				return;
+			}
+			try {
+				appendTeamMessage(agentViewStorePath, parsed.teamId, {
+					targetId: parsed.targetId,
+					text: parsed.text,
+				});
+				notify(ctx, `Sent team message to '${parsed.targetId}'.`);
+			} catch (error) {
+				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+			}
+		},
+	});
+
+	pi.registerCommand?.("team-stop", {
+		description: "Cancel an agent team task: /team-stop <team-id>/<task-id>",
+		handler: (args, ctx) => {
+			const parsed = parseTeamStopArgs(args);
+			if (!parsed) {
+				notify(ctx, "Usage: /team-stop <team-id>/<task-id>", "error");
+				return;
+			}
+			try {
+				const task = cancelAgentTeamTask(
+					agentViewStorePath,
+					pi,
+					parsed.teamId,
+					parsed.taskId,
+				);
+				notify(ctx, `Cancelled team task '${task.id}'.`);
+			} catch (error) {
+				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+			}
 		},
 	});
 
