@@ -1,7 +1,7 @@
 {
   "name": "pi-dynamic-workflows",
   "version": "0.2.0",
-  "description": "Claude Code-style dynamic workflow orchestration for Pi, backed by pi-subagents.",
+  "description": "Claude Code-style dynamic workflow and agent-team orchestration for Pi, backed by pi-subagents.",
   "type": "module",
   "license": "MIT",
   "author": "tthuwng",
@@ -17,6 +17,7 @@
     "pi-package",
     "pi-extension",
     "dynamic-workflows",
+    "agent-teams",
     "subagents",
     "workflow"
   ],
