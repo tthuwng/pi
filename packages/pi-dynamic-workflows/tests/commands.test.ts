@@ -224,6 +224,48 @@ test("input event leaves routine prompts alone", async () => {
 	assert.deepEqual(result, { action: "continue" });
 });
 
+test("input event auto-routes explicit team prompts when a team exists", async () => {
+	const { commands, inputHandlers, events, ctx, agentViewStorePath } = setup();
+	let request:
+		| {
+				requestId?: string;
+				params?: { tasks?: Array<{ agent?: string; task?: string }> };
+		  }
+		| undefined;
+	events.on("subagent:slash:request", (payload) => {
+		request = payload as typeof request;
+		events.emit("subagent:slash:started", { requestId: request?.requestId });
+		events.emit("subagent:slash:response", {
+			requestId: request?.requestId,
+			isError: false,
+			result: { content: [{ type: "text", text: "team routed" }] },
+		});
+	});
+
+	await commands.get("team-create")!.handler("Audit Team -- review=reviewer", ctx);
+	const result = await inputHandlers[0]?.(
+		{ text: "assemble a team to audit auth", source: "interactive" },
+		ctx,
+	);
+
+	assert.deepEqual(result, { action: "handled" });
+	assert.equal(request?.params?.tasks?.[0]?.agent, "reviewer");
+	const [task] = readAgentViewState(agentViewStorePath).teams[0]?.tasks ?? [];
+	assert.equal(task?.status, "completed");
+	assert.match(task?.text ?? "", /assemble a team to audit auth/);
+});
+
+test("input event does not auto-route team prompts without teams", async () => {
+	const { inputHandlers, ctx } = setup();
+
+	const result = await inputHandlers[0]?.(
+		{ text: "assemble a team to audit auth", source: "interactive" },
+		ctx,
+	);
+
+	assert.deepEqual(result, { action: "continue" });
+});
+
 test("workflow command dispatches planned params through the subagents bridge", async () => {
 	const { commands, events, ctx, runDir } = setup();
 	let request:

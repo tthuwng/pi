@@ -215,6 +215,15 @@ function sendDynamicMessage(pi: PiLike, content: string): void {
 	});
 }
 
+function isExplicitTeamPrompt(text: string): boolean {
+	return (
+		/\b(team|swarm|agents?)\b/i.test(text) &&
+		/\b(assemble|use|run|ask|coordinate|audit|review|research|investigate|analyze)\b/i.test(
+			text,
+		)
+	);
+}
+
 function formatWorkflowList(
 	workflows: WorkflowSpec[],
 	runs: WorkflowRunRecord[],
@@ -382,6 +391,21 @@ export default function dynamicWorkflows(
 		if (typeof event.text !== "string") return { action: "continue" };
 		if (event.source === "extension" || event.text.trim().startsWith("/")) {
 			return { action: "continue" };
+		}
+		if (isExplicitTeamPrompt(event.text)) {
+			const [team] = readAgentViewState(agentViewStorePath).teams;
+			if (!team) return { action: "continue" };
+			const task = await runAgentTeamTask(
+				agentViewStorePath,
+				pi,
+				ctx,
+				team.id,
+				event.text,
+			);
+			if (task.status === "failed") {
+				notify(ctx, task.errorText ?? `Team task '${task.id}' failed.`, "error");
+			}
+			return { action: "handled" };
 		}
 		const result = load(ctx);
 		const route = routeWorkflowPrompt(event.text, result.workflows, {
