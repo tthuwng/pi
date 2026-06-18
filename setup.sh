@@ -10,14 +10,17 @@ if [[ -L "$TARGET" ]]; then
     current=$(readlink "$TARGET")
     if [[ "$current" == "$CONFIG_DIR" ]]; then
         echo "Already linked: $TARGET -> $CONFIG_DIR"
-        exit 0
+    else
+        echo "Updating symlink: $TARGET -> $CONFIG_DIR (was: $current)"
+        rm "$TARGET"
+        ln -s "$CONFIG_DIR" "$TARGET"
     fi
-    echo "Updating symlink: $TARGET -> $CONFIG_DIR (was: $current)"
-    rm "$TARGET"
 elif [[ -d "$TARGET" ]]; then
     echo "WARNING: $TARGET exists as a directory. Back it up and remove it first."
     exit 1
+else
+    ln -s "$CONFIG_DIR" "$TARGET"
+    echo "Linked: $TARGET -> $CONFIG_DIR"
 fi
 
-ln -s "$CONFIG_DIR" "$TARGET"
-echo "Linked: $TARGET -> $CONFIG_DIR"
+npm ci --omit=dev --legacy-peer-deps --audit=false --fund=false --loglevel=error

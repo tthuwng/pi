@@ -21,7 +21,7 @@ done
 node -e 'require("assert")(Number(process.versions.node.split(".")[0]) >= 22)'
 printf 'ok: node >= 22\n'
 
-for file in package.json settings.json mcp.json models.json permissions.json keybindings.json; do
+for file in package.json package-lock.json settings.json mcp.json models.json permissions.json keybindings.json; do
 	check_json "$file"
 done
 
@@ -33,6 +33,22 @@ for path in \
 do
 	[[ -d "$path" ]]
 	printf 'ok: %s\n' "$path"
+done
+
+for module in gray-matter typebox @sinclair/typebox; do
+	node -e 'require.resolve(process.argv[1], { paths: [process.cwd()] })' "$module"
+	printf 'ok: %s\n' "$module"
+done
+
+for file in \
+	node_modules/@mariozechner/pi-ai/dist/index.js \
+	node_modules/@mariozechner/pi-coding-agent/dist/index.js \
+	node_modules/@mariozechner/pi-tui/dist/index.js \
+	node_modules/@aliou/pi-guardrails/src/index.ts \
+	node_modules/@aliou/pi-toolchain/src/index.ts
+do
+	[[ -f "$file" ]]
+	printf 'ok: %s\n' "$file"
 done
 
 [[ -L "$HOME/.pi/agent" ]]

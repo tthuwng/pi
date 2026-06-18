@@ -11,7 +11,7 @@ cd ~/pi
 just doctor
 ```
 
-`setup.sh` links this repo to `~/.pi/agent`. The symlink keeps local package paths simple and makes updates a normal `git pull`.
+`setup.sh` links this repo to `~/.pi/agent` and runs `npm ci` for the pinned local runtime dependencies. The symlink keeps local package paths simple and makes updates a normal `git pull`.
 
 ## Use
 
@@ -40,7 +40,8 @@ AGENTS.md          always-loaded agent policy
 APPEND_SYSTEM.md   local terminal/editor/tooling facts
 settings.json      Pi runtime settings and packages
 mcp.json           MCP servers
-package.json       Pi package manifest for local extensions, skills, and themes
+package.json       Pi package manifest and pinned local runtime dependencies
+package-lock.json  npm lockfile for setup
 agents/            local subagent prompts
 extensions/        small local commands
 skills/            workflow skills
@@ -48,7 +49,7 @@ themes/            terminal themes
 packages/          only patched or unpublished local packages
 ```
 
-Most dependencies are installed from npm through `settings.json`. Local packages stay only when they are patched or unpublished:
+Most packages are installed by Pi from npm through `settings.json`. Dependencies that must match the current Pi `0.73.1` runtime are pinned in `package.json`. Local packages stay only when they are patched or unpublished:
 
 - `packages/pi-subagents`
 - `packages/pi-memory-md`
@@ -68,5 +69,6 @@ pi list
 ```bash
 cd ~/pi
 git pull
+./setup.sh
 just doctor
 ```

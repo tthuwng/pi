@@ -70,8 +70,8 @@
     },
     "npm:pi-web-access",
     "packages/pi-memory-md",
-    "npm:@aliou/pi-guardrails",
-    "npm:@aliou/pi-toolchain",
+    "node_modules/@aliou/pi-guardrails",
+    "node_modules/@aliou/pi-toolchain",
     {
       "source": "npm:pi-ask-user",
       "skills": []

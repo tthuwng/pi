@@ -6,15 +6,12 @@ import {
 	type Context,
 	type Model,
 	type SimpleStreamOptions,
+	streamOpenAICodexResponses,
+	streamSimpleOpenAICodexResponses,
 	type StreamFunction,
 	type StreamOptions,
 	type Transport,
 } from "@mariozechner/pi-ai";
-import {
-	closeOpenAICodexWebSocketSessions,
-	streamOpenAICodexResponses,
-	streamSimpleOpenAICodexResponses,
-} from "@mariozechner/pi-ai/openai-codex-responses";
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BASE_DELAY_MS = 1_000;
@@ -165,7 +162,7 @@ function createRetryingStream(
 	const retryTransport = retryOptions.retryTransport ?? RETRY_TRANSPORT;
 	const streamCodex = retryOptions.streamCodex ?? streamOpenAICodexResponses;
 	const closeWebSocketSessions =
-		retryOptions.closeWebSocketSessions ?? closeOpenAICodexWebSocketSessions;
+		retryOptions.closeWebSocketSessions ?? (() => {});
 
 	void (async () => {
 		let lastError: AssistantMessage | undefined;
