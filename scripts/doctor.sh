@@ -60,6 +60,8 @@ done
 (cd mcp-servers/tree-sitter && node --input-type=module -e 'await import("@modelcontextprotocol/sdk/server/mcp.js"); await import("zod")')
 printf 'ok: tree-sitter MCP dependencies\n'
 
+node scripts/check-mcp.mjs
+
 [[ -L "$HOME/.pi/agent" ]]
 [[ "$(readlink "$HOME/.pi/agent")" == "$root" ]]
 printf 'ok: %s -> %s\n' "$HOME/.pi/agent" "$root"

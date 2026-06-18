@@ -45,6 +45,7 @@ package-lock.json  npm lockfile for setup
 agents/            local subagent prompts
 extensions/        small local commands
 skills/            workflow skills
+chains/            saved multi-agent workflows
 themes/            terminal themes
 packages/          only patched or unpublished local packages
 mcp-servers/       local MCP servers that need npm install
@@ -65,9 +66,41 @@ just doctor
 pi list
 ```
 
+`just doctor` also handshakes every default MCP server and lists its tools.
+
+## MCP
+
+Default MCP servers are local and installable from this repo:
+
+- `tree-sitter` for code navigation
+- `context7` for library docs
+- `context-mode` for context packing
+
+Google Docs, Slack, and Notion are not enabled by default because they need private OAuth files or host-specific binaries. Add them to `mcp.json` only after the credential files and server binary exist on the host.
+
+## Multi-Agent Workflows
+
+This repo enables `pi-subagents` plus local scout, worker, and reviewer agents. Use natural language, or run the default implementation loop directly:
+
+```text
+/run-chain implement-review -- fix the failing MCP startup
+```
+
+Useful shortcuts:
+
+```text
+/parallel-review <task>
+/quality-gate <task>
+/quick-adversarial-check <task>
+```
+
 ## Optional MCP
 
-Notion is not enabled by default because it starts a browser OAuth flow on remote hosts. Add it to `mcp.json` only when you want to authenticate it.
+Keep private MCP setup outside the default config until it is ready:
+
+```bash
+mkdir -p ~/.config/pi/mcp-oauth/google_docs ~/.config/pi/mcp-oauth/slack
+```
 
 ## Update
 
