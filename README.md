@@ -11,7 +11,7 @@ cd ~/pi
 just doctor
 ```
 
-`setup.sh` links this repo to `~/.pi/agent` and runs `npm ci` for the pinned local runtime dependencies. The symlink keeps local package paths simple and makes updates a normal `git pull`.
+`setup.sh` links this repo to `~/.pi/agent` and runs `npm ci` for the pinned local runtime dependencies and local MCP server dependencies. The symlink keeps local package paths simple and makes updates a normal `git pull`.
 
 ## Use
 
@@ -47,6 +47,7 @@ extensions/        small local commands
 skills/            workflow skills
 themes/            terminal themes
 packages/          only patched or unpublished local packages
+mcp-servers/       local MCP servers that need npm install
 ```
 
 Most packages are installed by Pi from npm through `settings.json`. Dependencies that must match the current Pi `0.73.1` runtime are pinned in `package.json`. Local packages stay only when they are patched or unpublished:
@@ -63,6 +64,10 @@ just check
 just doctor
 pi list
 ```
+
+## Optional MCP
+
+Notion is not enabled by default because it starts a browser OAuth flow on remote hosts. Add it to `mcp.json` only when you want to authenticate it.
 
 ## Update
 

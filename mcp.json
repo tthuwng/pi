@@ -9,7 +9,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "exec node \"${PI_AGENT_DIR:-$HOME/.pi/agent}/mcp-servers/tree-sitter/index.mjs\""
+        "agent_dir=\"${PI_CODING_AGENT_DIR:-${PI_AGENT_DIR:-$HOME/.pi/agent}}\"; exec node \"$agent_dir/mcp-servers/tree-sitter/index.mjs\""
       ],
       "directTools": [
         "search_symbols",
@@ -23,10 +23,6 @@
     },
     "context-mode": {
       "command": "context-mode",
-      "lifecycle": "lazy"
-    },
-    "notion": {
-      "url": "https://mcp.notion.com/mcp",
       "lifecycle": "lazy"
     },
     "google_docs": {

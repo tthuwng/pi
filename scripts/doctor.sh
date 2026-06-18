@@ -25,6 +25,10 @@ for file in package.json package-lock.json settings.json mcp.json models.json pe
 	check_json "$file"
 done
 
+for file in mcp-servers/tree-sitter/package.json mcp-servers/tree-sitter/package-lock.json; do
+	check_json "$file"
+done
+
 for path in \
 	packages/pi-subagents \
 	packages/pi-memory-md \
@@ -45,11 +49,16 @@ for file in \
 	node_modules/@mariozechner/pi-coding-agent/dist/index.js \
 	node_modules/@mariozechner/pi-tui/dist/index.js \
 	node_modules/@aliou/pi-guardrails/src/index.ts \
-	node_modules/@aliou/pi-toolchain/src/index.ts
+	node_modules/@aliou/pi-toolchain/src/index.ts \
+	mcp-servers/tree-sitter/node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js \
+	mcp-servers/tree-sitter/node_modules/zod/index.cjs
 do
 	[[ -f "$file" ]]
 	printf 'ok: %s\n' "$file"
 done
+
+(cd mcp-servers/tree-sitter && node --input-type=module -e 'await import("@modelcontextprotocol/sdk/server/mcp.js"); await import("zod")')
+printf 'ok: tree-sitter MCP dependencies\n'
 
 [[ -L "$HOME/.pi/agent" ]]
 [[ "$(readlink "$HOME/.pi/agent")" == "$root" ]]

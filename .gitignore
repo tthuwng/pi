@@ -20,6 +20,7 @@ __pycache__/
 .pytest_cache/
 
 # Pi onboarding/runtime state
+/bin/
 mcp-onboarding.json
 /mcp-oauth
 /intercom

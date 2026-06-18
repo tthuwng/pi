@@ -24,3 +24,4 @@ else
 fi
 
 npm ci --omit=dev --legacy-peer-deps --audit=false --fund=false --loglevel=error
+npm ci --prefix mcp-servers/tree-sitter --omit=dev --audit=false --fund=false --loglevel=error
