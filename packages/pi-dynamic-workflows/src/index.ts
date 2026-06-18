@@ -42,7 +42,10 @@ import {
 	cancelAgentTeamTask,
 	runAgentTeamTask,
 } from "./agent-team-runner.js";
-import type { AgentTeam } from "./agent-view-store.js";
+import {
+	AgentViewComponent,
+	renderAgentViewStatus,
+} from "./agent-view-tui.js";
 import type { WorkflowChainStep, WorkflowSpec } from "./types.js";
 
 interface CommandSpec {
@@ -202,50 +205,6 @@ function parseTeamStopArgs(
 	const [teamId, taskId] = args.trim().split("/");
 	if (!teamId || !taskId) return undefined;
 	return { teamId, taskId };
-}
-
-function formatTeam(team: AgentTeam): string[] {
-	const memberLines = team.members.length
-		? team.members.map(
-				(member) =>
-					`  - ${member.id}: ${member.agent} (${member.status})`,
-			)
-		: ["  - no members"];
-	const taskLines = team.tasks.length
-		? team.tasks.map(
-				(task) =>
-					`  - ${task.id}: ${task.status} — ${task.text}${task.resultText ? ` — ${task.resultText}` : ""}${task.errorText ? ` — ${task.errorText}` : ""}`,
-			)
-		: ["  - no tasks"];
-	const messageLines = team.messages.length
-		? team.messages
-				.slice(-5)
-				.map((message) => `  - ${message.targetId}: ${message.text}`)
-		: ["  - no messages"];
-	return [
-		`### ${team.name} (${team.id})`,
-		"members:",
-		...memberLines,
-		"tasks:",
-		...taskLines,
-		"messages:",
-		...messageLines,
-	];
-}
-
-function formatTeamStatus(storePath: string, targetId: string): string {
-	const teams = readAgentViewState(storePath).teams;
-	const selected = targetId
-		? teams.filter(
-				(team) =>
-					team.id === targetId || team.tasks.some((task) => task.id === targetId),
-			)
-		: teams;
-	return [
-		"## Agent teams",
-		"",
-		...(selected.length ? selected.flatMap(formatTeam) : ["No agent teams found."]),
-	].join("\n");
 }
 
 function sendDynamicMessage(pi: PiLike, content: string): void {
@@ -651,7 +610,25 @@ export default function dynamicWorkflows(
 	pi.registerCommand?.("team-status", {
 		description: "Show agent team status: /team-status [team-or-task-id]",
 		handler: (args) => {
-			sendDynamicMessage(pi, formatTeamStatus(agentViewStorePath, args.trim()));
+			sendDynamicMessage(
+				pi,
+				renderAgentViewStatus(readAgentViewState(agentViewStorePath), args.trim()),
+			);
+		},
+	});
+
+	pi.registerCommand?.("agents", {
+		description: "Open the agent-view dashboard.",
+		handler: (args, ctx) => {
+			const state = readAgentViewState(agentViewStorePath);
+			const targetId = args.trim();
+			if (ctx.ui?.custom) {
+				ctx.ui.custom(() => new AgentViewComponent(state, targetId), {
+					overlay: true,
+				});
+			} else {
+				sendDynamicMessage(pi, renderAgentViewStatus(state, targetId));
+			}
 		},
 	});
 

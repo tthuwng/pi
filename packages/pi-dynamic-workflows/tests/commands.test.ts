@@ -139,6 +139,7 @@ test("registers workflow commands and lists workflows", async () => {
 	assert.ok(commands.has("team-status"));
 	assert.ok(commands.has("team-send"));
 	assert.ok(commands.has("team-stop"));
+	assert.ok(commands.has("agents"));
 
 	await commands.get("workflows")!.handler("", ctx);
 	assert.match(JSON.stringify(messages.at(-1)), /demo/);
@@ -391,6 +392,16 @@ test("team-status and team-send render team state", async () => {
 
 	assert.match(JSON.stringify(messages.at(-1)), /Research Team/);
 	assert.match(JSON.stringify(messages.at(-1)), /Check primary docs first/);
+});
+
+test("agents command renders the agent-view dashboard fallback", async () => {
+	const { commands, ctx, messages } = setup();
+
+	await commands.get("team-create")!.handler("Dashboard Team -- review=reviewer", ctx);
+	await commands.get("agents")!.handler("", ctx);
+
+	assert.match(JSON.stringify(messages.at(-1)), /Dashboard Team/);
+	assert.match(JSON.stringify(messages.at(-1)), /\/team-run dashboard-team -- <task>/);
 });
 
 test("team-stop cancels a running team task", async () => {
