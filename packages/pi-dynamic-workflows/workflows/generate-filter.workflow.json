@@ -1,0 +1,38 @@
+{
+  "name": "generate-filter",
+  "description": "Generate diverse options, then filter and rank the strongest few.",
+  "argumentHint": "<request>",
+  "context": "fresh",
+  "defaultAsync": false,
+  "chain": [
+    {
+      "parallel": [
+        {
+          "agent": "delegate",
+          "task": "Generate practical, low-risk options for this request. Return concrete options only; do not filter yet. Request:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "delegate",
+          "task": "Generate ambitious/high-upside options for this request. Return concrete options only; do not filter yet. Request:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "delegate",
+          "task": "Generate minimal/simplifying options for this request. Return concrete options only; do not filter yet. Request:\n\n{task}",
+          "output": false,
+          "progress": false
+        }
+      ],
+      "concurrency": 3
+    },
+    {
+      "agent": "reviewer",
+      "task": "Filter the generated options. Dedupe aggressively, reject weak or duplicate ideas, rank the strongest few, include tradeoffs and the next validation step. Do not edit.\n\nRequest:\n{task}\n\nGenerated options:\n{previous}",
+      "output": false,
+      "progress": false
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "deep-research",
+  "description": "Fan out research, cross-check claims, and synthesize a sourced report.",
+  "argumentHint": "<question>",
+  "context": "fresh",
+  "defaultAsync": false,
+  "chain": [
+    {
+      "parallel": [
+        {
+          "agent": "researcher",
+          "task": "Research official/current primary sources for this question. Return citations, confidence, and gaps. Question:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "researcher",
+          "task": "Research independent explanations, source-code evidence, issue threads, or counterarguments for this question. Return citations, confidence, and disagreements. Question:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "reviewer",
+          "task": "Adversarially identify what evidence would be needed to answer this question reliably and what claims are likely to be overconfident. Do not edit. Question:\n\n{task}",
+          "output": false,
+          "progress": false
+        }
+      ],
+      "concurrency": 3
+    },
+    {
+      "agent": "reviewer",
+      "task": "Cross-check the research findings below. Reject unsupported claims, identify contradictions, and list the claims that survived with source requirements.\n\n{previous}",
+      "output": false,
+      "progress": false
+    },
+    {
+      "agent": "researcher",
+      "task": "Write a concise final report answering the original question. Use only claims that survived cross-checking. Include citations and confidence labels.\n\nOriginal question:\n{task}\n\nCross-checked findings:\n{previous}",
+      "output": false,
+      "progress": false
+    }
+  ]
+}

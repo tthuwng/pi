@@ -1,0 +1,38 @@
+{
+  "name": "quality-gate",
+  "description": "Run fresh adversarial reviewers and reduce to PASS, FAIL, or INCONCLUSIVE.",
+  "argumentHint": "<target>",
+  "context": "fresh",
+  "defaultAsync": false,
+  "chain": [
+    {
+      "parallel": [
+        {
+          "agent": "reviewer",
+          "task": "Quality gate angle: attack correctness, requirements fit, regressions, and edge cases. Do not edit. Target:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "reviewer",
+          "task": "Quality gate angle: attack evidence, tests, verification, and approval boundaries. Do not edit. Target:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "reviewer",
+          "task": "Quality gate angle: attack simplicity, scope control, maintainability, and operational risk. Do not edit. Target:\n\n{task}",
+          "output": false,
+          "progress": false
+        }
+      ],
+      "concurrency": 3
+    },
+    {
+      "agent": "reviewer",
+      "task": "Reduce these quality-gate findings into one verdict: PASS, FAIL, or INCONCLUSIVE. Deduplicate, rank blockers, cite evidence, and state what must happen next.\n\nTarget:\n{task}\n\nFindings:\n{previous}",
+      "output": false,
+      "progress": false
+    }
+  ]
+}

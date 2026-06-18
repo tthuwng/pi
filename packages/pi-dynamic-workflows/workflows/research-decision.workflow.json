@@ -1,0 +1,38 @@
+{
+  "name": "research-decision",
+  "description": "Gather external evidence, local context, and adversarial tradeoff review for a decision.",
+  "argumentHint": "<decision>",
+  "context": "fresh",
+  "defaultAsync": false,
+  "chain": [
+    {
+      "parallel": [
+        {
+          "agent": "researcher",
+          "task": "Research external/current evidence for this decision. Prefer primary sources. Return citations, confidence, gaps, and implications. Decision:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "scout",
+          "task": "Inspect local repository context for this decision. Return relevant files, constraints, likely affected areas, tests, and risks. Do not edit. Decision:\n\n{task}",
+          "output": false,
+          "progress": false
+        },
+        {
+          "agent": "reviewer",
+          "task": "Adversarially critique this decision. Compare alternatives, hidden costs, migration/rollback risk, validation difficulty, and maintainability. Do not edit. Decision:\n\n{task}",
+          "output": false,
+          "progress": false
+        }
+      ],
+      "concurrency": 3
+    },
+    {
+      "agent": "reviewer",
+      "task": "Synthesize a recommendation from the evidence below. Include recommendation, strongest counterargument, local implications, evidence quality, risks, unknowns, and what would change the decision.\n\nDecision:\n{task}\n\nEvidence:\n{previous}",
+      "output": false,
+      "progress": false
+    }
+  ]
+}
