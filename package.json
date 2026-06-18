@@ -1,0 +1,19 @@
+{
+  "name": "tthuwng-pi-config",
+  "version": "1.0.0",
+  "description": "Personal Pi coding-agent config for kitty, tmux, and Vim.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi", "coding-agent"],
+  "pi": {
+    "extensions": [
+      "./extensions/answer.ts",
+      "./extensions/compact-advisor.ts",
+      "./extensions/continue.ts",
+      "./extensions/copy-code.ts",
+      "./extensions/files.ts"
+    ],
+    "skills": ["./skills"],
+    "themes": ["./themes"]
+  }
+}

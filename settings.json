@@ -59,7 +59,7 @@
     }
   },
   "packages": [
-    "extensions/claude-ui",
+    ".",
     "packages/pi-subagents",
     "npm:pi-mcp-adapter",
     {
@@ -77,7 +77,7 @@
       "skills": []
     },
     {
-      "source": "packages/context-mode",
+      "source": "npm:context-mode",
       "skills": [
         "context-mode",
         "ctx-doctor"
@@ -85,9 +85,9 @@
     },
     "npm:pi-intercom",
     "packages/pi-codex-retry",
-    "packages/pi-slipstream-compact",
+    "npm:pi-slipstream-compact",
     "packages/pi-goal-supervisor",
-    "packages/pisesh",
+    "npm:pisesh",
     "npm:pi-btw"
   ],
   "subagents": {

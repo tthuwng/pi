@@ -21,7 +21,7 @@ done
 node -e 'require("assert")(Number(process.versions.node.split(".")[0]) >= 22)'
 printf 'ok: node >= 22\n'
 
-for file in settings.json mcp.json models.json permissions.json keybindings.json; do
+for file in package.json settings.json mcp.json models.json permissions.json keybindings.json; do
 	check_json "$file"
 done
 
@@ -29,9 +29,7 @@ for path in \
 	packages/pi-subagents \
 	packages/pi-memory-md \
 	packages/pi-goal-supervisor \
-	packages/pi-codex-retry \
-	packages/pisesh \
-	packages/context-mode
+	packages/pi-codex-retry
 do
 	[[ -d "$path" ]]
 	printf 'ok: %s\n' "$path"
