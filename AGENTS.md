@@ -207,8 +207,8 @@ Use pi-memory-md for durable reusable knowledge.
 - Read/search memory before nontrivial debugging, implementation, refactoring, architecture, CI/deploy/ops, benchmarking, workflow, or unfamiliar-repo work
 - Read/search memory again when you feel uncertain, may have forgotten prior context, hit a familiar error, enter an unfamiliar repo, or are about to re-derive a command, root cause, setup step, or runbook
 - Write memory only for durable reusable knowledge: repo runbooks, command flows, root causes, gotchas, environment setup, successful verification, failed approaches, and stable user preferences. Do not write trivial, one-off, sensitive, or raw-log facts
-- Prefer shared memory under `/home/orestes/.pi/memory-md/common` for cross-repo knowledge; use project memory only for narrow repo-local facts
-- `memory_write` is project-scoped; write common-memory files directly with `write` under `/home/orestes/.pi/memory-md/common/core/project/...`
+- Prefer shared memory under `~/.pi/memory-md/common` for cross-repo knowledge; use project memory only for narrow repo-local facts
+- `memory_write` is project-scoped; write common-memory files directly with `write` under `~/.pi/memory-md/common/core/project/...`
 - Search/list before writing; update an existing focused file instead of creating duplicates
 - Store curated runbooks, not raw logs or secrets
 - Keep memory files concise and focused; prefer small, searchable runbooks over long transcripts or mixed-topic dumps. Split unrelated or growing topics into multiple focused memory files when needed

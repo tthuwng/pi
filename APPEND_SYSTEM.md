@@ -1,14 +1,21 @@
 # Environment
 
-## System
+## Terminal Workflow
 
-- Machine: ThinkPad X1 Carbon Gen 13, x86_64, Arch Linux
-- Wayland: sway; use sway config syntax
-- Clipboard: `wl-copy` / `wl-paste`
-  - To copy an exact command: `printf '%s\n' '<command>' | wl-copy`
-- IDE: Neovim
-- Terminal: Foot
-- Package manager: `pacman` / `yay`; not apt/brew
+- Primary workflow: kitty terminal -> tmux -> Vim/shell
+- Terminal: kitty on the user's workstation; this remote shell may report a generic `$TERM`
+- Multiplexer: tmux 3.6a
+  - Prefix: `C-a`
+  - Copy mode: vi keys
+  - Mouse: enabled
+  - History: 100000 lines
+  - Color: tmux config enables `xterm-kitty:RGB` and truecolor overrides
+  - Sessions are durable; prefer named tmux sessions for long-running or interactive work
+- Editor: Vim, not Neovim
+  - Do not assume `nvim`, Neovim sockets, or nvim MCP are available
+  - Use tree-sitter, ast-grep, LSP, and direct file reads for code intelligence
+- Clipboard: do not assume a host clipboard command until verified
+- Package manager: verify the host before installing; do not assume pacman, apt, brew, or yay
 
 ## Stack
 
@@ -16,7 +23,6 @@
 - TypeScript: `pnpm`, `vtsls`, `eslint`, `prettier`
 - Bash: `shellcheck`
 - Containers: `docker`, `docker-compose`, `docker-buildx`
-- Database: local PostgreSQL is installed
 - Node: `nvm` + `pnpm`
 - User version-control workflow: stacked PRs are user-run
 - Cloud: `aws-cli` for S3, ECS, Secrets Manager, CloudFormation, logs
@@ -36,6 +42,7 @@
 | YAML/JSON                  | `yq` / targeted scripts | manual parsing                        |
 | Benchmarks                 | `hyperfine`             | ad hoc `time`                         |
 | Disk usage                 | `dua`                   | raw `du`                              |
+| Terminal orchestration     | named `tmux` sessions   | detached mystery processes            |
 | GitHub                     | `gh`                    | web UI                                |
 | Structural git impact      | `gitnexus` / `sem`      | line diff only when structure matters |
 

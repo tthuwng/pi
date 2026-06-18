@@ -2,6 +2,8 @@
 
 Personal Pi coding-agent configuration. Always-loaded policy starts in `AGENTS.md`; subagent role behavior is also defined in `agents/`. Runtime behavior comes from `settings.json`, `mcp.json`, enabled packages, and auto-discovered local `extensions/`. Host-specific facts are in `APPEND_SYSTEM.md` where possible.
 
+The active workflow target is kitty + tmux + Vim. Neovim-specific integrations are not enabled by default.
+
 This fork adds a small local parity note and doctor script:
 
 - `PARITY.md`: Codex and Claude Code parity map
@@ -72,7 +74,6 @@ pi/
 | -------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `tree-sitter`  | direct/keep-alive | Symbols, definitions, patterns, codebase maps                                                                                   |
 | `context7`     | lazy              | Library/framework docs                                                                                                          |
-| `nvim`         | lazy              | Editor buffers, cursor, selections, diagnostics                                                                                 |
 | `context-mode` | lazy              | Large-output analysis/indexing                                                                                                  |
 | `notion`       | lazy remote OAuth | Notion access; external/private MCP policy in `AGENTS.md`                                                                       |
 | `google_docs`  | lazy local OAuth  | Sources `mcp-oauth/google_docs/env.sh`; runs `npx -y @a-bonus/google-docs-mcp@1.10.0`; covers Docs and Drive-capable operations |
@@ -89,6 +90,7 @@ Prerequisites:
 - Pi coding agent
 - Node.js 22+ / npm for npm packages and local MCP servers
 - `uv` / `uvx` for Python-based tools
+- `tmux` and `vim` for the local terminal/editor workflow
 - `context7-mcp` on `PATH` for docs lookup
 - `ast-grep` on `PATH` for the local tree-sitter MCP pattern tools
 

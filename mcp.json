@@ -5,11 +5,6 @@
       "args": [],
       "lifecycle": "lazy"
     },
-    "nvim": {
-      "command": "uvx",
-      "args": ["nvim-mcp"],
-      "lifecycle": "lazy"
-    },
     "tree-sitter": {
       "command": "bash",
       "args": [

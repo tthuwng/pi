@@ -1,6 +1,6 @@
 # Pi Parity Setup
 
-This fork uses `OrestesK/pi` as the base config and keeps the added surface small.
+This repo is an independent Pi config tuned for a kitty + tmux + Vim workflow.
 
 ## Installed Local Tools
 
@@ -10,6 +10,8 @@ This fork uses `OrestesK/pi` as the base config and keeps the added surface smal
 | Node.js 22+ / `npm` | Pi package runtime and global package manager |
 | `bun` | Pi extension/package runtime used by comparison examples |
 | `just` | Small task runner for setup/check recipes |
+| `tmux` | Long-running sessions, TUI probes, and pane-oriented work |
+| `vim` | Local editor workflow |
 | `uv` / `uvx` | Python tool runner for MCP helpers |
 | `context7-mcp` | Library and framework docs MCP |
 | `ast-grep` | Structural code search used by Pi Lens and tree-sitter workflows |

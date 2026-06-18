@@ -14,7 +14,7 @@ check_json() {
 	printf 'ok: %s\n' "$1"
 }
 
-for cmd in pi node npm bun uv uvx context7-mcp ast-grep just shellcheck; do
+for cmd in pi node npm bun uv uvx context7-mcp ast-grep just shellcheck tmux vim; do
 	need_command "$cmd"
 done
 

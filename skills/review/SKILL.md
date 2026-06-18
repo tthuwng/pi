@@ -114,7 +114,7 @@ Do not use filler such as “great catch,” “good point,” or “you're abso
 
 ## Delegated Reviewer Subagents
 
-When dispatching a reviewer subagent, treat `/home/orestes/.pi/agent/agents/reviewer.md` as the authoritative child contract. The reviewer agent does not inherit this skill by default, so standards that must apply inside delegated reviews must exist in the reviewer agent prompt or be included explicitly in the subagent task.
+When dispatching a reviewer subagent, treat `~/.pi/agent/agents/reviewer.md` as the authoritative child contract. The reviewer agent does not inherit this skill by default, so standards that must apply inside delegated reviews must exist in the reviewer agent prompt or be included explicitly in the subagent task.
 
 Use delegated reviewers for independent inspection of diffs, plans, proposed solutions, or implementation results. Prefer fresh context for adversarial code review unless inherited session history is necessary.
 
