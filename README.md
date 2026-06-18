@@ -2,6 +2,12 @@
 
 Personal Pi coding-agent configuration. Always-loaded policy starts in `AGENTS.md`; subagent role behavior is also defined in `agents/`. Runtime behavior comes from `settings.json`, `mcp.json`, enabled packages, and auto-discovered local `extensions/`. Host-specific facts are in `APPEND_SYSTEM.md` where possible.
 
+This fork adds a small local parity note and doctor script:
+
+- `PARITY.md`: Codex and Claude Code parity map
+- `just setup`: link this checkout to `~/.pi/agent`
+- `just doctor`: verify required tools, JSON config, local packages, and the symlink
+
 ## File map
 
 ```text
@@ -81,7 +87,7 @@ Slack scope minimization depends on the patched local Slack server. Prefer `SLAC
 Prerequisites:
 
 - Pi coding agent
-- Node.js/npm for npm packages and local MCP servers
+- Node.js 22+ / npm for npm packages and local MCP servers
 - `uv` / `uvx` for Python-based tools
 - `context7-mcp` on `PATH` for docs lookup
 - `ast-grep` on `PATH` for the local tree-sitter MCP pattern tools
