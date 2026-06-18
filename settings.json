@@ -1,7 +1,7 @@
 {
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "xhigh",
   "theme": "gruvbox-custom",
   "quietStartup": true,
   "steeringMode": "all",
@@ -91,7 +91,41 @@
     "npm:pi-btw"
   ],
   "subagents": {
-    "disableBuiltins": false
+    "disableBuiltins": false,
+    "agentOverrides": {
+      "context-builder": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "delegate": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "oracle": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "planner": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "researcher": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "reviewer": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "scout": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      },
+      "worker": {
+        "model": "openai-codex/gpt-5.5",
+        "thinking": "xhigh"
+      }
+    }
   },
   "autocompleteMaxVisible": 10,
   "doubleEscapeAction": "tree"

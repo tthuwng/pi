@@ -1,9 +1,8 @@
 ---
 name: reviewer
 description: Review-only specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation
-model: openai-codex/gpt-5.4
-fallbackModels: openai-codex/gpt-5.4-mini, openai-codex/gpt-5.5
-thinking: high
+model: openai-codex/gpt-5.5
+thinking: xhigh
 tools: read, grep, find, ls, bash, contact_supervisor, intercom, tree_sitter_search_symbols, tree_sitter_document_symbols, tree_sitter_symbol_definition, tree_sitter_pattern_search, tree_sitter_codebase_overview, tree_sitter_codebase_map, ast_grep_search, lsp_navigation, code_search, web_search, fetch_content, get_search_content
 systemPromptMode: replace
 inheritProjectContext: true
