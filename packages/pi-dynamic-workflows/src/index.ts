@@ -39,7 +39,7 @@ import {
 	readAgentViewState,
 } from "./agent-view-store.js";
 import { cancelAgentTeamTask, runAgentTeamTask } from "./agent-team-runner.js";
-import { AgentViewComponent, renderAgentViewStatus } from "./agent-view-tui.js";
+import { renderAgentViewStatus } from "./agent-view-tui.js";
 import type { WorkflowChainStep, WorkflowSpec } from "./types.js";
 
 interface CommandSpec {
@@ -653,17 +653,15 @@ export default function dynamicWorkflows(
 	});
 
 	pi.registerCommand?.("agents", {
-		description: "Open the agent-view dashboard.",
-		handler: (args, ctx) => {
-			const state = readAgentViewState(agentViewStorePath);
-			const targetId = args.trim();
-			if (ctx.ui?.custom) {
-				ctx.ui.custom(() => new AgentViewComponent(state, targetId), {
-					overlay: true,
-				});
-			} else {
-				sendDynamicMessage(pi, renderAgentViewStatus(state, targetId));
-			}
+		description: "Show the agent-view dashboard.",
+		handler: (args) => {
+			sendDynamicMessage(
+				pi,
+				renderAgentViewStatus(
+					readAgentViewState(agentViewStorePath),
+					args.trim(),
+				),
+			);
 		},
 	});
 

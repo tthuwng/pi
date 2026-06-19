@@ -27,6 +27,10 @@ interface MockContext {
 	ui: {
 		notify(message: string, type?: string): void;
 		setStatus(key: string, value: string | undefined): void;
+		custom?(
+			factory: () => unknown,
+			options?: { overlay?: boolean },
+		): unknown;
 	};
 }
 
@@ -467,14 +471,19 @@ test("team-status and team-send render team state", async () => {
 	assert.match(JSON.stringify(messages.at(-1)), /Check primary docs first/);
 });
 
-test("agents command renders the agent-view dashboard fallback", async () => {
+test("agents command renders the agent-view dashboard without opening a blocking overlay", async () => {
 	const { commands, ctx, messages } = setup();
+	let customCalls = 0;
+	ctx.ui.custom = () => {
+		customCalls += 1;
+	};
 
 	await commands
 		.get("team-create")!
 		.handler("Dashboard Team -- review=reviewer", ctx);
 	await commands.get("agents")!.handler("", ctx);
 
+	assert.equal(customCalls, 0);
 	assert.match(JSON.stringify(messages.at(-1)), /Dashboard Team/);
 	assert.match(
 		JSON.stringify(messages.at(-1)),
