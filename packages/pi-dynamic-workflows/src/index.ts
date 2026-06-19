@@ -27,11 +27,7 @@ import {
 	workflowPhases,
 } from "./run-registry.js";
 import type { WorkflowRunRecord, WorkflowRunUpdate } from "./run-registry.js";
-import {
-	renderWorkflowProgress,
-	WorkflowRunsComponent,
-	type TuiComponentLike,
-} from "./workflows-tui.js";
+import { renderWorkflowProgress } from "./workflows-tui.js";
 import {
 	appendTeamMessage,
 	createAgentViewTeam,
@@ -74,10 +70,6 @@ interface ContextLike {
 	ui?: {
 		notify?(message: string, type?: "info" | "warning" | "error"): void;
 		setStatus?(key: string, value: string | undefined): void;
-		custom?(
-			factory: () => TuiComponentLike,
-			options?: { overlay?: boolean },
-		): unknown;
 	};
 }
 
@@ -423,18 +415,11 @@ export default function dynamicWorkflows(
 		description: "List pi-dynamic-workflows workflows and recent runs.",
 		handler: async (_args, ctx) => {
 			const result = load(ctx);
-			const runs = listWorkflowRuns(runDir);
-			if (ctx.ui?.custom) {
-				ctx.ui.custom(() => new WorkflowRunsComponent(result.workflows, runs), {
-					overlay: true,
-				});
-			} else {
-				pi.sendMessage?.({
-					customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
-					display: true,
-					content: formatWorkflowList(result.workflows, runs),
-				});
-			}
+			pi.sendMessage?.({
+				customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
+				display: true,
+				content: formatWorkflowList(result.workflows, listWorkflowRuns(runDir)),
+			});
 			for (const diagnostic of result.diagnostics) {
 				notify(ctx, `${diagnostic.filePath}: ${diagnostic.error}`, "warning");
 			}

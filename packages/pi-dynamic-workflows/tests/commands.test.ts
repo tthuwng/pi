@@ -27,10 +27,7 @@ interface MockContext {
 	ui: {
 		notify(message: string, type?: string): void;
 		setStatus(key: string, value: string | undefined): void;
-		custom?(
-			factory: () => unknown,
-			options?: { overlay?: boolean },
-		): unknown;
+		custom?(factory: () => unknown, options?: { overlay?: boolean }): unknown;
 	};
 }
 
@@ -131,8 +128,12 @@ function setup() {
 	};
 }
 
-test("registers workflow commands and lists workflows", async () => {
+test("registers workflow commands and lists workflows without opening a blocking overlay", async () => {
 	const { commands, messages, ctx } = setup();
+	let customCalls = 0;
+	ctx.ui.custom = () => {
+		customCalls += 1;
+	};
 
 	assert.ok(commands.has("workflows"));
 	assert.ok(commands.has("workflow"));
@@ -147,6 +148,8 @@ test("registers workflow commands and lists workflows", async () => {
 	assert.ok(commands.has("agents"));
 
 	await commands.get("workflows")!.handler("", ctx);
+
+	assert.equal(customCalls, 0);
 	assert.match(JSON.stringify(messages.at(-1)), /demo/);
 });
 
