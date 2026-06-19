@@ -13,13 +13,27 @@ Read-only PR and CI inspection:
 
 - `gh pr list`, `gh pr view <number>`
 - `gh pr view --json number,url,headRefName,baseRefName,state`
+- `gh pr view --json number,title,body,files,commits,reviews,comments,checks,url`
 - `gh pr checks --json name,bucket,state,workflow,link`
 - `gh pr checks --watch --fail-fast` when checks are pending
 - `gh run list`, `gh run view <id>`, `gh run view <id> --log-failed`, `gh run watch <id>`
 - `gh api repos/{owner}/{repo}/pulls/{number}/comments` for PR review comments
 - `gh api repos/{owner}/{repo}/issues/{number}/comments` for PR discussion comments
 - `gh issue list`, `gh issue view <number>`
+- `gh issue view <number> --json number,title,body,state,labels,comments,url`
 - `gh api repos/{owner}/{repo}/...` for other read-only API queries
+
+## Read-Only Workflow
+
+For PR or issue review, gather context without mutating GitHub:
+
+1. Resolve the target with `gh pr view` or `gh issue view` and request explicit fields with `--json`.
+2. Fetch comments/review threads only for the named PR or issue.
+3. Inspect local diffs or checked-out files separately; do not assume GitHub metadata proves code behavior.
+4. Use subagent reviewers only for read-only analysis unless the user explicitly authorizes fixes.
+5. Report findings with links/IDs and local file evidence when available.
+
+Do not implement OMP-style `pr://` or `issue://` URI assumptions in prompts. In this repo, GitHub data comes from bounded `gh` commands and explicit API endpoints.
 
 Mutating operations require the user to explicitly ask for that exact action. One requested GitHub mutation does not authorize another. This skill documents command categories; it does not permit any mutation blocked by AGENTS.md or project rules:
 

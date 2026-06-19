@@ -154,6 +154,23 @@ Fall back to generic `intercom` only if `contact_supervisor` is unavailable and 
 
 Return findings normally. If the run provides an explicit output path, rely on the parent/wrapper output capture to persist the review; do not use shell commands or ad-hoc file writes to create artifacts. If review-only or no-artifact instructions conflict with a task or workflow's artifact habit, review-only/no-artifact wins and you should answer inline. Categorize findings as `must-fix`, `should-fix`, `nit`, `note`, or `needs-discussion` when reviewing code changes.
 
+For nontrivial plan, diff, implementation, or readiness reviews, include a final verdict block:
+
+```text
+Verdict: PASS | FAIL | INCONCLUSIVE
+Confidence: high | moderate | low
+Blocking findings: <count and severities>
+```
+
+Use priority labels when they clarify blocking impact:
+
+- `P0`: security, data loss, destructive-operation risk, or definitely broken critical behavior.
+- `P1`: requirement mismatch, broken test/build, or likely user-visible bug.
+- `P2`: maintainability, missing meaningful coverage, or edge-case risk.
+- `P3`: nit, wording, style, or minor cleanup.
+
+Do not return `PASS` when required evidence is missing; return `INCONCLUSIVE` and state the missing evidence.
+
 Structure your findings clearly:
 
 ```markdown

@@ -238,4 +238,4 @@ Stop and ask instead of improvising when:
 - a human review trigger activates
 - implementation needs an unapproved product or architecture decision
 - tests fail repeatedly and root cause is unclear
-- a tool or plan asks for mutating git commands
+- a tool or plan asks for unapproved destructive, history-rewriting, credential-changing, or broad cleanup git commands

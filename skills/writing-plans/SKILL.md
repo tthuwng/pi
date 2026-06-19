@@ -23,7 +23,7 @@ Not allowed:
 
 - Editing source/tests/config while planning.
 - Hiding assumptions.
-- Adding mutating git instructions.
+- Adding unapproved, destructive, or history-rewriting git instructions.
 
 ## Before Planning
 
@@ -46,7 +46,7 @@ Every implementation plan should follow this structure:
 
 **Goal:** <one sentence>
 **Approved design:** <link to design file or compact summary>
-**Constraints:** <no mutating git, project conventions, review triggers>
+**Constraints:** <bounded git policy, project conventions, review triggers>
 **TDD strategy:** <how scenarios map across tasks>
 **Review strategy:** <spec compliance, then code quality where useful>
 
@@ -109,19 +109,20 @@ Use `test-driven-development` terminology:
 
 ## Git Policy
 
-Do not include agent-run commands for:
+Include agent-run git commands only when they are part of the approved scope. Routine in-repo commands such as `git add`, `git commit`, ordinary `git push`, branch creation/switching, and non-destructive branch/stack helper operations such as `gs submit` and `gs sync` are allowed when they directly serve the task.
 
-- `git add`
-- `git commit`
-- `git push`
-- `git checkout`
-- `git reset`
-- `git stash`
-- `git rebase`
-- `git merge`
-- `git worktree`
+Do not include destructive, history-rewriting, credential-changing, or broad cleanup commands unless the user has explicitly approved that exact operation and scope:
 
-If a handoff command is useful, label it as **User-run only** and prefer copying it to the clipboard at completion time, not in the implementation plan.
+- force push
+- branch deletion
+- `git clean`
+- `git reset --hard`
+- dropping/stashing/rebasing/rewriting history
+- changing remotes or credentials
+- mutating global/system git config
+- deleting tags/worktrees/submodules
+
+For any agent-run git mutation, include status/diff inspection, exact staged paths when staging, and the expected command/result in verification or handoff notes.
 
 ## Handoff
 
