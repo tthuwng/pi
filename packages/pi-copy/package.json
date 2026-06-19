@@ -1,0 +1,33 @@
+{
+  "name": "pi-copy",
+  "version": "0.1.0",
+  "description": "Pi extension that bridges remote clipboard image paste commands into the editor.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "clipboard",
+    "image-paste",
+    "ssh"
+  ],
+  "files": [
+    "src/",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "tsc -p tsconfig.test.json && node --test .scratch/test-build/tests/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run typecheck"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

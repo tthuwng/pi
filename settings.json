@@ -88,7 +88,9 @@
     "npm:pi-slipstream-compact",
     "packages/pi-goal-supervisor",
     "npm:pisesh",
-    "npm:pi-btw"
+    "npm:pi-btw",
+    "npm:pi-paster",
+    "packages/pi-copy"
   ],
   "subagents": {
     "disableBuiltins": false,
