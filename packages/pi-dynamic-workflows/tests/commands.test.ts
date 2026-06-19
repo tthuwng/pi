@@ -7,6 +7,7 @@ import test from "node:test";
 import dynamicWorkflows, {
 	attachWorkflowRequest,
 	createWorkflowRun,
+	finishWorkflowRun,
 	startWorkflowRun,
 } from "../src/index.js";
 import { readAgentViewState } from "../src/agent-view-store.js";
@@ -242,7 +243,9 @@ test("input event auto-routes explicit team prompts when a team exists", async (
 		});
 	});
 
-	await commands.get("team-create")!.handler("Audit Team -- review=reviewer", ctx);
+	await commands
+		.get("team-create")!
+		.handler("Audit Team -- review=reviewer", ctx);
 	const result = await inputHandlers[0]?.(
 		{ text: "assemble a team to audit auth", source: "interactive" },
 		ctx,
@@ -358,6 +361,30 @@ test("workflow-cancel emits bridge cancellation and marks the run", async () => 
 	assert.equal(record?.status, "cancelled");
 });
 
+test("workflow-cancel refuses completed runs", async () => {
+	const { commands, events, ctx, runDir, notifications } = setup();
+	const run = makeRunningRun(runDir);
+	attachWorkflowRequest(runDir, run.id, "request-1");
+	finishWorkflowRun(runDir, run.id, {
+		status: "completed",
+		resultText: "done",
+	});
+	let cancelled = false;
+	events.on("subagent:slash:cancel", () => {
+		cancelled = true;
+	});
+
+	await commands.get("workflow-cancel")!.handler(run.id, ctx);
+
+	assert.equal(cancelled, false);
+	assert.deepEqual(notifications.at(-1), {
+		message: `Workflow run '${run.id}' is not running.`,
+		type: "error",
+	});
+	const [record] = readRuns(runDir);
+	assert.equal(record?.status, "completed");
+});
+
 test("workflow-save copies the run workflow spec without overwriting", async () => {
 	const { commands, ctx, root, runDir, notifications } = setup();
 	const run = makeRunningRun(runDir);
@@ -413,7 +440,9 @@ test("team-run dispatches a persistent team task", async () => {
 		});
 	});
 
-	await commands.get("team-create")!.handler("Auth Team -- review=reviewer", ctx);
+	await commands
+		.get("team-create")!
+		.handler("Auth Team -- review=reviewer", ctx);
 	await commands.get("team-run")!.handler("auth-team -- audit auth", ctx);
 
 	assert.equal(request?.params?.tasks?.[0]?.agent, "reviewer");
@@ -426,7 +455,9 @@ test("team-run dispatches a persistent team task", async () => {
 test("team-status and team-send render team state", async () => {
 	const { commands, ctx, messages } = setup();
 
-	await commands.get("team-create")!.handler("Research Team -- docs=scout", ctx);
+	await commands
+		.get("team-create")!
+		.handler("Research Team -- docs=scout", ctx);
 	await commands
 		.get("team-send")!
 		.handler("research-team/docs -- Check primary docs first.", ctx);
@@ -439,11 +470,16 @@ test("team-status and team-send render team state", async () => {
 test("agents command renders the agent-view dashboard fallback", async () => {
 	const { commands, ctx, messages } = setup();
 
-	await commands.get("team-create")!.handler("Dashboard Team -- review=reviewer", ctx);
+	await commands
+		.get("team-create")!
+		.handler("Dashboard Team -- review=reviewer", ctx);
 	await commands.get("agents")!.handler("", ctx);
 
 	assert.match(JSON.stringify(messages.at(-1)), /Dashboard Team/);
-	assert.match(JSON.stringify(messages.at(-1)), /\/team-run dashboard-team -- <task>/);
+	assert.match(
+		JSON.stringify(messages.at(-1)),
+		/\/team-run dashboard-team -- <task>/,
+	);
 });
 
 test("team-stop cancels a running team task", async () => {
@@ -462,8 +498,12 @@ test("team-stop cancels a running team task", async () => {
 		});
 	});
 
-	await commands.get("team-create")!.handler("Cancel Team -- review=reviewer", ctx);
-	const running = commands.get("team-run")!.handler("cancel-team -- long review", ctx);
+	await commands
+		.get("team-create")!
+		.handler("Cancel Team -- review=reviewer", ctx);
+	const running = commands
+		.get("team-run")!
+		.handler("cancel-team -- long review", ctx);
 	await new Promise((resolve) => setImmediate(resolve));
 	const taskId = readAgentViewState(agentViewStorePath).teams[0]?.tasks[0]?.id;
 	assert.ok(taskId);
@@ -503,12 +543,10 @@ function makeRunningRun(runDir: string) {
 }
 
 function readRuns(runDir: string): Array<{ status?: string }> {
-	return fs
-		.readdirSync(runDir)
-		.map(
-			(file) =>
-				JSON.parse(fs.readFileSync(path.join(runDir, file), "utf-8")) as {
-					status?: string;
-				},
-		);
+	return fs.readdirSync(runDir).map(
+		(file) =>
+			JSON.parse(fs.readFileSync(path.join(runDir, file), "utf-8")) as {
+				status?: string;
+			},
+	);
 }

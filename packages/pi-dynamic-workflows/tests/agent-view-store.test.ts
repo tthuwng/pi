@@ -66,6 +66,27 @@ test("agent view store adds and updates team tasks", () => {
 	assert.equal(updated.status, "running");
 	assert.equal(updated.requestId, "request-1");
 	assert.equal(updated.events?.at(-1)?.type, "started");
+	const [member] = readAgentViewState(storePath).teams[0]?.members ?? [];
+	assert.equal(member?.status, "running");
+	assert.equal(member?.lastTaskId, task.id);
+});
+
+test("agent view store does not let older tasks overwrite newer running members", () => {
+	const storePath = tempStorePath();
+	const team = createAgentViewTeam(storePath, {
+		name: "Concurrent Team",
+		members: [{ id: "review", agent: "reviewer" }],
+	});
+	const olderTask = addTeamTask(storePath, team.id, "older review");
+	const newerTask = addTeamTask(storePath, team.id, "newer review");
+
+	updateTeamTask(storePath, team.id, olderTask.id, { status: "running" });
+	updateTeamTask(storePath, team.id, newerTask.id, { status: "running" });
+	updateTeamTask(storePath, team.id, olderTask.id, { status: "completed" });
+
+	const [member] = readAgentViewState(storePath).teams[0]?.members ?? [];
+	assert.equal(member?.status, "running");
+	assert.equal(member?.lastTaskId, newerTask.id);
 });
 
 test("agent view store appends team messages", () => {

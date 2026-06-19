@@ -4,7 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 
-import { createAgentViewTeam, readAgentViewState } from "../src/agent-view-store.js";
+import {
+	createAgentViewTeam,
+	readAgentViewState,
+} from "../src/agent-view-store.js";
 import {
 	cancelAgentTeamTask,
 	runAgentTeamTask,
@@ -172,4 +175,44 @@ test("agent team runner cancels active team tasks", async () => {
 	assert.deepEqual(cancelled, { requestId: cancelledTask.requestId });
 	assert.equal(cancelledTask.status, "cancelled");
 	assert.equal(finished.status, "cancelled");
+});
+
+test("agent team runner refuses to cancel completed team tasks", async () => {
+	const storePath = tempStorePath();
+	const team = createAgentViewTeam(storePath, {
+		name: "Done Team",
+		members: [{ id: "review", agent: "reviewer" }],
+	});
+	const { pi, ctx, events } = setupBridge();
+	let cancelled = false;
+	events.on("subagent:slash:request", (payload) => {
+		const request = payload as { requestId?: string };
+		events.emit("subagent:slash:started", { requestId: request.requestId });
+		events.emit("subagent:slash:response", {
+			requestId: request.requestId,
+			isError: false,
+			result: { content: [{ type: "text", text: "done" }] },
+		});
+	});
+	events.on("subagent:slash:cancel", () => {
+		cancelled = true;
+	});
+
+	const task = await runAgentTeamTask(
+		storePath,
+		pi,
+		ctx,
+		team.id,
+		"quick review",
+	);
+
+	assert.throws(
+		() => cancelAgentTeamTask(storePath, pi, team.id, task.id),
+		/Agent team task is not running/,
+	);
+	assert.equal(cancelled, false);
+	assert.equal(
+		readAgentViewState(storePath).teams[0]?.tasks[0]?.status,
+		"completed",
+	);
 });

@@ -27,6 +27,14 @@ function state(): AgentViewState {
 						status: "running",
 						createdAt: "2026-06-18T00:00:00.000Z",
 						updatedAt: "2026-06-18T00:00:00.000Z",
+						requestId: "request-1",
+						events: [
+							{
+								at: "2026-06-18T00:00:01.000Z",
+								type: "tool",
+								text: "2 tools read",
+							},
+						],
 					},
 				],
 				messages: [
@@ -48,6 +56,8 @@ test("renderAgentViewStatus shows teams, members, tasks, messages, and controls"
 	assert.match(rendered, /Auth Team/);
 	assert.match(rendered, /review: reviewer/);
 	assert.match(rendered, /task-1: running/);
+	assert.match(rendered, /request-1/);
+	assert.match(rendered, /2 tools read/);
 	assert.match(rendered, /Check auth middleware/);
 	assert.match(rendered, /\/team-run auth-team -- <task>/);
 });
@@ -55,7 +65,10 @@ test("renderAgentViewStatus shows teams, members, tasks, messages, and controls"
 test("renderAgentViewStatus can filter by team or task id", () => {
 	assert.match(renderAgentViewStatus(state(), "auth-team"), /Auth Team/);
 	assert.match(renderAgentViewStatus(state(), "task-1"), /Auth Team/);
-	assert.match(renderAgentViewStatus(state(), "missing"), /No matching agent teams found/);
+	assert.match(
+		renderAgentViewStatus(state(), "missing"),
+		/No matching agent teams found/,
+	);
 });
 
 test("AgentViewComponent renders bounded lines", () => {

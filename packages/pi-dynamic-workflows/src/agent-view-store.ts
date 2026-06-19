@@ -147,6 +147,27 @@ function findTask(team: AgentTeam, taskId: string): AgentTeamTask {
 	return task;
 }
 
+function syncMemberTaskStatus(
+	team: AgentTeam,
+	taskId: string,
+	status: AgentTeamTaskStatus,
+): void {
+	if (status === "queued") return;
+	const runningTaskIds = new Set<string>();
+	for (const task of team.tasks) {
+		if (task.id !== taskId && task.status === "running") {
+			runningTaskIds.add(task.id);
+		}
+	}
+	for (const member of team.members) {
+		const memberRunningAnotherTask =
+			member.lastTaskId !== undefined && runningTaskIds.has(member.lastTaskId);
+		if (memberRunningAnotherTask && status !== "running") continue;
+		member.status = status;
+		member.lastTaskId = taskId;
+	}
+}
+
 export function createAgentViewTeam(
 	storePath: string,
 	input: CreateAgentViewTeamInput,
@@ -218,7 +239,10 @@ export function updateTeamTask(
 	const team = findTeam(state, teamId);
 	const task = findTask(team, taskId);
 	const now = timestamp();
-	if (input.status !== undefined) task.status = input.status;
+	if (input.status !== undefined) {
+		task.status = input.status;
+		syncMemberTaskStatus(team, task.id, input.status);
+	}
 	if (input.requestId !== undefined) task.requestId = input.requestId;
 	if (input.resultText !== undefined) task.resultText = input.resultText;
 	if (input.errorText !== undefined) task.errorText = input.errorText;

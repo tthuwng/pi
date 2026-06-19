@@ -1,4 +1,8 @@
-import type { AgentTeam, AgentViewState } from "./agent-view-store.js";
+import type {
+	AgentTeam,
+	AgentTeamTask,
+	AgentViewState,
+} from "./agent-view-store.js";
 import type { TuiComponentLike } from "./workflows-tui.js";
 
 function clipLine(line: string, width: number): string {
@@ -16,18 +20,27 @@ function controls(team: AgentTeam): string[] {
 	];
 }
 
+function taskLine(task: AgentTeamTask): string {
+	const latest = task.events?.at(-1);
+	return [
+		`  - ${task.id}: ${task.status} — ${task.text}`,
+		task.requestId ? `request ${task.requestId}` : "",
+		latest?.text ? `latest ${latest.text}` : "",
+		task.resultText ? `result ${task.resultText}` : "",
+		task.errorText ? `error ${task.errorText}` : "",
+	]
+		.filter(Boolean)
+		.join(" — ");
+}
+
 function teamLines(team: AgentTeam): string[] {
 	const memberLines = team.members.length
 		? team.members.map(
-				(member) =>
-					`  - ${member.id}: ${member.agent} (${member.status})`,
+				(member) => `  - ${member.id}: ${member.agent} (${member.status})`,
 			)
 		: ["  - no members"];
 	const taskLines = team.tasks.length
-		? team.tasks.map(
-				(task) =>
-					`  - ${task.id}: ${task.status} — ${task.text}${task.resultText ? ` — ${task.resultText}` : ""}${task.errorText ? ` — ${task.errorText}` : ""}`,
-			)
+		? team.tasks.map(taskLine)
 		: ["  - no tasks"];
 	const messageLines = team.messages.length
 		? team.messages
@@ -53,7 +66,8 @@ export function renderAgentViewStatus(
 	const selected = targetId
 		? state.teams.filter(
 				(team) =>
-					team.id === targetId || team.tasks.some((task) => task.id === targetId),
+					team.id === targetId ||
+					team.tasks.some((task) => task.id === targetId),
 			)
 		: state.teams;
 	const emptyText = targetId

@@ -38,14 +38,8 @@ import {
 	defaultAgentViewStorePath,
 	readAgentViewState,
 } from "./agent-view-store.js";
-import {
-	cancelAgentTeamTask,
-	runAgentTeamTask,
-} from "./agent-team-runner.js";
-import {
-	AgentViewComponent,
-	renderAgentViewStatus,
-} from "./agent-view-tui.js";
+import { cancelAgentTeamTask, runAgentTeamTask } from "./agent-team-runner.js";
+import { AgentViewComponent, renderAgentViewStatus } from "./agent-view-tui.js";
 import type { WorkflowChainStep, WorkflowSpec } from "./types.js";
 
 interface CommandSpec {
@@ -154,9 +148,7 @@ function parseRunSaveArgs(
 	return { runId, targetPath };
 }
 
-function parseTeamCreateArgs(
-	args: string,
-):
+function parseTeamCreateArgs(args: string):
 	| {
 			name: string;
 			members: Array<{ id: string; agent: string }>;
@@ -403,7 +395,11 @@ export default function dynamicWorkflows(
 				event.text,
 			);
 			if (task.status === "failed") {
-				notify(ctx, task.errorText ?? `Team task '${task.id}' failed.`, "error");
+				notify(
+					ctx,
+					task.errorText ?? `Team task '${task.id}' failed.`,
+					"error",
+				);
 			}
 			return { action: "handled" };
 		}
@@ -526,6 +522,10 @@ export default function dynamicWorkflows(
 				notify(ctx, `Unknown workflow run: ${runId}`, "error");
 				return;
 			}
+			if (run.status !== "running") {
+				notify(ctx, `Workflow run '${runId}' is not running.`, "error");
+				return;
+			}
 			if (!run.requestId) {
 				notify(
 					ctx,
@@ -603,7 +603,11 @@ export default function dynamicWorkflows(
 				const team = createAgentViewTeam(agentViewStorePath, parsed);
 				notify(ctx, `Created agent team '${team.id}'.`);
 			} catch (error) {
-				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
 			}
 		},
 	});
@@ -624,7 +628,11 @@ export default function dynamicWorkflows(
 				parsed.taskText,
 			);
 			if (task.status === "failed") {
-				notify(ctx, task.errorText ?? `Team task '${task.id}' failed.`, "error");
+				notify(
+					ctx,
+					task.errorText ?? `Team task '${task.id}' failed.`,
+					"error",
+				);
 			} else {
 				notify(ctx, `Team task '${task.id}' ${task.status}.`);
 			}
@@ -636,7 +644,10 @@ export default function dynamicWorkflows(
 		handler: (args) => {
 			sendDynamicMessage(
 				pi,
-				renderAgentViewStatus(readAgentViewState(agentViewStorePath), args.trim()),
+				renderAgentViewStatus(
+					readAgentViewState(agentViewStorePath),
+					args.trim(),
+				),
 			);
 		},
 	});
@@ -676,7 +687,11 @@ export default function dynamicWorkflows(
 				});
 				notify(ctx, `Sent team message to '${parsed.targetId}'.`);
 			} catch (error) {
-				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
 			}
 		},
 	});
@@ -698,7 +713,11 @@ export default function dynamicWorkflows(
 				);
 				notify(ctx, `Cancelled team task '${task.id}'.`);
 			} catch (error) {
-				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
 			}
 		},
 	});

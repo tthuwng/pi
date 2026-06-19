@@ -65,7 +65,11 @@ function responseText(response: BridgeResponseLike): string {
 	);
 }
 
-function teamPrompt(team: AgentTeam, memberId: string, taskText: string): string {
+function teamPrompt(
+	team: AgentTeam,
+	memberId: string,
+	taskText: string,
+): string {
 	return [
 		`You are member \`${memberId}\` of agent team \`${team.name}\`.`,
 		"Complete only your assigned angle and report concise findings.",
@@ -157,7 +161,9 @@ export async function runAgentTeamTask(
 		const textResult = responseText(response);
 		return updateTeamTask(storePath, team.id, task.id, {
 			status: response.isError ? "failed" : "completed",
-			...(response.isError ? { errorText: textResult } : { resultText: textResult }),
+			...(response.isError
+				? { errorText: textResult }
+				: { resultText: textResult }),
 		});
 	} catch (error) {
 		const current = findTask(storePath, team.id, task.id);
@@ -178,6 +184,9 @@ export function cancelAgentTeamTask(
 	taskId: string,
 ): AgentTeamTask {
 	const task = findTask(storePath, teamId, taskId);
+	if (task.status !== "running") {
+		throw new Error(`Agent team task is not running: ${taskId}`);
+	}
 	if (!task.requestId) {
 		throw new Error(`Agent team task has no active request id: ${taskId}`);
 	}
