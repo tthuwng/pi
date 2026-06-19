@@ -161,7 +161,8 @@ Agent-view state is stored under:
 Teams are declarative role groups that launch one `pi-subagents` parallel run
 per team task. The package records team members, queued/running/completed tasks,
 bridge request ids, a bounded live event tail, messages, result/error text, and
-timestamps.
+timestamps. Missing `pi-subagents` bridge detection fails fast after 15 seconds,
+while started workflow/team runs wait up to 30 minutes for real agent results.
 
 Supported controls today:
 

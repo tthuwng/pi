@@ -8,6 +8,9 @@ const RESPONSE_EVENT = "subagent:slash:response";
 const UPDATE_EVENT = "subagent:slash:update";
 const CANCEL_EVENT = "subagent:slash:cancel";
 
+export const DEFAULT_BRIDGE_START_TIMEOUT_MS = 15_000;
+export const DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS = 30 * 60_000;
+
 interface EventBus {
 	on(event: string, handler: (payload: unknown) => void): (() => void) | void;
 	emit(event: string, payload: unknown): void;
@@ -85,6 +88,7 @@ function updateToolStatus(
 
 export interface BridgeDispatchOptions {
 	timeoutMs?: number;
+	startTimeoutMs?: number;
 	onRequest?(requestId: string): void;
 	onUpdate?(payload: unknown): void;
 }
@@ -96,7 +100,8 @@ interface AwaitBridgeInput {
 	workflowName: string;
 	requestId: string;
 	params: unknown;
-	timeoutMs: number;
+	startTimeoutMs: number;
+	responseTimeoutMs: number;
 	onUpdate?: (payload: unknown) => void;
 }
 
@@ -115,20 +120,37 @@ function awaitBridgeResponse(input: AwaitBridgeInput): Promise<BridgeResponse> {
 		const finish = (next: () => void): void => {
 			if (done) return;
 			done = true;
-			clearTimeout(timer);
+			clearTimeout(startTimer);
+			clearTimeout(responseTimer);
 			cleanups.forEach((cleanup) => cleanup());
 			input.ctx.ui?.setStatus?.("dynamic-workflows", undefined);
 			next();
 		};
-		const timer = setTimeout(() => {
-			const message = started
-				? `Dynamic workflow '${input.workflowName}' timed out waiting for subagent response.`
-				: "No pi-subagents bridge responded. Install/enable pi-subagents before running dynamic workflows.";
-			finish(() => reject(new Error(message)));
-		}, input.timeoutMs);
+		const startTimer = setTimeout(() => {
+			if (started) return;
+			finish(() =>
+				reject(
+					new Error(
+						"No pi-subagents bridge responded. Install/enable pi-subagents before running dynamic workflows.",
+					),
+				),
+			);
+		}, input.startTimeoutMs);
+		const responseTimer = setTimeout(() => {
+			finish(() =>
+				reject(
+					new Error(
+						`Dynamic workflow '${input.workflowName}' timed out waiting for subagent response.`,
+					),
+				),
+			);
+		}, input.responseTimeoutMs);
 
 		subscribe(STARTED_EVENT, (payload) => {
-			if (requestIdOf(payload) === input.requestId) started = true;
+			if (requestIdOf(payload) === input.requestId) {
+				started = true;
+				clearTimeout(startTimer);
+			}
 		});
 		subscribe(UPDATE_EVENT, (payload) => {
 			if (requestIdOf(payload) !== input.requestId) return;
@@ -166,6 +188,8 @@ export async function dispatchSubagentWorkflow(
 
 	const dispatchOptions =
 		typeof options === "number" ? { timeoutMs: options } : options;
+	const responseTimeoutMs =
+		dispatchOptions.timeoutMs ?? DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS;
 	const requestId = randomUUID();
 	dispatchOptions.onRequest?.(requestId);
 	ctx.ui?.setStatus?.("dynamic-workflows", `running ${workflowName}...`);
@@ -178,7 +202,9 @@ export async function dispatchSubagentWorkflow(
 		workflowName,
 		requestId,
 		params,
-		timeoutMs: dispatchOptions.timeoutMs ?? 15_000,
+		startTimeoutMs:
+			dispatchOptions.startTimeoutMs ?? DEFAULT_BRIDGE_START_TIMEOUT_MS,
+		responseTimeoutMs,
 		...(dispatchOptions.onUpdate ? { onUpdate: dispatchOptions.onUpdate } : {}),
 	});
 }
