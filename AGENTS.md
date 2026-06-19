@@ -28,12 +28,13 @@ For long or tool-heavy tasks, periodically summarize:
 
 Do not reveal hidden chain-of-thought. Summarize evidence, conclusions, and tool results.
 
-For parent/orchestrator async subagent use:
+For parent/orchestrator async or multi-agent orchestration:
 
-- load/follow `pi-subagents` whenever async delegation materially affects the task; skip only when no subagent workflow is involved
+- prefer `pi-dynamic-workflows` for named, reusable, or inspectable orchestration: deep research, quality gates, research decisions, generate/filter fan-in, broad reviews, proposal verification, and agent-team coordination
+- rely on `pi-subagents` as the execution backend and as a direct fallback only when no dynamic workflow/team route fits the current runtime
 - prefer event-based progress over polling
-- track every async run id
-- inspect relevant async outputs before final claims
+- track every async workflow/subagent run id
+- inspect relevant workflow/subagent outputs before final claims
 - do not finish while relevant async work is unresolved unless explicitly reporting it as pending
 
 ## Hard safety rules
@@ -55,10 +56,10 @@ For parent/orchestrator async subagent use:
 
 ## Git, sudo, and destructive operations
 
-- Allowed git commands: `git log`, `git diff`, `git status`, `git blame`, `git show`
-- Never run mutating git commands or equivalent branch/stack helper mutations: `add`, `commit`, `push`, `checkout`, `reset`, `stash`, `rebase`, `merge`, branch deletion, `clean`, submit/sync/restack, or equivalents
+- Routine git mutations inside the current trusted repo are allowed when they directly serve the approved task: `git add`, `git commit`, ordinary `git push`, branch creation/switching, and non-destructive branch/stack helper operations such as `gs submit` and `gs sync`
+- Before agent-run git mutations, inspect the relevant `git status` and `git diff`; stage only intended paths, use an explicit commit message, and report the command/result
+- Never run destructive, history-rewriting, credential-changing, or broad cleanup git operations unless the user explicitly asks for that exact operation and scope: force push, branch deletion, `git clean`, `git reset --hard`, dropping/stashing/rebasing/rewriting history, changing remotes or credentials, mutating global/system git config, deleting tags/worktrees/submodules, or equivalent branch/stack helper cleanup
 - GitHub PR metadata/comment operations through `gh` are allowed only when explicitly requested; never merge/close/reopen/label/assign/request reviewers/change bases/push refs unless the user asks for that exact action
-- If a blocked git mutation is needed, copy the exact command to the clipboard and say it was copied
 - Never run `sudo` directly unless explicitly authorized. Copy exact sudo commands to the clipboard instead
 - Do not run destructive filesystem/data/cloud operations without exact approval for that scope
 
@@ -106,6 +107,7 @@ This default applies to local, repo-scoped, read-only tools. It never overrides 
 ### Docs and web
 
 - Use context7 for library/framework docs; do not rely on training data for library specifics
+- For Claude Code documentation questions, fetch `https://code.claude.com/docs/llms.txt` first and use that documentation index to discover available pages before exploring further
 - Use web/content search for non-library current research
 - Use code search or web search whenever examples, ecosystem usage, or current external behavior would materially improve confidence; sanitize queries and do not send proprietary code, logs, secrets, or internal IDs unless the user asked or local evidence is insufficient and the query can be sanitized
 
@@ -159,7 +161,7 @@ Use the smallest workflow that preserves quality.
 | Approved work that needs a plan file                   | `writing-plans`                                                                 |
 | New behavior or logic change                           | `test-driven-development`; choose a TDD scenario                                |
 | Bug, failure, crash, flaky behavior, unexpected output | `systematic-debugging` first; use TDD for the fix after root cause is supported |
-| Code/spec/plan/review feedback                         | `review`; for nontrivial review, use fresh reviewer subagents by default        |
+| Code/spec/plan/review feedback                         | `review`; for nontrivial review, prefer `pi-dynamic-workflows` quality-gate/team routes before direct subagents |
 | Final done/fixed/passing/ready claim                   | `verification-before-completion`                                                |
 | GitHub PR/CI/issues                                    | `github`; for iterative PR fixes use `iterate-pr`                               |
 | Session JSONL analysis                                 | `session-reader`                                                                |
@@ -172,16 +174,18 @@ Use the smallest workflow that preserves quality.
 
 If uncertain, classify higher inside `manager-workflow`. If the user says “wait”, “hold on”, or “let’s talk”, pause and clarify.
 
-## Subagents
+## Dynamic workflows and subagents
 
-- Use natural-language routing; the user does not need slash commands
-- When launching subagents, pass explicit task-critical context in the dispatch prompt; do not rely on inherited or forked context. Keep detailed dispatch-packet protocol in `packages/pi-subagents/skills/pi-subagents/SKILL.md` and match task prose with runtime flags
-- Use `scout` for read-only recon, `worker` for one focused implementation task, `reviewer` for evidence-backed review
+- Prefer `pi-dynamic-workflows` for multi-agent orchestration when the work matches a named or reusable pattern: deep research, quality gates, research decisions, generate/filter fan-in, broad reviews, proposal verification, or agent-team coordination
+- Let the installed `pi-dynamic-workflows` input router handle explicit workflow/team language before the main agent. In Pi TUI sessions, prefer `/workflow`, `/workflows`, `/agents`, and `/team-*` command guidance over manually assembling subagent swarms
+- Use direct `subagent(...)` only for one-off narrow delegation, one focused worker handoff, dynamic-workflow backend/fallback behavior, or when no workflow/team command can express the needed shape in the current runtime
+- When launching direct subagents, pass explicit task-critical context in the dispatch prompt; do not rely on inherited or forked context. Follow the loaded `pi-subagents` skill and match task prose with runtime flags
+- For direct subagent fallback, use `scout` for read-only recon, `worker` for one focused implementation task, and `reviewer` for evidence-backed review
 - Keep one writer at a time unless isolated worktrees/workspaces are explicitly approved
 - For parallel read-only scouts/reviewers, give distinct angles and `output: false` or unique output paths
 - Workers write summaries/artifacts to `.scratch/`; parent verifies from diffs/output/checks
-- Fresh reviewers are the default quality pressure for nontrivial planning, debugging, implementation, refactor, architecture, benchmark, config, or final readiness
-- Use sectioned swarms when multiple independent concerns or stakes/uncertainty justify independent review; detailed routing lives in `packages/pi-subagents/skills/pi-subagents/SKILL.md`
+- Fresh reviewers are still required quality pressure for nontrivial planning, debugging, implementation, refactor, architecture, benchmark, config, or final readiness; prefer workflow/team routes for that review pressure when available
+- Use sectioned swarms when multiple independent concerns or stakes/uncertainty justify independent review; detailed routing lives in the loaded `pi-subagents` skill
 - Do not swarm ordinary factual questions, tiny lookups, one narrow parent-verifiable check, one bounded review concern, or pure user-intent clarification
 - Parent may launch read-only second targeted swarms without asking only for a named new evidence angle from the first pass
 - Read-only/advisory swarms do not grant write authority; child tasks inherit no-edit/no-artifact/no-live constraints and normal approval gates
@@ -192,9 +196,9 @@ If uncertain, classify higher inside `manager-workflow`. If the user says “wai
 - When parent synthesis depends on child findings, inspect actual returned inline text or read every referenced saved artifact before deciding; compact receipts, session directories, and file-only pointers are not evidence
 - Use foreground/wait-and-inspect subagents when the next action or final claim depends on child output; include `async: false` in dependent `subagent` calls because local config may enable async by default
 - Use async only when there is independent work to do; track every async run id and inspect relevant outputs before final claims
-- If a canonical recipe matches the task shape, use it directly with `subagent(...)`; do not wait for slash commands or exact workflow names
-- If no canonical recipe matches, design a dynamic runtime chain/swarm before launch: objective, why parent-only is insufficient, distinct child roles, fan-in/reducer need, artifact policy, and stop condition
-- Use runtime `chain` when a later subagent step depends on earlier child output, especially generate/filter, research-decision, debate/attack/synthesis, context-build/handoff, review-matrix-reduce, and scout/context-builder-to-planner flows
+- If a bundled or project dynamic workflow matches the task shape, prefer that workflow route; do not bypass it with a direct `subagent(...)` swarm just because a subagent recipe exists
+- If no workflow/team route matches and direct delegation is still necessary, design a dynamic runtime chain/swarm before launch: objective, why parent-only is insufficient, distinct child roles, fan-in/reducer need, artifact policy, and stop condition
+- Use runtime `chain` as direct subagent fallback when a later subagent step depends on earlier child output, especially generate/filter, research-decision, debate/attack/synthesis, context-build/handoff, review-matrix-reduce, and scout/context-builder-to-planner flows
 - Do not run scout-only or generator-only fanout for option generation; use generate/filter fan-in, and treat the route as incomplete until a reducer/filter sees the concrete generated outputs
 - 8-10 review agents are valid for broad reviews when roles are distinct or chained through validators/reducers; use `review-matrix-reduce` rather than duplicate vague reviewers
 - Prefer a single targeted advisory child over fake swarms when there is only one material evidence angle; reserve parallel swarms for 2+ distinct concerns
@@ -227,7 +231,7 @@ Rules:
 
 - Update metadata in the same edit whenever directly touching a memory file
 - Keep frontmatter valid YAML/JSON-serializable data; prefer JSON-object frontmatter for rich metadata
-- Quote strings containing `: `, brackets, braces, backticks, or shell commands
+- Quote strings containing `:`, brackets, braces, backticks, or shell commands
 - `description` must name the repo/system plus symptom/workflow/value
 - `tags` must include future search terms plus mirrors like `category-*`, `status-*`, `priority-*`
 - `staleness_risk` must explain what could make the memory wrong

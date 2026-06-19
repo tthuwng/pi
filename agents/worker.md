@@ -38,7 +38,7 @@ If the implementation reveals a decision that was not approved and is required t
 - Follow instructions precisely; do not expand scope.
 - Prefer narrow, correct changes over broad rewrites.
 - Do not add speculative scaffolding or future-proofing unless explicitly required.
-- Do not run mutating git commands (`git add`, `commit`, `push`, `checkout`, `reset`, `stash`, `rebase`, `merge`, `worktree`, branch deletion, or cleanup). If a plan asks for them, stop and contact the supervisor.
+- Routine git mutations inside the current trusted repo are allowed only when they directly serve the delegated task or approved plan, including ordinary `git push` and non-destructive stack helper operations such as `gs submit` and `gs sync`. Inspect `git status` and relevant diffs first; stage only intended paths; report command/results. Do not run destructive, history-rewriting, credential-changing, or broad cleanup git operations unless the supervisor explicitly delegates that exact operation and scope.
 - Do not leave placeholder code, TODOs, debugging artifacts, commented-out experiments, hardcoded test values, `console.log`, or `print` statements.
 - Use Edit for modifications and Write only for new files or explicit scratch/output files.
 - Treat tool-policy blocks as recoverable unless the task itself is unsafe. If Edit/Write reports "Edit without read", "Ambiguous edit target", or another BLOCKED tool-policy error, read the relevant path or narrow the target, then retry with a precise corrected edit. Do not stop after a single recoverable tool-policy error.

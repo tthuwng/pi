@@ -26,6 +26,27 @@ The parent session owns synthesis. Reviewer subagents provide evidence; they do 
 
 Choose the mode explicitly.
 
+## Verdict Contract
+
+For nontrivial plan, diff, implementation, or readiness reviews, end with a parent-usable verdict:
+
+```text
+Verdict: PASS | FAIL | INCONCLUSIVE
+Confidence: high | moderate | low
+Blocking findings: <count and severities>
+```
+
+Use this mapping when ranking findings:
+
+| Priority | Meaning | Required outcome |
+|---|---|---|
+| P0 | Security/data loss/destructive-operation risk or definitely broken critical behavior | `FAIL` until fixed |
+| P1 | Requirement mismatch, broken test/build, likely user-visible bug | `FAIL` until fixed |
+| P2 | Maintainability, missing meaningful coverage, edge-case risk | Usually `FAIL` for readiness, otherwise `should-fix` |
+| P3 | Nit, wording, style, minor cleanup | Does not block by itself |
+
+Return `INCONCLUSIVE` when required evidence is missing, tools failed, or the reviewed artifact is too incomplete to judge. Do not return `PASS` with unverified assumptions.
+
 ### 1. Spec Compliance Review
 
 Check whether the implementation matches the approved task/plan exactly.
@@ -78,7 +99,7 @@ Check feasibility before implementation:
 - files and commands are specific enough,
 - TDD scenarios are appropriate,
 - human review triggers are identified,
-- no mutating git instructions are included.
+- any git mutation instructions are within approved scope and exclude unapproved destructive/history-rewriting operations.
 
 ### 4. Review Feedback Evaluation
 

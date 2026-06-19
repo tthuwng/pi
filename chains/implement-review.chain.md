@@ -32,7 +32,13 @@ Verify the change before reporting.
 output: true
 progress: true
 
-Review the final diff for correctness, scope, simplicity, and verification evidence.
+Review the final diff for correctness, scope, simplicity, and verification evidence. End with:
+
+```text
+Verdict: PASS | FAIL | INCONCLUSIVE
+Confidence: high | moderate | low
+Blocking findings: <count and severities>
+```
 
 Original task:
 

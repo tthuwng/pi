@@ -20,9 +20,12 @@
     "extensions": [
       "./extensions/answer.ts",
       "./extensions/compact-advisor.ts",
+      "./extensions/codemod-preview.ts",
       "./extensions/continue.ts",
       "./extensions/copy-code.ts",
-      "./extensions/files.ts"
+      "./extensions/files.ts",
+      "./extensions/github-issue-autocomplete.ts",
+      "./extensions/openai-service-tier.ts"
     ],
     "skills": ["./skills"],
     "themes": ["./themes"]
