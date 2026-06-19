@@ -18,7 +18,7 @@
       },
       "mkfs",
       {
-        "pattern": "(?:^|[;&|()])\\s*(?:(?:(?:env\\s+(?:(?:-[A-Za-z]+|--[A-Za-z0-9-]+(?:=\\S+)?|\\S+=\\S+)\\s+)*)|(?:command\\s+)))*(?:(?:/usr)?/bin/|/usr/local/bin/)?git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|init|merge|mv|pull|push|rebase|reflog|remote|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\\b",
+        "pattern": "(?:^|[;&|()])\\s*(?:(?:(?:env\\s+(?:(?:-[A-Za-z]+|--[A-Za-z0-9-]+(?:=\\S+)?|\\S+=\\S+)\\s+)*)|(?:command\\s+)))*(?:(?:/usr)?/bin/|/usr/local/bin/)?git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+(?:clean\\b(?=[^;&|()]*\\s(?:-[A-Za-z]*[fF][A-Za-z]*|--force)\\b)|reset\\b(?=[^;&|()]*\\s--hard\\b)|branch\\b(?=[^;&|()]*\\s(?:-D|-d|--delete)\\b)|push\\b(?=[^;&|()]*(?:\\s--delete\\b|\\s:[^\\s;&|()]+)))",
         "regex": true
       },
       {
@@ -26,11 +26,7 @@
         "regex": true
       },
       {
-        "pattern": "(?:^|[;&|()])\\s*(?:(?:(?:env\\s+(?:(?:-[A-Za-z]+|--[A-Za-z0-9-]+(?:=\\S+)?|\\S+=\\S+)\\s+)*)|(?:command\\s+)))*(?:(?:/usr)?/bin/|/usr/local/bin/)?git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+push\\b[^;&|()]*(?:--force|-f)\\b",
-        "regex": true
-      },
-      {
-        "pattern": "(^|[;&|()\\s])gs\\s+(?:(?:upstack|downstack|branch|stack|repo|commit)\\s+)?(?:absorb|amend|checkout|continue|create|delete|onto|rename|rebase|restack|submit|sync)\\b",
+        "pattern": "(?:^|[;&|()])\\s*(?:(?:(?:env\\s+(?:(?:-[A-Za-z]+|--[A-Za-z0-9-]+(?:=\\S+)?|\\S+=\\S+)\\s+)*)|(?:command\\s+)))*(?:(?:/usr)?/bin/|/usr/local/bin/)?git\\b(?:\\s+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\\s+\\S+|(?:--git-dir|--work-tree|--namespace)=\\S+|-[A-Za-z]+|--[A-Za-z0-9-]+))*\\s+push\\b[^;&|()]*(?:--force|-f|\\s\\+[^\\s;&|()]+)\\b",
         "regex": true
       },
       {
