@@ -6,9 +6,14 @@ import test from "node:test";
 
 import {
 	addTeamTask,
+	appendAgentSessionEvent,
 	appendTeamMessage,
+	createAgentSessionRecord,
 	createAgentViewTeam,
+	findAgentSessionRecord,
 	readAgentViewState,
+	reconcileDetachedAgentSessions,
+	updateAgentSessionRecord,
 	updateTeamTask,
 } from "../src/agent-view-store.js";
 
@@ -21,6 +26,18 @@ test("agent view store returns an empty state by default", () => {
 	assert.deepEqual(readAgentViewState(tempStorePath()), {
 		version: 1,
 		teams: [],
+		sessions: [],
+	});
+});
+
+test("agent view store reads older state files with no sessions", () => {
+	const storePath = tempStorePath();
+	fs.writeFileSync(storePath, `${JSON.stringify({ version: 1, teams: [] })}\n`);
+
+	assert.deepEqual(readAgentViewState(storePath), {
+		version: 1,
+		teams: [],
+		sessions: [],
 	});
 });
 
@@ -87,6 +104,110 @@ test("agent view store does not let older tasks overwrite newer running members"
 	const [member] = readAgentViewState(storePath).teams[0]?.members ?? [];
 	assert.equal(member?.status, "running");
 	assert.equal(member?.lastTaskId, newerTask.id);
+});
+
+test("agent view store creates and updates native agent sessions", () => {
+	const storePath = tempStorePath();
+	const session = createAgentSessionRecord(storePath, {
+		title: "Docs research",
+		cwd: "/tmp/repo",
+		agentName: "researcher",
+		sessionId: "pi-session-1",
+		sessionFile: "/tmp/repo/.pi-session.jsonl",
+	});
+
+	assert.match(session.id, /^session-/);
+	assert.equal(session.title, "Docs research");
+	assert.equal(session.cwd, "/tmp/repo");
+	assert.equal(session.status, "queued");
+	assert.equal(session.agentName, "researcher");
+	assert.equal(session.sessionId, "pi-session-1");
+	assert.equal(session.sessionFile, "/tmp/repo/.pi-session.jsonl");
+
+	const updated = updateAgentSessionRecord(storePath, session.id, {
+		status: "running",
+		resultText: "working",
+		event: { type: "started", text: "Session started." },
+	});
+
+	assert.equal(updated.status, "running");
+	assert.equal(updated.resultText, "working");
+	assert.equal(updated.events?.at(-1)?.type, "started");
+	assert.equal(
+		findAgentSessionRecord(readAgentViewState(storePath), session.id)?.id,
+		session.id,
+	);
+});
+
+test("agent view store bounds native agent session event tails", () => {
+	const storePath = tempStorePath();
+	const session = createAgentSessionRecord(storePath, {
+		title: "Long run",
+		cwd: "/tmp/repo",
+	});
+
+	for (let index = 0; index < 55; index += 1) {
+		appendAgentSessionEvent(storePath, session.id, {
+			type: "message",
+			text: `event ${index}`,
+		});
+	}
+
+	const stored = findAgentSessionRecord(
+		readAgentViewState(storePath),
+		session.id,
+	);
+	assert.equal(stored?.events?.length, 50);
+	assert.equal(stored?.events?.[0]?.text, "event 5");
+	assert.equal(stored?.events?.at(-1)?.text, "event 54");
+});
+
+test("agent view store reconciles stale active native sessions to detached", () => {
+	const storePath = tempStorePath();
+	const queued = createAgentSessionRecord(storePath, {
+		title: "Queued",
+		cwd: "/tmp/repo",
+	});
+	const running = createAgentSessionRecord(storePath, {
+		title: "Running",
+		cwd: "/tmp/repo",
+		status: "running",
+	});
+	const completed = createAgentSessionRecord(storePath, {
+		title: "Completed",
+		cwd: "/tmp/repo",
+		status: "completed",
+	});
+
+	reconcileDetachedAgentSessions(storePath);
+
+	const state = readAgentViewState(storePath);
+	assert.equal(findAgentSessionRecord(state, queued.id)?.status, "detached");
+	assert.equal(findAgentSessionRecord(state, running.id)?.status, "detached");
+	assert.equal(
+		findAgentSessionRecord(state, completed.id)?.status,
+		"completed",
+	);
+});
+
+test("agent view store rejects invalid native session ids and statuses", () => {
+	const storePath = tempStorePath();
+	const session = createAgentSessionRecord(storePath, {
+		title: "Safe session",
+		cwd: "/tmp/repo",
+	});
+
+	assert.throws(
+		() => findAgentSessionRecord(readAgentViewState(storePath), "../escape"),
+		/Invalid agent view id/,
+	);
+	assert.throws(
+		() =>
+			updateAgentSessionRecord(storePath, session.id, {
+				status: "unknown" as never,
+			}),
+		/Invalid agent session status/,
+	);
 });
 
 test("agent view store appends team messages", () => {

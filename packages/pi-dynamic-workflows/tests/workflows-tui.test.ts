@@ -70,3 +70,48 @@ test("WorkflowRunsComponent renders bounded lines", () => {
 	assert.ok(lines.every((line) => line.length <= 48));
 	assert.match(lines.join("\n"), /Dynamic workflows/);
 });
+
+test("WorkflowRunsComponent matches Claude-style empty workflow state", () => {
+	const rendered = new WorkflowRunsComponent(workflows, [])
+		.render(80)
+		.join("\n");
+
+	assert.match(rendered, /Dynamic workflows/);
+	assert.match(rendered, /No dynamic workflows in this session\./);
+	assert.doesNotMatch(rendered, /Available workflows/);
+	assert.doesNotMatch(rendered, /quality-gate/);
+	assert.match(rendered, /Esc to close/);
+});
+
+test("WorkflowRunsComponent handles normalized workflow panel keys", () => {
+	let closeCount = 0;
+	let renderCount = 0;
+	const secondRun = {
+		...runs[0]!,
+		id: "22222222-2222-4222-8222-222222222222",
+		args: "second diff",
+	};
+	const component = new WorkflowRunsComponent(workflows, [...runs, secondRun], {
+		onClose: () => {
+			closeCount += 1;
+		},
+		requestRender: () => {
+			renderCount += 1;
+		},
+	});
+
+	component.handleInput("down");
+	assert.match(
+		component.render(100).join("\n"),
+		/❯ quality-gate running — second diff/,
+	);
+	component.handleInput("enter");
+	assert.match(
+		component.render(100).join("\n"),
+		/22222222-2222-4222-8222-222222222222/,
+	);
+	component.handleInput("escape");
+
+	assert.equal(closeCount, 1);
+	assert.equal(renderCount, 2);
+});

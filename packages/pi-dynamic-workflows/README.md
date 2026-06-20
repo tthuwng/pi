@@ -1,20 +1,17 @@
 # pi-dynamic-workflows
 
-Claude Code-style dynamic workflow and agent-team orchestration for Pi,
-packaged separately from `pi-subagents`.
+Claude Code-style dynamic workflow, agent-view, and agent-team orchestration for
+Pi, packaged separately from `pi-subagents`.
 
 `pi-dynamic-workflows` provides named, inspectable, rerunnable workflow specs,
-package-local agent teams, and slash-command UX. It does not reimplement
-child-agent execution. It uses `pi-subagents` as the backend for agents, chains,
-parallel runs, async execution, fork context, worktrees, intercom, and status
-rendering.
+native Pi child agent sessions, package-local agent teams, slash-command UX, and
+focused TUI panels. Workflow and team execution now use Pi `AgentSession`
+runtimes directly; `pi-subagents` is not the default execution backend for
+`/workflow`, `/agents`, or `/team-run`.
 
 ## Install
 
-Install the backend first, then this package:
-
 ```bash
-pi install npm:pi-subagents
 pi install git:github.com/tthuwng/pi-dynamic-workflows
 ```
 
@@ -31,6 +28,10 @@ Pi `packages` list.
 /workflow-save <run-id> -- .pi/workflows/saved.workflow.json
 /workflow-export quality-gate -- .pi/workflows/quality-gate.workflow.json
 /agents
+/agent-start -- Investigate the flaky checkout test
+/agent-reply <session-id> -- Continue with auth handlers
+/agent-stop <session-id>
+/agent-status [session-id]
 /team-create Auth Team -- review=reviewer,tests=scout
 /team-run auth-team -- Audit auth handlers
 /team-status auth-team
@@ -109,20 +110,28 @@ Example:
 }
 ```
 
-The planner converts workflow specs into `pi-subagents` chain params. Template
-values support `{task}`, `{args}`, `{workflow.name}`, and
-`{workflow.description}`. Normal `pi-subagents` runtime variables such as
-`{previous}` are preserved for chain execution.
+The planner applies `{task}`, `{args}`, `{workflow.name}`, and
+`{workflow.description}`. The native workflow executor also applies `{previous}`
+between sequential/reducer stages.
 
-## Dynamic fanout
+## Native workflow execution
 
-Dynamic fanout specs are passed through to `pi-subagents`, but this package
-validates the important safety bounds before launch:
+`/workflow` and auto-routed workflows create one native Pi child session per
+workflow task. Static parallel steps run multiple child sessions concurrently and
+then pass ordered results to later reducer steps through `{previous}`.
 
-- every dynamic fanout must set `expand.maxItems`,
-- `expand.maxItems` must be `<= 1000`,
-- static and dynamic step concurrency must be `<= 16`,
-- dynamic source paths must use JSON Pointer syntax.
+Supported native workflow shapes:
+
+- single `WorkflowTask` steps,
+- static `parallel` groups,
+- sequential reducer stages using `{previous}`,
+- bounded static concurrency.
+
+Unsupported native workflow shapes:
+
+- dynamic fanout (`expand`/`collect`) is rejected with a clear error. Rewrite the
+  workflow as static steps or use direct `pi-subagents` orchestration for that
+  advanced shape until native structured-output fanout is implemented here.
 
 ## Run registry and progress UI
 
@@ -132,25 +141,28 @@ Every `/workflow` launch and auto-routed workflow writes a run record under:
 ~/.pi/agent/dynamic-workflows/runs/
 ```
 
-Run records include status, phases, the active `pi-subagents` request id, a
-bounded tail of live bridge updates, result/error text, and timestamps.
-`/workflows` opens a lightweight Pi TUI component when `ctx.ui.custom` is
-available and falls back to markdown output otherwise. The view shows discovered
-workflow specs, recent runs, declared phases, latest tool update, and command
-hints for saving or cancelling a run.
+Run records include status, phases, native child session ids, a bounded live
+update tail, result/error text, and timestamps. Legacy run records can still
+contain a `pi-subagents` bridge request id; `/workflow-cancel` handles both
+native session ids and legacy bridge request ids.
+
+`/workflows` opens a lightweight Claude-style focused Pi TUI component when
+`ctx.ui.custom` is available and falls back to markdown output otherwise. The
+custom panel focuses on running/completed workflows in the current session and
+uses the Claude-style empty state when no runs exist. The markdown fallback still
+shows discovered workflow specs, recent runs, declared phases, latest update, and
+command hints for saving or cancelling a run.
 
 Supported controls today:
 
-- `/workflow-cancel <run-id>` emits the `pi-subagents` bridge cancel event when
-  the run has an active request id and marks the run `cancelled`.
+- `/workflow-cancel <run-id>` stops active native child sessions for a run, or
+  emits the legacy bridge cancel event when the run has only a bridge request id.
 - `/workflow-save <run-id> -- <path>` copies that run's current workflow spec
   without overwriting existing files.
 
-Pause/resume/restart controls are not yet implemented here because this package
-needs a stable `pi-subagents` control API for those operations. Use
-`pi-subagents` async/status controls directly when you need deeper run control.
+Pause/resume/restart controls are not yet implemented.
 
-## Agent view and teams
+## Native agent sessions, agent view, and teams
 
 Agent-view state is stored under:
 
@@ -158,30 +170,36 @@ Agent-view state is stored under:
 ~/.pi/agent/dynamic-workflows/agent-view.json
 ```
 
-Teams are declarative role groups that launch one `pi-subagents` parallel run
-per team task. The package records team members, queued/running/completed tasks,
-bridge request ids, a bounded live event tail, messages, result/error text, and
-timestamps. Missing `pi-subagents` bridge detection fails fast after 15 seconds,
-while started workflow/team runs wait up to 30 minutes for real agent results.
+Native agent sessions are process-local child Pi sessions with persisted
+metadata, bounded event tails, and Pi session-file references. Runtime objects
+are never persisted. Active child sessions are disposed when the parent Pi
+session shuts down; stale active records are reconciled to `detached` on startup.
+
+Teams are declarative role groups. `/team-run` starts one native child session
+per team member, records the member-to-session mapping, waits for member results,
+and aggregates the result into the team task.
 
 Supported controls today:
 
-- `/agents` opens the agent-view dashboard when `ctx.ui.custom` is available and
-  falls back to markdown otherwise.
+- `/agents` opens a Claude-style standalone dashboard when `ctx.ui.custom` is
+  available and falls back to markdown otherwise. The custom dashboard shows
+  native sessions, working/completed task sections, available teams, an input
+  line, and `ctrl+x` stop/cancel for the selected running row.
+- `/agent-start -- <prompt>` starts a native child session.
+- `/agent-reply <session-id> -- <message>` queues or sends a reply to an active
+  native child session.
+- `/agent-stop <session-id>` stops an active native child session.
+- `/agent-status [session-id]` prints native session and team state.
 - `/team-create <name> -- <member>=<agent>[,<member>=<agent>]` creates a
   persistent team. The team id is a slug of the name.
-- `/team-run <team-id> -- <task>` launches one parallel `pi-subagents` task per
-  team member.
+- `/team-run <team-id> -- <task>` launches one native child session per team
+  member and aggregates results.
 - `/team-status [team-or-task-id]` prints team state, tasks, recent messages,
   and command controls.
 - `/team-send <team-id>[/member-id] -- <message>` appends a package-local team
   message/note.
-- `/team-stop <team-id>/<task-id>` emits the `pi-subagents` bridge cancel event
-  for a task with an active request id and marks the task `cancelled`.
-
-This is a control plane over `pi-subagents`, not a separate long-lived child
-session daemon. Persistent interactive child sessions can be added later once Pi
-and `pi-subagents` expose stable session/team primitives.
+- `/team-stop <team-id>/<task-id>` stops active native member sessions and marks
+  the task `cancelled`.
 
 ## Included workflows
 
@@ -198,20 +216,18 @@ and `pi-subagents` expose stable session/team primitives.
 This package aims for practical workflow parity in Pi:
 
 - reusable named workflows,
+- native child sessions,
 - parallel agents and reducer phases,
-- bounded dynamic fanout guardrails,
 - explicit and opt-in heuristic auto-routing,
-- background execution through `pi-subagents`,
-- run records with live bridge update tails,
+- run records with live update tails,
 - `/workflows` progress UI with markdown fallback,
+- `/agents` dashboard with native session rows,
 - save/cancel command affordances,
 - exportable workflow specs,
-- package-local agent-view/team control plane over `pi-subagents`.
+- package-local agent teams over native sessions.
 
 It intentionally does not run arbitrary JavaScript workflow scripts. Workflow
-files are declarative JSON and agents remain the execution boundary. The
-agent-view/team layer is deliberately a package-local control plane, not a
-standalone child-session daemon.
+files are declarative JSON and agents remain the execution boundary.
 
 ## Development
 
@@ -223,8 +239,7 @@ npm run check
 
 ## Relationship to pi-subagents
 
-Use `pi-subagents` directly for one-off delegation. Use `pi-dynamic-workflows`
-when the orchestration itself should be named, inspectable, and reusable.
-
-If `/workflow` reports that the `pi-subagents` bridge is unavailable, install
-and enable `pi-subagents` first.
+Use `pi-subagents` directly for one-off delegation or advanced chain features
+not yet supported by the native declarative executor, such as dynamic structured
+fanout. Use `pi-dynamic-workflows` when orchestration should be named,
+inspectable, reusable, and visible in `/workflows` or `/agents`.

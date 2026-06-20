@@ -17,6 +17,26 @@ export type AgentTeamTaskStatus =
 	| "failed"
 	| "cancelled";
 
+export type AgentSessionStatus =
+	| "queued"
+	| "running"
+	| "idle"
+	| "completed"
+	| "failed"
+	| "cancelled"
+	| "detached";
+
+export type AgentSessionEventType =
+	| "started"
+	| "tool"
+	| "message"
+	| "queued"
+	| "completed"
+	| "cancelled"
+	| "detached"
+	| "error"
+	| "status";
+
 export interface AgentTeamMember {
 	id: string;
 	agent: string;
@@ -32,6 +52,11 @@ export interface AgentTeamTaskEvent {
 	details?: unknown;
 }
 
+export interface AgentTeamTaskMemberSession {
+	memberId: string;
+	sessionId: string;
+}
+
 export interface AgentTeamTask {
 	id: string;
 	text: string;
@@ -39,6 +64,7 @@ export interface AgentTeamTask {
 	createdAt: string;
 	updatedAt: string;
 	requestId?: string;
+	memberSessions?: AgentTeamTaskMemberSession[];
 	resultText?: string;
 	errorText?: string;
 	events?: AgentTeamTaskEvent[];
@@ -61,9 +87,36 @@ export interface AgentTeam {
 	updatedAt: string;
 }
 
+export interface AgentSessionEventRecord {
+	at: string;
+	type: AgentSessionEventType;
+	text?: string;
+	details?: unknown;
+}
+
+export interface AgentSessionRecord {
+	id: string;
+	title: string;
+	cwd: string;
+	status: AgentSessionStatus;
+	createdAt: string;
+	updatedAt: string;
+	agentName?: string;
+	teamId?: string;
+	taskId?: string;
+	memberId?: string;
+	sessionId?: string;
+	sessionFile?: string;
+	prompt?: string;
+	resultText?: string;
+	errorText?: string;
+	events?: AgentSessionEventRecord[];
+}
+
 export interface AgentViewState {
 	version: 1;
 	teams: AgentTeam[];
+	sessions: AgentSessionRecord[];
 }
 
 export interface CreateAgentViewTeamInput {
@@ -79,12 +132,51 @@ export interface AddTeamMessageInput {
 export interface UpdateTeamTaskInput {
 	status?: AgentTeamTaskStatus;
 	requestId?: string;
+	memberSessions?: AgentTeamTaskMemberSession[];
 	resultText?: string;
 	errorText?: string;
 	event?: Omit<AgentTeamTaskEvent, "at"> & { at?: string };
 }
 
+export interface CreateAgentSessionRecordInput {
+	title: string;
+	cwd: string;
+	status?: AgentSessionStatus;
+	agentName?: string;
+	teamId?: string;
+	taskId?: string;
+	memberId?: string;
+	sessionId?: string;
+	sessionFile?: string;
+	prompt?: string;
+	resultText?: string;
+	errorText?: string;
+}
+
+export interface UpdateAgentSessionRecordInput {
+	status?: AgentSessionStatus;
+	sessionId?: string;
+	sessionFile?: string;
+	resultText?: string;
+	errorText?: string;
+	event?: Omit<AgentSessionEventRecord, "at"> & { at?: string };
+}
+
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,80}$/;
+const AGENT_SESSION_STATUSES = new Set<AgentSessionStatus>([
+	"queued",
+	"running",
+	"idle",
+	"completed",
+	"failed",
+	"cancelled",
+	"detached",
+]);
+const ACTIVE_SESSION_STATUSES = new Set<AgentSessionStatus>([
+	"queued",
+	"running",
+	"idle",
+]);
 
 export function defaultAgentViewStorePath(): string {
 	return path.join(
@@ -97,11 +189,17 @@ export function defaultAgentViewStorePath(): string {
 }
 
 function emptyState(): AgentViewState {
-	return { version: 1, teams: [] };
+	return { version: 1, teams: [], sessions: [] };
 }
 
 function assertId(id: string): void {
 	if (!ID_PATTERN.test(id)) throw new Error(`Invalid agent view id: ${id}`);
+}
+
+function assertAgentSessionStatus(status: AgentSessionStatus): void {
+	if (!AGENT_SESSION_STATUSES.has(status)) {
+		throw new Error(`Invalid agent session status: ${String(status)}`);
+	}
 }
 
 function slug(value: string): string {
@@ -130,7 +228,14 @@ function writeAgentViewState(storePath: string, state: AgentViewState): void {
 
 export function readAgentViewState(storePath: string): AgentViewState {
 	if (!fs.existsSync(storePath)) return emptyState();
-	return JSON.parse(fs.readFileSync(storePath, "utf-8")) as AgentViewState;
+	const parsed = JSON.parse(
+		fs.readFileSync(storePath, "utf-8"),
+	) as Partial<AgentViewState>;
+	return {
+		version: 1,
+		teams: Array.isArray(parsed.teams) ? parsed.teams : [],
+		sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+	};
 }
 
 function findTeam(state: AgentViewState, teamId: string): AgentTeam {
@@ -145,6 +250,23 @@ function findTask(team: AgentTeam, taskId: string): AgentTeamTask {
 	const task = team.tasks.find((candidate) => candidate.id === taskId);
 	if (!task) throw new Error(`Unknown agent team task: ${taskId}`);
 	return task;
+}
+
+export function findAgentSessionRecord(
+	state: AgentViewState,
+	sessionRecordId: string,
+): AgentSessionRecord | undefined {
+	assertId(sessionRecordId);
+	return state.sessions.find((candidate) => candidate.id === sessionRecordId);
+}
+
+function requireAgentSessionRecord(
+	state: AgentViewState,
+	sessionRecordId: string,
+): AgentSessionRecord {
+	const session = findAgentSessionRecord(state, sessionRecordId);
+	if (!session) throw new Error(`Unknown agent session: ${sessionRecordId}`);
+	return session;
 }
 
 function syncMemberTaskStatus(
@@ -244,6 +366,8 @@ export function updateTeamTask(
 		syncMemberTaskStatus(team, task.id, input.status);
 	}
 	if (input.requestId !== undefined) task.requestId = input.requestId;
+	if (input.memberSessions !== undefined)
+		task.memberSessions = input.memberSessions;
 	if (input.resultText !== undefined) task.resultText = input.resultText;
 	if (input.errorText !== undefined) task.errorText = input.errorText;
 	if (input.event) {
@@ -279,4 +403,100 @@ export function appendTeamMessage(
 	team.updatedAt = now;
 	writeAgentViewState(storePath, state);
 	return message;
+}
+
+export function createAgentSessionRecord(
+	storePath: string,
+	input: CreateAgentSessionRecordInput,
+): AgentSessionRecord {
+	const title = input.title.trim();
+	const cwd = input.cwd.trim();
+	if (!title) throw new Error("Agent session title is required.");
+	if (!cwd) throw new Error("Agent session cwd is required.");
+	const status = input.status ?? "queued";
+	assertAgentSessionStatus(status);
+	for (const id of [input.teamId, input.taskId, input.memberId]) {
+		if (id !== undefined) assertId(id);
+	}
+	const state = readAgentViewState(storePath);
+	const now = timestamp();
+	const session: AgentSessionRecord = {
+		id: generatedId("session"),
+		title,
+		cwd,
+		status,
+		createdAt: now,
+		updatedAt: now,
+		...(input.agentName?.trim() ? { agentName: input.agentName.trim() } : {}),
+		...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
+		...(input.taskId !== undefined ? { taskId: input.taskId } : {}),
+		...(input.memberId !== undefined ? { memberId: input.memberId } : {}),
+		...(input.sessionId?.trim() ? { sessionId: input.sessionId.trim() } : {}),
+		...(input.sessionFile?.trim()
+			? { sessionFile: input.sessionFile.trim() }
+			: {}),
+		...(input.prompt?.trim() ? { prompt: input.prompt.trim() } : {}),
+		...(input.resultText !== undefined ? { resultText: input.resultText } : {}),
+		...(input.errorText !== undefined ? { errorText: input.errorText } : {}),
+	};
+	state.sessions.push(session);
+	writeAgentViewState(storePath, state);
+	return session;
+}
+
+export function updateAgentSessionRecord(
+	storePath: string,
+	sessionRecordId: string,
+	input: UpdateAgentSessionRecordInput,
+): AgentSessionRecord {
+	const state = readAgentViewState(storePath);
+	const session = requireAgentSessionRecord(state, sessionRecordId);
+	const now = timestamp();
+	if (input.status !== undefined) {
+		assertAgentSessionStatus(input.status);
+		session.status = input.status;
+	}
+	if (input.sessionId !== undefined) session.sessionId = input.sessionId;
+	if (input.sessionFile !== undefined) session.sessionFile = input.sessionFile;
+	if (input.resultText !== undefined) session.resultText = input.resultText;
+	if (input.errorText !== undefined) session.errorText = input.errorText;
+	if (input.event) {
+		session.events = [
+			...(session.events ?? []),
+			{ ...input.event, at: input.event.at ?? now },
+		].slice(-50);
+	}
+	session.updatedAt = now;
+	writeAgentViewState(storePath, state);
+	return session;
+}
+
+export function appendAgentSessionEvent(
+	storePath: string,
+	sessionRecordId: string,
+	event: Omit<AgentSessionEventRecord, "at"> & { at?: string },
+): AgentSessionRecord {
+	return updateAgentSessionRecord(storePath, sessionRecordId, { event });
+}
+
+export function reconcileDetachedAgentSessions(
+	storePath: string,
+): AgentViewState {
+	const state = readAgentViewState(storePath);
+	const now = timestamp();
+	let changed = false;
+	for (const session of state.sessions) {
+		if (!ACTIVE_SESSION_STATUSES.has(session.status)) continue;
+		const event: AgentSessionEventRecord = {
+			type: "detached",
+			text: "Session detached during startup reconciliation.",
+			at: now,
+		};
+		session.status = "detached";
+		session.updatedAt = now;
+		session.events = [...(session.events ?? []), event].slice(-50);
+		changed = true;
+	}
+	if (changed) writeAgentViewState(storePath, state);
+	return state;
 }

@@ -1,7 +1,7 @@
 {
   "name": "pi-dynamic-workflows",
   "version": "0.2.0",
-  "description": "Claude Code-style dynamic workflow and agent-team orchestration for Pi, backed by pi-subagents.",
+  "description": "Claude Code-style dynamic workflow and agent-team orchestration for Pi, backed by native Pi child sessions.",
   "type": "module",
   "license": "MIT",
   "author": "tthuwng",
@@ -45,7 +45,11 @@
       "./prompts"
     ]
   },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
   "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.73.1",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
   }

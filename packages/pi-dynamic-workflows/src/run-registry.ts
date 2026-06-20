@@ -42,6 +42,7 @@ export interface WorkflowRunRecord {
 	startedAt?: string;
 	finishedAt?: string;
 	requestId?: string;
+	sessionIds?: string[];
 	resultText?: string;
 	errorText?: string;
 	updates?: WorkflowRunUpdate[];
@@ -176,6 +177,24 @@ export function attachWorkflowRequest(
 	const record = {
 		...readRun(runDir, runId),
 		requestId,
+		updatedAt: new Date().toISOString(),
+	};
+	writeRun(runDir, record);
+	return record;
+}
+
+export function attachWorkflowSession(
+	runDir: string,
+	runId: string,
+	sessionId: string,
+): WorkflowRunRecord {
+	const previous = readRun(runDir, runId);
+	const sessionIds = previous.sessionIds?.includes(sessionId)
+		? previous.sessionIds
+		: [...(previous.sessionIds ?? []), sessionId];
+	const record = {
+		...previous,
+		sessionIds,
 		updatedAt: new Date().toISOString(),
 	};
 	writeRun(runDir, record);

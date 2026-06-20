@@ -1,96 +1,60 @@
-import {
-	cancelSubagentWorkflow,
-	dispatchSubagentWorkflow,
-} from "./subagents-bridge.js";
+import type { StartAgentSessionInput } from "./agent-session-manager.js";
 import {
 	addTeamTask,
 	readAgentViewState,
 	updateTeamTask,
+	type AgentSessionRecord,
 	type AgentTeam,
 	type AgentTeamTask,
 } from "./agent-view-store.js";
 
-interface EventBus {
-	on(event: string, handler: (payload: unknown) => void): (() => void) | void;
-	emit(event: string, payload: unknown): void;
-}
-
-interface MessageSink {
-	sendMessage?(message: unknown): void;
-	events?: EventBus;
-}
-
-interface UiLike {
-	notify?(message: string, type?: "info" | "warning" | "error"): void;
-	setStatus?(key: string, value: string | undefined): void;
-}
-
 interface ContextLike {
+	cwd: string;
 	hasUI?: boolean;
-	ui?: UiLike;
 }
 
-interface BridgeResponseLike {
-	isError?: boolean;
-	errorText?: string;
-	result?: { content?: Array<{ type?: string; text?: string }> };
+export interface AgentTeamSessionRunner {
+	startAgentSession(input: StartAgentSessionInput): Promise<AgentSessionRecord>;
+	waitForAgentSession(sessionId: string): Promise<AgentSessionRecord>;
+	stopAgentSession(sessionId: string, reason?: string): Promise<void>;
 }
 
 export interface RunAgentTeamTaskOptions {
 	timeoutMs?: number;
 }
 
-export interface AgentTeamSubagentTask {
+export interface AgentTeamSessionPrompt {
+	memberId: string;
 	agent: string;
-	task: string;
 	label: string;
-}
-
-export interface AgentTeamSubagentParams {
-	tasks: AgentTeamSubagentTask[];
-	concurrency: number;
-	context: "fresh";
-}
-
-function responseText(response: BridgeResponseLike): string {
-	if (response.errorText) return response.errorText;
-	return (
-		response.result?.content
-			?.filter(
-				(part): part is { type: string; text: string } =>
-					part.type === "text" && typeof part.text === "string",
-			)
-			.map((part) => part.text)
-			.join("\n") || ""
-	);
+	prompt: string;
 }
 
 function teamPrompt(
 	team: AgentTeam,
 	memberId: string,
+	memberAgent: string,
 	taskText: string,
 ): string {
 	return [
 		`You are member \`${memberId}\` of agent team \`${team.name}\`.`,
+		`Your configured agent role is \`${memberAgent}\`.`,
 		"Complete only your assigned angle and report concise findings.",
 		"",
 		taskText,
 	].join("\n");
 }
 
-export function buildAgentTeamSubagentParams(
+export function buildAgentTeamSessionPrompts(
 	team: AgentTeam,
 	taskText: string,
-): AgentTeamSubagentParams {
-	return {
-		tasks: team.members.map((member) => ({
-			agent: member.agent,
-			label: member.label ?? member.id,
-			task: teamPrompt(team, member.id, taskText),
-		})),
-		concurrency: team.members.length,
-		context: "fresh",
-	};
+): AgentTeamSessionPrompt[] {
+	return team.members.map((member) => ({
+		memberId: member.id,
+		agent: member.agent,
+		label: member.label ?? member.id,
+		prompt: teamPrompt(team, member.id, member.agent, taskText),
+	}));
 }
 
 function findTeam(storePath: string, teamId: string): AgentTeam {
@@ -113,57 +77,109 @@ function findTask(
 	return task;
 }
 
-function bridgeUpdateText(payload: unknown): string {
-	if (!payload || typeof payload !== "object") return "team update";
-	const toolCount = (payload as { toolCount?: unknown }).toolCount;
-	const currentTool = (payload as { currentTool?: unknown }).currentTool;
-	const count = typeof toolCount === "number" ? `${toolCount} tools` : "tools";
-	return typeof currentTool === "string" ? `${count} ${currentTool}` : count;
+function formatTeamResult(
+	prompts: AgentTeamSessionPrompt[],
+	results: AgentSessionRecord[],
+): string {
+	return results
+		.map((result, index) => {
+			const prompt = prompts[index];
+			const heading = prompt
+				? `${prompt.label} (${prompt.agent})`
+				: result.title;
+			const text = result.resultText ?? result.errorText ?? result.status;
+			return `### ${heading}\n${text}`;
+		})
+		.join("\n\n");
+}
+
+function firstFailedResult(
+	results: AgentSessionRecord[],
+): AgentSessionRecord | undefined {
+	return results.find((result) => result.status === "failed");
+}
+
+function firstCancelledResult(
+	results: AgentSessionRecord[],
+): AgentSessionRecord | undefined {
+	return results.find(
+		(result) => result.status === "cancelled" || result.status === "detached",
+	);
 }
 
 export async function runAgentTeamTask(
 	storePath: string,
-	pi: MessageSink,
+	runner: AgentTeamSessionRunner,
 	ctx: ContextLike,
 	teamId: string,
 	text: string,
-	options: RunAgentTeamTaskOptions = {},
+	_options: RunAgentTeamTaskOptions = {},
 ): Promise<AgentTeamTask> {
 	const team = findTeam(storePath, teamId);
 	const task = addTeamTask(storePath, team.id, text);
-	const params = buildAgentTeamSubagentParams(team, task.text);
+	const prompts = buildAgentTeamSessionPrompts(team, task.text);
 	try {
-		const response = (await dispatchSubagentWorkflow(
-			pi,
-			ctx,
-			`team:${team.name}`,
-			params,
-			{
-				...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
-				onRequest: (requestId) =>
-					updateTeamTask(storePath, team.id, task.id, {
-						status: "running",
-						requestId,
-						event: { type: "started", text: "Team task started." },
-					}),
-				onUpdate: (payload) =>
-					updateTeamTask(storePath, team.id, task.id, {
-						event: {
-							type: "tool",
-							text: bridgeUpdateText(payload),
-							details: payload,
-						},
-					}),
+		updateTeamTask(storePath, team.id, task.id, {
+			status: "running",
+			event: { type: "started", text: "Team task started." },
+		});
+		const sessions = await Promise.all(
+			prompts.map((prompt) =>
+				runner.startAgentSession({
+					title: `${team.name}: ${prompt.label}`,
+					prompt: prompt.prompt,
+					cwd: ctx.cwd,
+					agentName: prompt.agent,
+					teamId: team.id,
+					taskId: task.id,
+					memberId: prompt.memberId,
+					completeOnPromptEnd: true,
+				}),
+			),
+		);
+		updateTeamTask(storePath, team.id, task.id, {
+			memberSessions: sessions.map((session, index) => ({
+				memberId: prompts[index]?.memberId ?? session.id,
+				sessionId: session.id,
+			})),
+			event: {
+				type: "message",
+				text: `Started ${sessions.length} native member sessions.`,
 			},
-		)) as BridgeResponseLike;
+		});
+		const results = await Promise.all(
+			sessions.map((session) => runner.waitForAgentSession(session.id)),
+		);
 		const current = findTask(storePath, team.id, task.id);
 		if (current.status === "cancelled") return current;
-		const textResult = responseText(response);
+		const cancelled = firstCancelledResult(results);
+		if (cancelled) {
+			return updateTeamTask(storePath, team.id, task.id, {
+				status: "cancelled",
+				event: {
+					type: "cancelled",
+					text:
+						cancelled.errorText ??
+						cancelled.resultText ??
+						"Team member cancelled.",
+				},
+			});
+		}
+		const failed = firstFailedResult(results);
+		if (failed) {
+			return updateTeamTask(storePath, team.id, task.id, {
+				status: "failed",
+				errorText:
+					failed.errorText ?? failed.resultText ?? "Team member failed.",
+				event: {
+					type: "error",
+					text: failed.errorText ?? failed.resultText ?? "Team member failed.",
+				},
+			});
+		}
 		return updateTeamTask(storePath, team.id, task.id, {
-			status: response.isError ? "failed" : "completed",
-			...(response.isError
-				? { errorText: textResult }
-				: { resultText: textResult }),
+			status: "completed",
+			resultText: formatTeamResult(prompts, results),
 		});
 	} catch (error) {
 		const current = findTask(storePath, team.id, task.id);
@@ -177,20 +193,25 @@ export async function runAgentTeamTask(
 	}
 }
 
-export function cancelAgentTeamTask(
+export async function cancelAgentTeamTask(
 	storePath: string,
-	pi: MessageSink,
+	runner: AgentTeamSessionRunner,
 	teamId: string,
 	taskId: string,
-): AgentTeamTask {
+): Promise<AgentTeamTask> {
 	const task = findTask(storePath, teamId, taskId);
+	if (task.status === "cancelled") return task;
 	if (task.status !== "running") {
 		throw new Error(`Agent team task is not running: ${taskId}`);
 	}
-	if (!task.requestId) {
-		throw new Error(`Agent team task has no active request id: ${taskId}`);
+	if (!task.memberSessions?.length) {
+		throw new Error(`Agent team task has no active member sessions: ${taskId}`);
 	}
-	cancelSubagentWorkflow(pi, task.requestId);
+	await Promise.all(
+		task.memberSessions.map((memberSession) =>
+			runner.stopAgentSession(memberSession.sessionId, "Team task cancelled."),
+		),
+	);
 	return updateTeamTask(storePath, teamId, taskId, {
 		status: "cancelled",
 		event: { type: "cancelled", text: "Team task cancelled." },

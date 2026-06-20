@@ -12,12 +12,9 @@ import {
 import { planWorkflow } from "./workflow-planner.js";
 import {
 	cancelSubagentWorkflow,
-	dispatchSubagentWorkflow,
 	DYNAMIC_WORKFLOW_RESULT_TYPE,
 } from "./subagents-bridge.js";
 import {
-	appendWorkflowRunUpdate,
-	attachWorkflowRequest,
 	cancelWorkflowRun,
 	createWorkflowRun,
 	defaultRunDir,
@@ -26,16 +23,28 @@ import {
 	startWorkflowRun,
 	workflowPhases,
 } from "./run-registry.js";
-import type { WorkflowRunRecord, WorkflowRunUpdate } from "./run-registry.js";
-import { renderWorkflowProgress } from "./workflows-tui.js";
+import type { WorkflowRunRecord } from "./run-registry.js";
+import {
+	renderWorkflowProgress,
+	WorkflowRunsComponent,
+	type TuiComponentLike,
+} from "./workflows-tui.js";
+import {
+	WorkflowSessionCancelledError,
+	executeWorkflowWithSessions,
+} from "./workflow-session-executor.js";
 import {
 	appendTeamMessage,
 	createAgentViewTeam,
 	defaultAgentViewStorePath,
 	readAgentViewState,
+	reconcileDetachedAgentSessions,
 } from "./agent-view-store.js";
+import { AgentSessionManager } from "./agent-session-manager.js";
+import type { AgentRuntimeFactory } from "./agent-session-types.js";
 import { cancelAgentTeamTask, runAgentTeamTask } from "./agent-team-runner.js";
-import { renderAgentViewStatus } from "./agent-view-tui.js";
+import { AgentViewComponent, renderAgentViewStatus } from "./agent-view-tui.js";
+import { createDefaultAgentRuntimeFactory } from "./pi-session-sdk.js";
 import type { WorkflowChainStep, WorkflowSpec } from "./types.js";
 
 interface CommandSpec {
@@ -49,8 +58,8 @@ interface CommandSpec {
 interface PiLike {
 	registerCommand?(name: string, command: CommandSpec): void;
 	on?(
-		event: "input",
-		handler: (event: InputEventLike, ctx: ContextLike) => Promise<unknown>,
+		event: string,
+		handler: (event: unknown, ctx: ContextLike) => Promise<unknown> | unknown,
 	): void;
 	sendMessage?(message: unknown): void;
 	events?: {
@@ -70,13 +79,16 @@ interface ContextLike {
 	ui?: {
 		notify?(message: string, type?: "info" | "warning" | "error"): void;
 		setStatus?(key: string, value: string | undefined): void;
+		custom?(
+			factory: (
+				tui: { requestRender(): void },
+				theme: unknown,
+				keybindings: unknown,
+				done: () => void,
+			) => TuiComponentLike,
+			options?: { overlay?: boolean },
+		): unknown;
 	};
-}
-
-interface BridgeResponseLike {
-	isError?: boolean;
-	errorText?: string;
-	result?: { content?: Array<{ type?: string; text?: string }> };
 }
 
 export interface DynamicWorkflowsOptions {
@@ -87,6 +99,7 @@ export interface DynamicWorkflowsOptions {
 	agentViewStorePath?: string;
 	autoRoute?: WorkflowAutoRouteMode | boolean;
 	defaultWorkflowName?: string;
+	agentRuntimeFactory?: AgentRuntimeFactory;
 }
 
 function packageWorkflowDir(): string {
@@ -191,6 +204,28 @@ function parseTeamStopArgs(
 	return { teamId, taskId };
 }
 
+function parseAgentStartArgs(args: string): string | undefined {
+	const input = args.trim();
+	if (!input.startsWith("-- ")) return undefined;
+	const prompt = input.slice(3).trim();
+	return prompt || undefined;
+}
+
+function parseAgentReplyArgs(
+	args: string,
+): { sessionId: string; text: string } | undefined {
+	const delimiter = args.indexOf(" -- ");
+	if (delimiter === -1) return undefined;
+	const sessionId = args.slice(0, delimiter).trim();
+	const text = args.slice(delimiter + 4).trim();
+	if (!sessionId || !text) return undefined;
+	return { sessionId, text };
+}
+
+function agentSessionTitle(prompt: string): string {
+	return prompt.replace(/\s+/g, " ").slice(0, 64);
+}
+
 function sendDynamicMessage(pi: PiLike, content: string): void {
 	pi.sendMessage?.({
 		customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
@@ -213,35 +248,6 @@ function formatWorkflowList(
 	runs: WorkflowRunRecord[],
 ): string {
 	return renderWorkflowProgress(workflows, runs);
-}
-
-function responseText(response: BridgeResponseLike): string {
-	if (response.errorText) return response.errorText;
-	return (
-		response.result?.content
-			?.filter(
-				(part): part is { type: string; text: string } =>
-					part.type === "text" && typeof part.text === "string",
-			)
-			.map((part) => part.text)
-			.join("\n") || ""
-	);
-}
-
-function bridgeUpdateToRunUpdate(
-	payload: unknown,
-): Omit<WorkflowRunUpdate, "at"> | undefined {
-	if (!payload || typeof payload !== "object") return undefined;
-	const toolCount = (payload as { toolCount?: unknown }).toolCount;
-	const currentTool = (payload as { currentTool?: unknown }).currentTool;
-	if (typeof toolCount !== "number" && typeof currentTool !== "string") {
-		return undefined;
-	}
-	return {
-		type: "tool",
-		...(typeof toolCount === "number" ? { toolCount } : {}),
-		...(typeof currentTool === "string" ? { currentTool } : {}),
-	};
 }
 
 function formatPlanPreview(
@@ -292,6 +298,12 @@ export default function dynamicWorkflows(
 	const runDir = options.runDir ?? defaultRunDir();
 	const agentViewStorePath =
 		options.agentViewStorePath ?? defaultAgentViewStorePath();
+	reconcileDetachedAgentSessions(agentViewStorePath);
+	const agentSessionManager = new AgentSessionManager({
+		storePath: agentViewStorePath,
+		runtimeFactory:
+			options.agentRuntimeFactory ?? createDefaultAgentRuntimeFactory(),
+	});
 	const load = (ctx: ContextLike) => {
 		const dirs = defaultWorkflowDirs(
 			ctx.cwd,
@@ -334,57 +346,66 @@ export default function dynamicWorkflows(
 			content: formatPlanPreview(workflow, params.chain, run.id),
 		});
 		startWorkflowRun(runDir, run.id);
-		try {
-			const response = (await dispatchSubagentWorkflow(
-				pi,
-				ctx,
-				workflow.name,
-				params,
-				{
-					onRequest: (requestId) =>
-						attachWorkflowRequest(runDir, run.id, requestId),
-					onUpdate: (payload) => {
-						const update = bridgeUpdateToRunUpdate(payload);
-						if (update) appendWorkflowRunUpdate(runDir, run.id, update);
-					},
-				},
-			)) as BridgeResponseLike;
-			const text = responseText(response);
-			finishWorkflowRun(runDir, run.id, {
-				status: response.isError ? "failed" : "completed",
-				...(text ? { resultText: text } : {}),
-				...(response.isError ? { errorText: text } : {}),
-			});
-			if (response.isError)
-				notify(
-					ctx,
-					response.errorText ?? `Workflow '${workflow.name}' failed.`,
-					"error",
-				);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			finishWorkflowRun(runDir, run.id, {
-				status: "failed",
-				errorText: message,
-			});
-			notify(ctx, message, "error");
+		const execute = async (): Promise<void> => {
+			try {
+				const result = await executeWorkflowWithSessions({
+					runDir,
+					runId: run.id,
+					workflowName: workflow.name,
+					params,
+					runner: agentSessionManager,
+					cwd: ctx.cwd,
+				});
+				finishWorkflowRun(runDir, run.id, {
+					status: "completed",
+					resultText: result.resultText,
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				const current = findRun(runDir, run.id);
+				if (error instanceof WorkflowSessionCancelledError) {
+					if (current?.status !== "cancelled") {
+						cancelWorkflowRun(runDir, run.id, message);
+					}
+					return;
+				}
+				if (current?.status === "cancelled") return;
+				finishWorkflowRun(runDir, run.id, {
+					status: "failed",
+					errorText: message,
+				});
+				notify(ctx, message, "error");
+			}
+		};
+		if (params.async) {
+			void execute();
+			notify(ctx, `Started workflow run '${run.id}' in the background.`);
+			return;
 		}
+		await execute();
 	};
 
+	pi.on?.("session_shutdown", () => {
+		void agentSessionManager.disposeAllAgentSessions(
+			"Parent Pi session shut down.",
+		);
+	});
+
 	pi.on?.("input", async (event, ctx) => {
-		if (typeof event.text !== "string") return { action: "continue" };
-		if (event.source === "extension" || event.text.trim().startsWith("/")) {
+		const input = event as InputEventLike;
+		if (typeof input.text !== "string") return { action: "continue" };
+		if (input.source === "extension" || input.text.trim().startsWith("/")) {
 			return { action: "continue" };
 		}
-		if (isExplicitTeamPrompt(event.text)) {
+		if (isExplicitTeamPrompt(input.text)) {
 			const [team] = readAgentViewState(agentViewStorePath).teams;
 			if (!team) return { action: "continue" };
 			const task = await runAgentTeamTask(
 				agentViewStorePath,
-				pi,
+				agentSessionManager,
 				ctx,
 				team.id,
-				event.text,
+				input.text,
 			);
 			if (task.status === "failed") {
 				notify(
@@ -396,7 +417,7 @@ export default function dynamicWorkflows(
 			return { action: "handled" };
 		}
 		const result = load(ctx);
-		const route = routeWorkflowPrompt(event.text, result.workflows, {
+		const route = routeWorkflowPrompt(input.text, result.workflows, {
 			mode: autoRouteMode(),
 			...(options.defaultWorkflowName
 				? { defaultWorkflowName: options.defaultWorkflowName }
@@ -415,11 +436,18 @@ export default function dynamicWorkflows(
 		description: "List pi-dynamic-workflows workflows and recent runs.",
 		handler: async (_args, ctx) => {
 			const result = load(ctx);
-			pi.sendMessage?.({
-				customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
-				display: true,
-				content: formatWorkflowList(result.workflows, listWorkflowRuns(runDir)),
-			});
+			const runs = listWorkflowRuns(runDir);
+			if (ctx.ui?.custom) {
+				await ctx.ui.custom(
+					(tui, _theme, _keybindings, done) =>
+						new WorkflowRunsComponent(result.workflows, runs, {
+							onClose: done,
+							requestRender: () => tui.requestRender(),
+						}),
+				);
+			} else {
+				sendDynamicMessage(pi, formatWorkflowList(result.workflows, runs));
+			}
 			for (const diagnostic of result.diagnostics) {
 				notify(ctx, `${diagnostic.filePath}: ${diagnostic.error}`, "warning");
 			}
@@ -446,57 +474,13 @@ export default function dynamicWorkflows(
 				notify(ctx, `Unknown workflow: ${parsed.name}`, "error");
 				return;
 			}
-			const params = planWorkflow(workflow, parsed.workflowArgs, {
-				async: parsed.async,
-			});
-			const run = createWorkflowRun(runDir, workflow, params);
-			pi.sendMessage?.({
-				customType: DYNAMIC_WORKFLOW_RESULT_TYPE,
-				display: true,
-				content: formatPlanPreview(workflow, params.chain, run.id),
-			});
-			startWorkflowRun(runDir, run.id);
-			try {
-				const response = (await dispatchSubagentWorkflow(
-					pi,
-					ctx,
-					workflow.name,
-					params,
-					{
-						onRequest: (requestId) =>
-							attachWorkflowRequest(runDir, run.id, requestId),
-						onUpdate: (payload) => {
-							const update = bridgeUpdateToRunUpdate(payload);
-							if (update) appendWorkflowRunUpdate(runDir, run.id, update);
-						},
-					},
-				)) as BridgeResponseLike;
-				const text = responseText(response);
-				finishWorkflowRun(runDir, run.id, {
-					status: response.isError ? "failed" : "completed",
-					...(text ? { resultText: text } : {}),
-					...(response.isError ? { errorText: text } : {}),
-				});
-				if (response.isError)
-					notify(
-						ctx,
-						response.errorText ?? `Workflow '${workflow.name}' failed.`,
-						"error",
-					);
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				finishWorkflowRun(runDir, run.id, {
-					status: "failed",
-					errorText: message,
-				});
-				notify(ctx, message, "error");
-			}
+			await launchWorkflow(workflow, parsed.workflowArgs, ctx, parsed.async);
 		},
 	});
 
 	pi.registerCommand?.("workflow-cancel", {
 		description: "Cancel a running dynamic workflow: /workflow-cancel <run-id>",
-		handler: (args, ctx) => {
+		handler: async (args, ctx) => {
 			const runId = args.trim();
 			if (!runId) {
 				notify(ctx, "Usage: /workflow-cancel <run-id>", "error");
@@ -507,19 +491,33 @@ export default function dynamicWorkflows(
 				notify(ctx, `Unknown workflow run: ${runId}`, "error");
 				return;
 			}
+			if (run.status === "cancelled") {
+				notify(ctx, `Workflow run '${runId}' is already cancelled.`);
+				return;
+			}
 			if (run.status !== "running") {
 				notify(ctx, `Workflow run '${runId}' is not running.`, "error");
 				return;
 			}
-			if (!run.requestId) {
+			if (run.requestId) {
+				cancelSubagentWorkflow(pi, run.requestId);
+			} else if (run.sessionIds?.length) {
+				await Promise.all(
+					run.sessionIds.map((sessionId) =>
+						agentSessionManager.stopAgentSession(
+							sessionId,
+							"Workflow run cancelled.",
+						),
+					),
+				);
+			} else {
 				notify(
 					ctx,
-					`Workflow run '${runId}' has no active request id.`,
+					`Workflow run '${runId}' has no active request id or native session ids.`,
 					"error",
 				);
 				return;
 			}
-			cancelSubagentWorkflow(pi, run.requestId);
 			cancelWorkflowRun(runDir, run.id, "cancelled by user");
 			notify(ctx, `Cancelled workflow run '${run.id}'.`);
 		},
@@ -607,7 +605,7 @@ export default function dynamicWorkflows(
 			}
 			const task = await runAgentTeamTask(
 				agentViewStorePath,
-				pi,
+				agentSessionManager,
 				ctx,
 				parsed.teamId,
 				parsed.taskText,
@@ -637,8 +635,82 @@ export default function dynamicWorkflows(
 		},
 	});
 
-	pi.registerCommand?.("agents", {
-		description: "Show the agent-view dashboard.",
+	pi.registerCommand?.("agent-start", {
+		description: "Start a native agent session: /agent-start -- <prompt>",
+		handler: async (args, ctx) => {
+			const prompt = parseAgentStartArgs(args);
+			if (!prompt) {
+				notify(ctx, "Usage: /agent-start -- <prompt>", "error");
+				return;
+			}
+			try {
+				const session = await agentSessionManager.startAgentSession({
+					title: agentSessionTitle(prompt),
+					prompt,
+					cwd: ctx.cwd,
+				});
+				notify(ctx, `Started agent session '${session.id}'.`);
+			} catch (error) {
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
+			}
+		},
+	});
+
+	pi.registerCommand?.("agent-reply", {
+		description:
+			"Reply to a native agent session: /agent-reply <session-id> -- <message>",
+		handler: async (args, ctx) => {
+			const parsed = parseAgentReplyArgs(args);
+			if (!parsed) {
+				notify(ctx, "Usage: /agent-reply <session-id> -- <message>", "error");
+				return;
+			}
+			try {
+				await agentSessionManager.replyToAgentSession(
+					parsed.sessionId,
+					parsed.text,
+				);
+				notify(ctx, `Sent reply to agent session '${parsed.sessionId}'.`);
+			} catch (error) {
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
+			}
+		},
+	});
+
+	pi.registerCommand?.("agent-stop", {
+		description: "Stop a native agent session: /agent-stop <session-id>",
+		handler: async (args, ctx) => {
+			const sessionId = args.trim();
+			if (!sessionId) {
+				notify(ctx, "Usage: /agent-stop <session-id>", "error");
+				return;
+			}
+			try {
+				await agentSessionManager.stopAgentSession(
+					sessionId,
+					"Stopped by user.",
+				);
+				notify(ctx, `Stopped agent session '${sessionId}'.`);
+			} catch (error) {
+				notify(
+					ctx,
+					error instanceof Error ? error.message : String(error),
+					"error",
+				);
+			}
+		},
+	});
+
+	pi.registerCommand?.("agent-status", {
+		description: "Show native agent sessions: /agent-status [session-id]",
 		handler: (args) => {
 			sendDynamicMessage(
 				pi,
@@ -647,6 +719,119 @@ export default function dynamicWorkflows(
 					args.trim(),
 				),
 			);
+		},
+	});
+
+	pi.registerCommand?.("agents", {
+		description: "Show the agent-view dashboard.",
+		handler: async (args, ctx) => {
+			const targetId = args.trim();
+			const readState = () => readAgentViewState(agentViewStorePath);
+			if (ctx.ui?.custom) {
+				await ctx.ui.custom(
+					(tui, _theme, _keybindings, done) =>
+						new AgentViewComponent(readState, targetId, {
+							cwd: ctx.cwd,
+							onClose: done,
+							onRunTask: (teamId, text) => {
+								void runAgentTeamTask(
+									agentViewStorePath,
+									agentSessionManager,
+									ctx,
+									teamId,
+									text,
+								)
+									.then((task) => {
+										notify(ctx, `Team task '${task.id}' ${task.status}.`);
+										tui.requestRender();
+									})
+									.catch((error: unknown) => {
+										notify(
+											ctx,
+											error instanceof Error ? error.message : String(error),
+											"error",
+										);
+									});
+								tui.requestRender();
+							},
+							onCancelTask: (teamId, taskId) => {
+								void cancelAgentTeamTask(
+									agentViewStorePath,
+									agentSessionManager,
+									teamId,
+									taskId,
+								)
+									.then((task) => {
+										notify(ctx, `Cancelled team task '${task.id}'.`);
+										tui.requestRender();
+									})
+									.catch((error: unknown) => {
+										notify(
+											ctx,
+											error instanceof Error ? error.message : String(error),
+											"error",
+										);
+									});
+								tui.requestRender();
+							},
+							onRunSession: (text) => {
+								void agentSessionManager
+									.startAgentSession({
+										title: agentSessionTitle(text),
+										prompt: text,
+										cwd: ctx.cwd,
+									})
+									.then((session) => {
+										notify(ctx, `Started agent session '${session.id}'.`);
+										tui.requestRender();
+									})
+									.catch((error: unknown) => {
+										notify(
+											ctx,
+											error instanceof Error ? error.message : String(error),
+											"error",
+										);
+									});
+								tui.requestRender();
+							},
+							onReplySession: (sessionId, text) => {
+								void agentSessionManager
+									.replyToAgentSession(sessionId, text)
+									.then(() => {
+										notify(ctx, `Sent reply to agent session '${sessionId}'.`);
+										tui.requestRender();
+									})
+									.catch((error: unknown) => {
+										notify(
+											ctx,
+											error instanceof Error ? error.message : String(error),
+											"error",
+										);
+									});
+								tui.requestRender();
+							},
+							onStopSession: (sessionId) => {
+								void agentSessionManager
+									.stopAgentSession(sessionId, "Stopped from /agents.")
+									.then(() => {
+										notify(ctx, `Stopped agent session '${sessionId}'.`);
+										tui.requestRender();
+									})
+									.catch((error: unknown) => {
+										notify(
+											ctx,
+											error instanceof Error ? error.message : String(error),
+											"error",
+										);
+									});
+								tui.requestRender();
+							},
+							requestRender: () => tui.requestRender(),
+						}),
+				);
+			} else {
+				sendDynamicMessage(pi, renderAgentViewStatus(readState(), targetId));
+			}
 		},
 	});
 
@@ -681,16 +866,16 @@ export default function dynamicWorkflows(
 
 	pi.registerCommand?.("team-stop", {
 		description: "Cancel an agent team task: /team-stop <team-id>/<task-id>",
-		handler: (args, ctx) => {
+		handler: async (args, ctx) => {
 			const parsed = parseTeamStopArgs(args);
 			if (!parsed) {
 				notify(ctx, "Usage: /team-stop <team-id>/<task-id>", "error");
 				return;
 			}
 			try {
-				const task = cancelAgentTeamTask(
+				const task = await cancelAgentTeamTask(
 					agentViewStorePath,
-					pi,
+					agentSessionManager,
 					parsed.teamId,
 					parsed.taskId,
 				);
@@ -758,6 +943,7 @@ export { planWorkflow } from "./workflow-planner.js";
 export {
 	appendWorkflowRunUpdate,
 	attachWorkflowRequest,
+	attachWorkflowSession,
 	cancelWorkflowRun,
 	createWorkflowRun,
 	finishWorkflowRun,
