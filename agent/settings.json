@@ -5,9 +5,11 @@
   "defaultModel": "gpt-5.5",
   "defaultThinkingLevel": "medium",
   "packages": [
-    {
-      "source": "git:github.com/tthuwng/pi-extensions",
-      "extensions": ["multi-accounts/index.ts"]
-    }
+    "npm:pi-mcp-adapter",
+    "npm:pi-multi-pass",
+    "npm:pi-web-access",
+    "npm:pi-lens",
+    "git:github.com/DietrichGebert/ponytail",
+    "npm:pi-simplify"
   ]
 }
