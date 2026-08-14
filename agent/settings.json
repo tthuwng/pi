@@ -1,0 +1,13 @@
+{
+  "lastChangelogVersion": "0.84.2",
+  "theme": "dark",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "medium",
+  "packages": [
+    {
+      "source": "git:github.com/tthuwng/pi-extensions",
+      "extensions": ["multi-accounts/index.ts"]
+    }
+  ]
+}
