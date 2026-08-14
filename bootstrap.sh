@@ -31,6 +31,7 @@ link_config() {
 }
 
 link_config settings.json
+link_config pi-starship.toml
 
 cat <<'EOF'
 

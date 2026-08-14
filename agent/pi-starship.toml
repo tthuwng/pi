@@ -1,0 +1,10 @@
+# Minimal Pi footer: multi-pass owns the first status slot and publishes the
+# active Codex account's weekly quota. No activity, clock, model, or context
+# modules are rendered here.
+format = "$extension_status"
+
+[extension_status]
+format = "[$statuses]($style)"
+separator = " • "
+max_statuses = 1
+icons = { "multi-pass" = "📅", fallback = "" }

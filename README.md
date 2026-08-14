@@ -5,6 +5,7 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 ## Layout
 
 - `agent/settings.json` — Pi defaults and the repo-backed package list.
+- `agent/pi-starship.toml` — compact footer layout and status filtering.
 - `agent/multi-pass.example.json` — generic example subscription configuration.
 - `bootstrap.sh` — safely links the tracked files into `~/.pi/agent`.
 
@@ -15,6 +16,7 @@ The enabled packages are:
   `pi-multi-pass`, including Pi 0.84.2 auth compatibility.
 - `pi-web-access` — web search and page fetching.
 - `pi-lens` — code diagnostics and inspection tools.
+- `@narumitw/pi-starship` — minimal footer showing only the Codex 7-day quota.
 - `@dietrichgebert/ponytail` — always-on coding guidance and skills.
 - `pi-simplify` — `/simplify` reviews for recently changed code.
 
