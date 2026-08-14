@@ -6,14 +6,11 @@
   "defaultThinkingLevel": "medium",
   "packages": [
     "npm:pi-mcp-adapter",
-    {
-      "source": "git:github.com/tthuwng/pi-extensions",
-      "extensions": [
-        "multi-pass/extensions/multi-sub.ts"
-      ]
-    },
     "npm:pi-web-access",
     "npm:pi-lens",
+    {
+      "source": "git:github.com/tthuwng/pi-extensions"
+    },
     "npm:@narumitw/pi-starship",
     "git:github.com/DietrichGebert/ponytail",
     "npm:pi-simplify"
