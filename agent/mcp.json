@@ -1,0 +1,38 @@
+{
+  "settings": {
+    "hostConfigDiscovery": "off",
+    "mcpFooterStatus": "compact",
+    "notifyOnStartupConnect": false
+  },
+  "mcpServers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "auth": "bearer",
+      "bearerToken": "!gh auth token",
+      "lifecycle": "lazy"
+    },
+    "slack": {
+      "url": "https://mcp.slack.com/mcp",
+      "auth": "oauth",
+      "oauth": {
+        "clientId": "1601185624273.8899143856786",
+        "redirectUri": "http://localhost:3118/callback"
+      },
+      "lifecycle": "lazy"
+    },
+    "notion": {
+      "url": "https://mcp.notion.com/mcp",
+      "auth": "oauth",
+      "lifecycle": "lazy"
+    },
+    "granola": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/proofgeist/granola-ai-mcp-server",
+        "granola-mcp-server"
+      ],
+      "lifecycle": "lazy"
+    }
+  }
+}

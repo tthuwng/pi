@@ -6,6 +6,7 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 
 - `agent/settings.json` — Pi defaults and the repo-backed package list.
 - `agent/pi-starship.toml` — compact model/account/session/quota footer.
+- `agent/mcp.json` — explicit GitHub, Slack, Notion, and Granola MCP servers.
 - `agent/multi-pass.example.json` — generic example subscription configuration.
 - `bootstrap.sh` — safely links the tracked files into `~/.pi/agent`.
 
@@ -30,8 +31,20 @@ fork. Its provider accounts, pools, and labels remain local in
 `~/.pi/agent/multi-pass.json` and are not part of this public repository.
 Credentials remain in Pi's local `auth.json`.
 
-`pi-mcp-adapter` has no MCP servers configured by default. Add or adopt a
-server interactively with `/mcp setup` after reviewing its configuration.
+`pi-mcp-adapter` is configured with four explicit servers in `agent/mcp.json`.
+Host-config discovery is off, so Pi does not silently import the unrelated
+Codex or Claude Code MCP inventory. The definitions are credential-free:
+
+- GitHub connects to the hosted official MCP server and invokes `gh auth
+  token` at connection time, reusing the existing GitHub CLI login without
+  copying a token into Pi.
+- Slack and Notion use hosted OAuth. Run `/mcp-auth slack` and
+  `/mcp-auth notion` in Pi once; tokens are stored in the OS credential store.
+- Granola uses the local read-only cache server and is lazy. Granola must be
+  installed and running with a readable local cache before its tools work.
+
+Use `/mcp` to inspect or reconnect a server. Use `/mcp setup` only when you
+intentionally want to adopt another host configuration.
 `pi-web-access` works without a key through its zero-configuration providers;
 optional provider keys belong in the local `~/.pi/web-search.json`.
 
@@ -55,5 +68,6 @@ These remain machine-local and are never committed:
 - `~/.pi/agent/auth.json`
 - `~/.pi/agent/multi-pass.json`
 - `~/.pi/agent/models-store.json`
+- `~/.pi/agent/mcp-oauth/` (legacy import only; current OAuth uses Keychain)
 - `~/.pi/agent/npm/`
 - provider-failover logs and runtime state
