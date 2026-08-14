@@ -8,9 +8,8 @@
     "npm:pi-mcp-adapter",
     {
       "source": "git:github.com/tthuwng/pi-extensions",
-      "extensions": ["multi-pass-compat/index.ts"]
+      "extensions": ["multi-pass/extensions/multi-sub.ts"]
     },
-    "npm:pi-multi-pass",
     "npm:pi-web-access",
     "npm:pi-lens",
     "git:github.com/DietrichGebert/ponytail",

@@ -11,9 +11,8 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 The enabled packages are:
 
 - `pi-mcp-adapter` — MCP server discovery and native Pi tools.
-- `tthuwng/pi-extensions:multi-pass-compat` — Pi 0.84.2 compatibility bridge
-  required by the current `pi-multi-pass` release.
-- `pi-multi-pass` — multiple OAuth subscriptions and rotation pools.
+- `tthuwng/pi-extensions:multi-pass` — maintained fork of upstream
+  `pi-multi-pass`, including Pi 0.84.2 auth compatibility.
 - `pi-web-access` — web search and page fetching.
 - `pi-lens` — code diagnostics and inspection tools.
 - `@dietrichgebert/ponytail` — always-on coding guidance and skills.
@@ -22,14 +21,11 @@ The enabled packages are:
 `pi-web-access` is intentionally listed once; repeated install requests are
 deduplicated by Pi.
 
-The account manager is the upstream `pi-multi-pass` package. Its provider
-accounts, pools, and labels remain local in `~/.pi/agent/multi-pass.json` and
-are not part of this public repository. Credentials remain in Pi's local
-`auth.json`.
-
-The compatibility bridge only adapts Pi's current auth-status API to the
-legacy interface expected by `pi-multi-pass`; it does not own, copy, or log
-credentials.
+The account manager is maintained in the public
+[`tthuwng/pi-extensions/multi-pass`](https://github.com/tthuwng/pi-extensions/tree/main/multi-pass)
+fork. Its provider accounts, pools, and labels remain local in
+`~/.pi/agent/multi-pass.json` and are not part of this public repository.
+Credentials remain in Pi's local `auth.json`.
 
 `pi-mcp-adapter` has no MCP servers configured by default. Add or adopt a
 server interactively with `/mcp setup` after reviewing its configuration.
