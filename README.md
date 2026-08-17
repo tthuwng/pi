@@ -5,6 +5,7 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 ## Layout
 
 - `agent/settings.json` — Pi defaults and the repo-backed package list.
+- `agent/AGENTS.md` — global Pi instructions.
 - `agent/pi-starship.toml` — compact model/account/session/quota footer.
 - `agent/mcp.json` — explicit GitHub, Slack, Notion, and Granola MCP servers.
 - `agent/multi-pass.example.json` — generic example subscription configuration.

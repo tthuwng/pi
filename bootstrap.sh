@@ -33,6 +33,7 @@ link_config() {
 link_config settings.json
 link_config pi-starship.toml
 link_config mcp.json
+link_config AGENTS.md
 
 cat <<'EOF'
 
