@@ -6,39 +6,60 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 
 - `agent/settings.json` — Pi defaults and the repo-backed package list.
 - `agent/AGENTS.md` — global Pi instructions.
-- `agent/pi-starship.toml` — compact model/account/session/quota footer.
-- `agent/mcp.json` — explicit GitHub, Slack, Notion, and Granola MCP servers.
+- `agent/mcp.json` — explicit documentation, monitoring, collaboration, and
+  repository MCP servers.
 - `agent/multi-pass.example.json` — generic example subscription configuration.
 - `bootstrap.sh` — safely links the tracked files into `~/.pi/agent`.
 
 The enabled packages are:
 
 - `pi-mcp-adapter` — MCP server discovery and native Pi tools.
-- `tthuwng/pi-extensions:multi-pass` — maintained fork of upstream
-  `pi-multi-pass`, including Pi 0.84.2 auth compatibility.
+- `extensions/` — maintained Pi 0.84.2 extensions. The bundle loads
+  `pi-chrome-devtools`, `pi-codex-compact`, `pi-goal`, and `pi-subagents`.
 - `pi-web-access` — web search and page fetching.
-- `pi-lens` — code diagnostics and inspection tools.
-- `@narumitw/pi-starship` — compact footer showing the model, fast/normal mode,
-  active account, session name, and Codex 7-day quota.
+- `@ff-labs/pi-fff` — local fuzzy file and content search with indexed results.
+  The launcher loads it only inside Git repositories. It adds `fffind`,
+  `ffgrep`, and `fff-multi-grep` without replacing Pi's built-in search tools.
+- `pi-lens` — code diagnostics and inspection tools. It loads on demand.
+- `context-mode` — bounded tool output and indexed context retrieval.
+- `pi-session-search` — search past Pi sessions with local FTS5 indexing.
+  It starts indexing three seconds after Pi starts and skips subagent sessions.
+- `@narumitw/pi-caffeinate` — keep the host awake during long runs.
+- `@narumitw/pi-worktree` — create and manage isolated worktrees.
+- `@narumitw/pi-usage` — show provider usage limits.
+- `pi-multi-account` — discover Codex accounts and rotate on auth or quota
+  errors.
+- `@quintinshaw/pi-dynamic-workflows` — run resumable, parallel JavaScript
+  workflows with model routing, cost tracking, and worktree isolation.
 - `@dietrichgebert/ponytail` — always-on coding guidance and skills.
 - `pi-simplify` — `/simplify` reviews for recently changed code.
+
+The tracked skills include `grill-me`, `grilling`, and `writing-for-agents` from
+[`mattpocock/skills`](https://github.com/mattpocock/skills). Run
+`/skill:grill-me` to stress-test a plan before implementation.
 
 `pi-web-access` is intentionally listed once; repeated install requests are
 deduplicated by Pi.
 
-The account manager is maintained in the public
-[`tthuwng/pi-extensions/multi-pass`](https://github.com/tthuwng/pi-extensions/tree/main/multi-pass)
-fork. Its provider accounts, pools, and labels remain local in
-`~/.pi/agent/multi-pass.json` and are not part of this public repository.
-Credentials remain in Pi's local `auth.json`.
+`pi-multi-account` discovers authenticated provider slots from Pi's local
+`auth.json`. Its failover settings and state remain local in
+`~/.pi/agent/provider-failover.json` and
+`~/.pi/agent/provider-failover-state.json`.
 
-`pi-mcp-adapter` is configured with four explicit servers in `agent/mcp.json`.
+`pi-mcp-adapter` is configured with seven explicit servers in `agent/mcp.json`.
 Host-config discovery is off, so Pi does not silently import the unrelated
 Codex or Claude Code MCP inventory. The definitions are credential-free:
 
-- GitHub connects to the hosted official MCP server and invokes `gh auth
-  token` at connection time, reusing the existing GitHub CLI login without
-  copying a token into Pi.
+- Context7 provides current library documentation through hosted OAuth. Run
+  `/mcp-auth context7` once in Pi.
+- Sentry provides hosted error-monitoring tools through OAuth. Run
+  `/mcp-auth sentry` once in Pi.
+- Google Docs provides Google Docs, Sheets, and Drive tools through a lazy local
+  server. It also requests Gmail and Calendar scopes. Set
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then run the package's `auth`
+  command before using `/mcp`.
+- GitHub connects to the hosted official MCP server with the token from
+  `gh auth token`. Pi reads it only when the lazy server connects.
 - Slack and Notion use hosted OAuth. Run `/mcp-auth slack` and
   `/mcp-auth notion` in Pi once; tokens are stored in the OS credential store.
 - Granola uses the local read-only cache server and is lazy. Granola must be
@@ -48,6 +69,26 @@ Use `/mcp` to inspect or reconnect a server. Use `/mcp setup` only when you
 intentionally want to adopt another host configuration.
 `pi-web-access` works without a key through its zero-configuration providers;
 optional provider keys belong in the local `~/.pi/web-search.json`.
+
+`pi-subagents` exposes delegation tools and refreshes the available agent
+catalog at session start and `/reload`. The model chooses when to delegate.
+It does not start a subagent for every task. Detached completion messages are
+delivered according to the configured completion policy. Its built-in
+`reviewer` is read-only and evidence-first. The tracked `run-monitor` agent
+adds the same read-only contract for one named tmux, log, or status-file run.
+Use `/subagents` to review the catalog, then name the agent when delegating.
+
+`@quintinshaw/pi-dynamic-workflows` registers its `workflow` tool at session
+start. Use `/workflows` for the run navigator and `/reload` after package
+changes.
+
+`pi-session-search` provides `session_search`, `session_list`, and
+`session_read`. Use `/session-sync` after a session finishes if you need its
+results immediately.
+
+Pi uses its built-in TUI. `multi-pass` already owns account rotation, so
+`@narumitw/pi-accounts` is not added. `@narumitw/pi-tui-kit` is a library
+dependency, not a standalone extension.
 
 ## Link this machine
 

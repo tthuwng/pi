@@ -24,3 +24,9 @@
 - Verify before claiming work is done.
 - Keep changes narrow and preserve unrelated work.
 - Use `ht/` when creating a git branch.
+- Treat non-repository sessions as valid. Before Git commands, locate a repository and use `git -C <repo>`.
+- Never run a bare Git command from a non-repository session. Skip Git checks when the task does not need Git.
+- Read the source and instructions before editing.
+- Verify the exact changed files before reporting success.
+- Treat current instructions and source as authoritative over memory, caches, and old sessions.
+- Report the objective, finding, risk, and next action during long tasks.

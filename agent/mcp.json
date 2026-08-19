@@ -1,10 +1,20 @@
 {
   "settings": {
     "hostConfigDiscovery": "off",
-    "mcpFooterStatus": "compact",
+    "mcpFooterStatus": "off",
     "notifyOnStartupConnect": false
   },
   "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp/oauth",
+      "auth": "oauth",
+      "lifecycle": "lazy"
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp",
+      "auth": "oauth",
+      "lifecycle": "lazy"
+    },
     "github": {
       "url": "https://api.githubcopilot.com/mcp/",
       "auth": "bearer",
@@ -23,6 +33,14 @@
     "notion": {
       "url": "https://mcp.notion.com/mcp",
       "auth": "oauth",
+      "lifecycle": "lazy"
+    },
+    "google_docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@a-bonus/google-docs-mcp@1.11.3"
+      ],
       "lifecycle": "lazy"
     },
     "granola": {
