@@ -21,7 +21,7 @@ Use it to split independent research, planning, implementation, and review work 
 - Supports built-in `scout`, `planner`, `reviewer`, and `worker` agents.
 - Loads custom user agents from `~/.pi/agent/agents/*.md`.
 - Optionally loads project agents from `.pi/agents/*.md` with confirmation.
-- Provides a current-session-first `/subagents` manager, direct `settings|status|help` routes, and compatibility aliases for agent tools and retained agents.
+- Provides a current-session-first `/agents` Agent Hub, the `/subagents` manager, direct `settings|status|help` routes, and compatibility aliases for agent tools and retained agents.
 - Supports trust-aware per-task `cwd` policies, task-selected work, workflow, idle, turn, and tool-call budgets, deterministic timeout checkpoints, bounded abort-then-summary recovery, progress telemetry, and explicit Fast, Balanced, or Deep thinking profiles.
 - Uses Pi-native tool rows throughout; blocking and consultation calls add bounded custom live activity.
 - Bounds JSON lines, captured messages, stderr, final output, chain substitution, and fan-in context.
@@ -445,6 +445,7 @@ The executor accepts only strict `pi-subagents:panel-review:v1` artifacts, stamp
 Agreement is corroboration rather than proof, and a vote cannot clear a correctness, safety, security, or explicit-requirement blocker.
 If too few valid reviews remain, the tool returns `insufficient-panel` with bounded partial evidence and failure classes without running synthesis or claiming consensus.
 Review, evidence-finalization, synthesis, and cleanup receive explicit phase allocations, and reviewer work cannot consume the synthesis or cleanup reserve.
+Panel result rows show the synthesis verdict and a compact P0-P3 priority count. Priorities map critical, high, medium, and low or informational findings to P0, P1, P2, and P3.
 Only transient launch or transport failures receive one bounded retry; invalid contracts, semantic stalls, permission failures, exhausted budgets, cancellation, and deterministic task failures do not.
 Read-only reviewers share the approved target, while conservatively write-capable reviewers receive separate disposable Git worktrees from one clean base.
 Worktrees isolate repository writes but do not isolate processes, the network, secrets, credentials, or the rest of the filesystem.
@@ -623,7 +624,7 @@ Automatic selection never falls back after child creation or prompt acceptance.
 
 Run `/subagents` in TUI mode to open the standard primary manager.
 It leads with the current delegation workflow, human-readable async completion behavior, consultation/delegation target policies, consultation-resource policy, parallel-worker limit, and active/retained counts.
-**Change delegation**, **Current agents**, and **Settings** cover the common workflows.
+**Change delegation**, **Agent Hub**, and **Settings** cover the common workflows.
 Agent permissions, **Maximum parallel workers**, **Detached agent limits**, **Performance and execution**, transport/runtime details, source, and settings path remain under **Advanced settings**.
 **Performance and execution** provides responsiveness guidance, transport previews, Fast/Balanced/Deep thinking profiles, and per-agent model/thinking/timeout defaults.
 Profiles are explicit atomic thinking patches, preserve model/tool/timeout/context settings, never select `max`, and can be customized afterward.
@@ -711,7 +712,7 @@ The action schemas are flat for provider compatibility and reject parameters tha
 }
 ```
 
-Use the **Current agents** action in `/subagents` to inspect the indented agent tree, lifecycle state, unread count, and available actions, or to confirm clearing retained agents.
+Use `/agents` or the **Agent Hub** action in `/subagents` to inspect one agent's task, run, history, unread count, and lifecycle state. The detail view can queue a steer message, interrupt an agent or its tree, and close an agent or its tree. Use the clear action to remove all retained agents for the session.
 Active turns are FIFO-limited by `maxActiveTurns`; excess retained work remains in `starting` state until a slot is available.
 `maxAgents` separately bounds running, queued, and idle records.
 `maxChildrenPerAgent` bounds direct children, while `maxDepth` counts nested levels below a depth-zero root.

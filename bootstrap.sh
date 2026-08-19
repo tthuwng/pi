@@ -59,6 +59,7 @@ link_directory() {
 
 link_directory extensions
 link_directory packages
+link_directory prompts
 
 link_launcher() {
 	source="$repo_dir/bin/pi"

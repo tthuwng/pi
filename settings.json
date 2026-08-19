@@ -14,6 +14,7 @@
   "packages": [
     "npm:pi-mcp-adapter",
     "npm:pi-web-access",
+    "npm:pi-observational-memory",
     {
       "source": "npm:pi-lens",
       "autoload": false
@@ -21,15 +22,7 @@
     "npm:@narumitw/pi-caffeinate",
     "npm:@narumitw/pi-worktree",
     "npm:@narumitw/pi-usage",
-    {
-      "source": ".",
-      "extensions": [
-        "./packages/pi-chrome-devtools/src/index.ts",
-        "./packages/pi-codex-compact/src/index.ts",
-        "./packages/pi-goal/src/index.ts",
-        "./packages/pi-subagents/src/index.ts"
-      ]
-    },
+    ".",
     "git:github.com/DietrichGebert/ponytail",
     "npm:pi-simplify",
     "npm:@quintinshaw/pi-dynamic-workflows",
@@ -37,7 +30,8 @@
     "npm:pi-btw",
     "npm:context-mode@1.0.169",
     "npm:pi-session-search",
-    "npm:pi-multi-account"
+    "npm:pi-multi-account",
+    "npm:@junghanacs/pi-shell-acp@0.11.1"
   ],
   "pi-session-search": {
     "primer": {
@@ -62,9 +56,17 @@
     "openai-codex-account-2/gpt-5.6-luna",
     "openai-codex-account-3/gpt-5.6-sol",
     "openai-codex-account-3/gpt-5.6-terra",
-    "openai-codex-account-3/gpt-5.6-luna"
+    "openai-codex-account-3/gpt-5.6-luna",
+    "pi-shell-acp/gpt-5.5",
+    "pi-shell-acp/claude-sonnet-4-6",
+    "pi-shell-acp/claude-opus-4-8"
   ],
   "steeringMode": "all",
   "tuiMode": "fullscreen",
-  "theme": "dark"
+  "theme": "dark",
+  "observational-memory": {
+    "compactAfterTokensMode": "ratio",
+    "compactAfterTokensRatio": 0.68,
+    "showWorkerNotifications": false
+  }
 }

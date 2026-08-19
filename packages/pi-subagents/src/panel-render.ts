@@ -1,8 +1,9 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import type { PanelFinding } from "./panel-contract.js";
 import type { SubagentParams } from "./params.js";
 import { safeBlock, safeLine } from "./render-common.js";
-import type { SubagentDetails } from "./runner.js";
+import type { PanelDetails, SubagentDetails } from "./runner.js";
 
 export function renderPanelCall(args: SubagentParams, theme: Theme): Text | undefined {
 	const panel = args.panel;
@@ -41,6 +42,7 @@ export function renderPanelResult(
 				? "warning"
 				: "error";
 	let text = `${theme.fg(color, status)} ${theme.fg("accent", safeLine(panel.preset, "panel", 128))}`;
+	text += `\n${theme.fg("accent", `VERDICT ${panelVerdict(panel)}`)}${theme.fg("muted", ` · ${prioritySummary(panel.evidence.flatMap((artifact) => artifact.review.findings))}`)}`;
 	text += theme.fg(
 		"muted",
 		` · valid ${panel.validReviewCount}/${panel.reviewerIds.length} · failed ${panel.failedReviewCount} · blockers ${panel.blockingObjectionCount} · dissent ${panel.dissentCount}`,
@@ -95,6 +97,30 @@ export function renderPanelResult(
 	text += `\n\n${theme.fg("muted", `Budget: review ${panel.budgets.reviewMs}ms · finalization ${panel.budgets.finalizationMs}ms · synthesis ${panel.budgets.synthesisMs}ms · cleanup ${panel.budgets.cleanupMs}ms`)}`;
 	text += `\n${theme.fg("muted", `Cleanup: ${panel.cleanupComplete ? "complete" : "pending"}`)}`;
 	return new Text(text, 0, 0);
+}
+
+type ReviewPriority = "P0" | "P1" | "P2" | "P3";
+
+const REVIEW_PRIORITIES: Record<PanelFinding["severity"], ReviewPriority> = {
+	critical: "P0",
+	high: "P1",
+	medium: "P2",
+	low: "P3",
+	info: "P3",
+};
+
+function panelVerdict(panel: PanelDetails): string {
+	if (panel.synthesis) return panel.synthesis.disposition.toUpperCase();
+	if (panel.state === "completed") return "PARTIAL";
+	return panel.state.toUpperCase();
+}
+
+function prioritySummary(findings: readonly PanelFinding[]): string {
+	const counts: Record<ReviewPriority, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
+	for (const finding of findings) counts[REVIEW_PRIORITIES[finding.severity]]++;
+	return Object.entries(counts)
+		.map(([priority, count]) => `${priority} ${count}`)
+		.join(" · ");
 }
 
 function preview(value: unknown, maxLength: number): string {

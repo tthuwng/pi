@@ -158,6 +158,9 @@ export interface StatefulSubagentController {
 	listAgents(includeClosed?: boolean): ManagedAgent[];
 	listRunInspection(includeClosed?: boolean): AgentRunInspectionSummary[];
 	getRunInspection(agentId: string): AgentRunInspectionDetail | undefined;
+	sendAgentMessage(agentId: string, message: string): Promise<void>;
+	interruptAgent(agentId: string, subtree: boolean): Promise<void>;
+	closeAgent(agentId: string, subtree: boolean): Promise<void>;
 	clearAgents(): Promise<number>;
 }
 
@@ -255,6 +258,24 @@ export function registerStatefulSubagents(
 		},
 		getRunInspection(agentId) {
 			return registry?.getInspection(agentId);
+		},
+		async sendAgentMessage(agentId, message) {
+			if (!registry) throw new Error("Stateful subagents are not initialized for this session");
+			await registry.sendMessage(agentId, message);
+		},
+		async interruptAgent(agentId, subtree) {
+			if (!registry) throw new Error("Stateful subagents are not initialized for this session");
+			if (subtree) await registry.interruptTree(agentId);
+			else await registry.interrupt(agentId);
+		},
+		async closeAgent(agentId, subtree) {
+			if (!registry) throw new Error("Stateful subagents are not initialized for this session");
+			try {
+				if (subtree) await registry.closeTree(agentId);
+				else await registry.close(agentId);
+			} finally {
+				await cleanupClosedWorkspaces(registry, isolatedAgents, workspaceManager);
+			}
 		},
 		clearAgents,
 	};

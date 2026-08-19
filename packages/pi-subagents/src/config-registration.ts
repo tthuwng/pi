@@ -41,6 +41,23 @@ export function registerSubagentConfigCommand(
 	const loadConfigUi = cachedModuleLoader(
 		dependencies.loadConfigUi ?? (() => import("./config-ui.js")),
 	);
+	const openManager = async (ctx: Parameters<ConfigUiModule["showSubagentManager"]>[1]) => {
+		const generation = owner.generation;
+		const controller = owner.controller;
+		const isCurrent = () =>
+			generation === owner.generation &&
+			controller === owner.controller &&
+			!controller.signal.aborted;
+		let configUi: ConfigUiModule;
+		try {
+			configUi = await loadConfigUi();
+		} catch (error) {
+			if (!isCurrent()) return;
+			throw error;
+		}
+		if (!isCurrent()) return;
+		await configUi.showSubagentManager(pi, ctx, runtime, owner);
+	};
 	pi.registerCommand("subagents", {
 		description: "Manage current-session subagents and user settings",
 		getArgumentCompletions(prefix: string) {
@@ -62,7 +79,11 @@ export function registerSubagentConfigCommand(
 				showSubagentHelp(ctx, runtime);
 				return;
 			}
-			if (!subcommand || subcommand === "settings") {
+			if (!subcommand) {
+				await openManager(ctx);
+				return;
+			}
+			if (subcommand === "settings") {
 				const generation = owner.generation;
 				const controller = owner.controller;
 				const isCurrent = () =>
@@ -77,13 +98,18 @@ export function registerSubagentConfigCommand(
 					throw error;
 				}
 				if (!isCurrent()) return;
-				if (!subcommand) await configUi.showSubagentManager(pi, ctx, runtime, owner);
-				else await configUi.showSubagentSettings(ctx, runtime, owner);
+				await configUi.showSubagentSettings(ctx, runtime, owner);
 				return;
 			}
 			if (ctx.mode === "tui" || ctx.hasUI) {
 				ctx.ui.notify(`Unknown /subagents subcommand: ${subcommand}`, "warning");
 			}
+		},
+	});
+	pi.registerCommand("agents", {
+		description: "Open the current-session Agent Hub",
+		async handler(_args, ctx) {
+			await openManager(ctx);
 		},
 	});
 }

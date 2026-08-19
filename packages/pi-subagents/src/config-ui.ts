@@ -36,7 +36,7 @@ import {
 	applyBlockingParallelLimitSetting,
 	blockingParallelLimitScreen,
 } from "./parallel-limit-ui.js";
-import type { ManagedAgent } from "./registry.js";
+import type { AgentRunInspectionDetail, ManagedAgent } from "./registry.js";
 import { safeTerminalLine as safeTerminalText } from "./safe-text.js";
 import type { DelegationWorkflow } from "./settings/inspection.js";
 import {
@@ -92,6 +92,10 @@ export interface SubagentSettingsRuntime {
 	setDelegationCwdPolicy(value: DelegationCwdPolicy): void;
 	getRuntimeStatus(): StatefulSubagentRuntimeStatus;
 	listAgents(includeClosed?: boolean): ManagedAgent[];
+	getRunInspection(agentId: string): AgentRunInspectionDetail | undefined;
+	sendAgentMessage(agentId: string, message: string): Promise<void>;
+	interruptAgent(agentId: string, subtree: boolean): Promise<void>;
+	closeAgent(agentId: string, subtree: boolean): Promise<void>;
 	clearAgents(): Promise<number>;
 }
 
@@ -186,10 +190,12 @@ export async function showSubagentManager(
 	let toolDraft: ToolDraft | undefined;
 	let selectedExecutionAgent: (typeof availableAgents)[number] | undefined;
 	let selectedStatefulLimit: StatefulLimitField = "maxAgents";
+	let selectedStatefulAgentId: string | undefined;
 	type Screen =
 		| "main"
 		| "workflow"
 		| "agents"
+		| "agent-detail"
 		| "settings"
 		| "advanced"
 		| "performance"
@@ -212,6 +218,12 @@ export async function showSubagentManager(
 	type Action =
 		| "set-workflow"
 		| "clear-agents"
+		| "select-agent"
+		| "steer-agent"
+		| "interrupt-agent"
+		| "interrupt-agent-tree"
+		| "close-agent"
+		| "close-agent-tree"
 		| "set-transport"
 		| "apply-execution-profile"
 		| "pick-execution-agent"
@@ -251,7 +263,7 @@ export async function showSubagentManager(
 						},
 						{
 							id: "agents",
-							label: "Current agents",
+							label: "Agent Hub",
 							description: `${status.activeAgents} active · ${status.retainedAgents} retained`,
 							to: "agents",
 						},
@@ -320,11 +332,19 @@ export async function showSubagentManager(
 				const status = runtime.getRuntimeStatus();
 				return {
 					kind: "actions",
-					title: "Current-session Subagents",
+					title: "Agent Hub",
 					lines: agents.length
 						? agents.map(formatStatefulAgentLine)
 						: [formatEmptyStatefulRuntime(status)],
 					items: [
+						...(agents.length > 0
+							? agents.map((agent) => ({
+									id: agent.id,
+									label: `${safeTerminalText(agent.agent)} · ${agent.state}`,
+									description: safeTerminalText(agent.currentTask ?? "Open agent details"),
+									action: "select-agent" as const,
+								}))
+							: []),
 						...(agents.length > 0
 							? [
 									{
@@ -336,6 +356,72 @@ export async function showSubagentManager(
 								]
 							: []),
 						{ id: "back", label: "Back", action: "back" },
+					],
+					hint: "back",
+				};
+			},
+			"agent-detail": () => {
+				const agent = selectedStatefulAgentId
+					? runtime.listAgents(true).find((candidate) => candidate.id === selectedStatefulAgentId)
+					: undefined;
+				const inspection = selectedStatefulAgentId
+					? runtime.getRunInspection(selectedStatefulAgentId)
+					: undefined;
+				if (!agent || !inspection) {
+					return {
+						kind: "actions",
+						title: "Agent Hub",
+						lines: ["This agent is no longer available."],
+						items: [{ id: "back", label: "Back", action: "back" as const }],
+						hint: "back",
+					};
+				}
+				const running = agent.state === "running" || agent.state === "starting";
+				return {
+					kind: "actions",
+					title: `${safeTerminalText(agent.agent)} · ${agent.state}`,
+					lines: [
+						`ID: ${safeTerminalText(agent.id)}`,
+						`Task: ${safeTerminalText(inspection.currentTask ?? "(idle)")}`,
+						`Cwd: ${safeTerminalText(inspection.cwd)}`,
+						`History: ${inspection.historyCount} · unread: ${inspection.unreadMessages}`,
+						...(inspection.thinkingLevel ? [`Thinking: ${inspection.thinkingLevel}`] : []),
+						...(inspection.currentRunId ? [`Run: ${safeTerminalText(inspection.currentRunId)}`] : []),
+						...(inspection.error ? [`Error: ${safeTerminalText(inspection.error)}`] : []),
+					],
+					items: [
+						{
+							id: "steer",
+							label: "Steer agent",
+							description: "Queue a message for the next agent turn",
+							action: "steer-agent" as const,
+							disabled: agent.state === "closed",
+						},
+						{
+							id: "interrupt",
+							label: "Interrupt agent",
+							action: "interrupt-agent" as const,
+							disabled: !running,
+						},
+						{
+							id: "interrupt-tree",
+							label: "Interrupt agent tree",
+							action: "interrupt-agent-tree" as const,
+							disabled: !running && agent.children.length === 0,
+						},
+						{
+							id: "close",
+							label: "Close agent",
+							action: "close-agent" as const,
+							disabled: agent.state === "closed",
+						},
+						{
+							id: "close-tree",
+							label: "Close agent tree",
+							action: "close-agent-tree" as const,
+							disabled: agent.state === "closed" || agent.children.length === 0,
+						},
+						{ id: "back", label: "Back", action: "back" as const },
 					],
 					hint: "back",
 				};
@@ -564,6 +650,84 @@ export async function showSubagentManager(
 					`Cleared ${cleared} current-session subagent${cleared === 1 ? "" : "s"}.`,
 					"info",
 				);
+				return { kind: "stay" };
+			},
+			"select-agent": async ({ itemId }) => {
+				if (!runtime.listAgents(true).some((agent) => agent.id === itemId)) {
+					return { kind: "rejected" };
+				}
+				selectedStatefulAgentId = itemId;
+				return { kind: "to", screen: "agent-detail" as const };
+			},
+			"steer-agent": async () => {
+				if (!selectedStatefulAgentId) return { kind: "rejected" };
+				const message = await ctx.ui.input("Steer agent", "Message for the next agent turn");
+				if (message === undefined) return { kind: "rejected" };
+				try {
+					await runtime.sendAgentMessage(selectedStatefulAgentId, message);
+				} catch (error) {
+					ctx.ui.notify(`Agent message was not queued: ${formatError(error)}`, "error");
+					return { kind: "rejected" };
+				}
+				ctx.ui.notify("Message queued for the agent.", "info");
+				return { kind: "stay" };
+			},
+			"interrupt-agent": async ({ signal }) => {
+				if (!selectedStatefulAgentId) return { kind: "rejected" };
+				try {
+					await runtime.interruptAgent(selectedStatefulAgentId, false);
+				} catch (error) {
+					ctx.ui.notify(`Agent was not interrupted: ${formatError(error)}`, "error");
+					return signal.aborted ? { kind: "close" } : { kind: "rejected" };
+				}
+				ctx.ui.notify("Agent interrupted.", "info");
+				return { kind: "stay" };
+			},
+			"interrupt-agent-tree": async ({ signal }) => {
+				if (!selectedStatefulAgentId) return { kind: "rejected" };
+				try {
+					await runtime.interruptAgent(selectedStatefulAgentId, true);
+				} catch (error) {
+					ctx.ui.notify(`Agent tree was not interrupted: ${formatError(error)}`, "error");
+					return signal.aborted ? { kind: "close" } : { kind: "rejected" };
+				}
+				ctx.ui.notify("Agent tree interrupted.", "info");
+				return { kind: "stay" };
+			},
+			"close-agent": async ({ signal }) => {
+				if (!selectedStatefulAgentId) return { kind: "rejected" };
+				const confirmed = await ctx.ui.confirm(
+					"Close agent?",
+					"The agent must have no active children.",
+					{ signal },
+				);
+				if (signal.aborted) return { kind: "close" };
+				if (!confirmed) return { kind: "rejected" };
+				try {
+					await runtime.closeAgent(selectedStatefulAgentId, false);
+				} catch (error) {
+					ctx.ui.notify(`Agent was not closed: ${formatError(error)}`, "error");
+					return { kind: "rejected" };
+				}
+				ctx.ui.notify("Agent closed.", "info");
+				return { kind: "stay" };
+			},
+			"close-agent-tree": async ({ signal }) => {
+				if (!selectedStatefulAgentId) return { kind: "rejected" };
+				const confirmed = await ctx.ui.confirm(
+					"Close agent tree?",
+					"This closes the selected agent and all descendants.",
+					{ signal },
+				);
+				if (signal.aborted) return { kind: "close" };
+				if (!confirmed) return { kind: "rejected" };
+				try {
+					await runtime.closeAgent(selectedStatefulAgentId, true);
+				} catch (error) {
+					ctx.ui.notify(`Agent tree was not closed: ${formatError(error)}`, "error");
+					return { kind: "rejected" };
+				}
+				ctx.ui.notify("Agent tree closed.", "info");
 				return { kind: "stay" };
 			},
 			"set-transport": async ({ itemId, signal }) =>
