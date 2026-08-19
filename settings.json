@@ -22,7 +22,7 @@
     "npm:@narumitw/pi-worktree",
     "npm:@narumitw/pi-usage",
     {
-      "source": "./extensions",
+      "source": ".",
       "extensions": [
         "./packages/pi-chrome-devtools/src/index.ts",
         "./packages/pi-codex-compact/src/index.ts",

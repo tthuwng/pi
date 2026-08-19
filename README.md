@@ -4,18 +4,23 @@ Personal, credential-free configuration for the Pi coding agent on macOS.
 
 ## Layout
 
-- `agent/settings.json` — Pi defaults and the repo-backed package list.
-- `agent/AGENTS.md` — global Pi instructions.
-- `agent/mcp.json` — explicit documentation, monitoring, collaboration, and
+- `settings.json` — Pi defaults and the repo-backed package list.
+- `AGENTS.md` — global Pi instructions.
+- `agents/` — user agent profiles.
+- `skills/` — reusable Pi skills.
+- `mcp.json` — explicit documentation, monitoring, collaboration, and
   repository MCP servers.
-- `agent/multi-pass.example.json` — generic example subscription configuration.
+- `multi-pass.example.json` — generic example subscription configuration.
+- `packages/` — self-contained installable Pi packages.
+- `extensions/` — extension source that is not a standalone package.
 - `bootstrap.sh` — safely links the tracked files into `~/.pi/agent`.
 
 The enabled packages are:
 
 - `pi-mcp-adapter` — MCP server discovery and native Pi tools.
-- `extensions/` — maintained Pi 0.84.2 extensions. The bundle loads
+- `packages/` — maintained Pi 0.84.2 packages. The bundle loads
   `pi-chrome-devtools`, `pi-codex-compact`, `pi-goal`, and `pi-subagents`.
+- `extensions/multi-pass/` — vendored multi-account extension source.
 - `pi-web-access` — web search and page fetching.
 - `@ff-labs/pi-fff` — local fuzzy file and content search with indexed results.
   The launcher loads it only inside Git repositories. It adds `fffind`,
@@ -34,9 +39,9 @@ The enabled packages are:
 - `@dietrichgebert/ponytail` — always-on coding guidance and skills.
 - `pi-simplify` — `/simplify` reviews for recently changed code.
 
-The tracked skills include `grill-me`, `grilling`, and `writing-for-agents` from
+The tracked skills include `grilling` and `writing-for-agents` from
 [`mattpocock/skills`](https://github.com/mattpocock/skills). Run
-`/skill:grill-me` to stress-test a plan before implementation.
+`/skill:grilling` to stress-test a plan before implementation.
 
 `pi-web-access` is intentionally listed once; repeated install requests are
 deduplicated by Pi.
@@ -46,7 +51,7 @@ deduplicated by Pi.
 `~/.pi/agent/provider-failover.json` and
 `~/.pi/agent/provider-failover-state.json`.
 
-`pi-mcp-adapter` is configured with seven explicit servers in `agent/mcp.json`.
+`pi-mcp-adapter` is configured with seven explicit servers in `mcp.json`.
 Host-config discovery is off, so Pi does not silently import the unrelated
 Codex or Claude Code MCP inventory. The definitions are credential-free:
 

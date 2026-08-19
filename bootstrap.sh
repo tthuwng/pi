@@ -10,7 +10,7 @@ mkdir -p "$agent_dir"
 
 link_config() {
 	name=$1
-	source="$repo_dir/agent/$name"
+	source="$repo_dir/$name"
 	target="$agent_dir/$name"
 
 	if [ -L "$target" ]; then
@@ -33,10 +33,12 @@ link_config() {
 link_config settings.json
 link_config mcp.json
 link_config AGENTS.md
+link_config package.json
 
-link_extensions() {
-	source="$repo_dir/extensions"
-	target="$agent_dir/extensions"
+link_directory() {
+	name=$1
+	source="$repo_dir/$name"
+	target="$agent_dir/$name"
 
 	if [ -L "$target" ]; then
 		current=$(readlink "$target")
@@ -45,17 +47,18 @@ link_extensions() {
 			return
 		fi
 		mkdir -p "$backup_dir"
-		mv "$target" "$backup_dir/extensions.previous-link"
+		mv "$target" "$backup_dir/$name.previous-link"
 	elif [ -e "$target" ]; then
 		mkdir -p "$backup_dir"
-		mv "$target" "$backup_dir/extensions"
+		mv "$target" "$backup_dir/$name"
 	fi
 
 	ln -s "$source" "$target"
 	printf 'linked: %s -> %s\n' "$target" "$source"
 }
 
-link_extensions
+link_directory extensions
+link_directory packages
 
 link_launcher() {
 	source="$repo_dir/bin/pi"
@@ -82,7 +85,7 @@ link_launcher
 
 link_agents() {
 	name=agents
-	source="$repo_dir/agent/$name"
+	source="$repo_dir/$name"
 	target="$agent_dir/$name"
 
 	if [ -L "$target" ]; then
@@ -106,7 +109,7 @@ link_agents
 
 link_skills() {
 	name=skills
-	source="$repo_dir/agent/$name"
+	source="$repo_dir/$name"
 	target="$agent_dir/$name"
 
 	if [ -L "$target" ]; then

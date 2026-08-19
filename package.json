@@ -5,11 +5,11 @@
   "license": "MIT",
   "keywords": ["pi-package", "pi-extension"],
   "scripts": {
-    "test": "node multi-pass/tests/auth-compat-check.mjs && node multi-pass/tests/oauth-compat-check.mjs && node multi-pass/tests/statusline-check.mjs && node multi-pass/tests/upstream/pool-edit-check.mjs && node multi-pass/tests/upstream/project-aware-limits-check.mjs && node multi-pass/tests/upstream/project-restriction-check.mjs && node multi-pass/tests/upstream/runtime-failover-check.mjs && node multi-pass/tests/upstream/subs-switch-check.mjs && node multi-pass/tests/upstream/subscription-limits-check.mjs"
+    "test": "node extensions/multi-pass/tests/auth-compat-check.mjs && node extensions/multi-pass/tests/oauth-compat-check.mjs && node extensions/multi-pass/tests/statusline-check.mjs && node extensions/multi-pass/tests/upstream/pool-edit-check.mjs && node extensions/multi-pass/tests/upstream/project-aware-limits-check.mjs && node extensions/multi-pass/tests/upstream/project-restriction-check.mjs && node extensions/multi-pass/tests/upstream/runtime-failover-check.mjs && node extensions/multi-pass/tests/upstream/subs-switch-check.mjs && node extensions/multi-pass/tests/upstream/subscription-limits-check.mjs"
   },
   "pi": {
     "extensions": [
-      "./multi-pass/extensions/multi-sub.ts",
+      "./extensions/multi-pass/extensions/multi-sub.ts",
       "./packages/pi-chrome-devtools/src/index.ts",
       "./packages/pi-codex-compact/src/index.ts",
       "./packages/pi-goal/src/index.ts",
