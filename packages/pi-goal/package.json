@@ -1,0 +1,24 @@
+{
+  "name": "pi-goal",
+  "version": "0.1.7",
+  "description": "Persistent autonomous goals for Pi — /goal loops until complete, paused, or budget-limited",
+  "type": "commonjs",
+  "keywords": ["pi-package", "pi", "coding-agent", "goal", "automation"],
+  "files": ["src", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.cjs"
+  },
+  "author": "michaelliv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Michaelliv/pi-goal"
+  }
+}
