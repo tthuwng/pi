@@ -31,8 +31,102 @@ link_config() {
 }
 
 link_config settings.json
-link_config pi-starship.toml
 link_config mcp.json
+link_config AGENTS.md
+
+link_extensions() {
+	source="$repo_dir/extensions"
+	target="$agent_dir/extensions"
+
+	if [ -L "$target" ]; then
+		current=$(readlink "$target")
+		if [ "$current" = "$source" ]; then
+			printf 'linked: %s\n' "$target"
+			return
+		fi
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/extensions.previous-link"
+	elif [ -e "$target" ]; then
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/extensions"
+	fi
+
+	ln -s "$source" "$target"
+	printf 'linked: %s -> %s\n' "$target" "$source"
+}
+
+link_extensions
+
+link_launcher() {
+	source="$repo_dir/bin/pi"
+	target="$HOME/.local/bin/pi"
+
+	if [ -L "$target" ]; then
+		current=$(readlink "$target")
+		if [ "$current" = "$source" ]; then
+			printf 'linked: %s\n' "$target"
+			return
+		fi
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/pi.previous-link"
+	elif [ -e "$target" ]; then
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/pi"
+	fi
+
+	ln -s "$source" "$target"
+	printf 'linked: %s -> %s\n' "$target" "$source"
+}
+
+link_launcher
+
+link_agents() {
+	name=agents
+	source="$repo_dir/agent/$name"
+	target="$agent_dir/$name"
+
+	if [ -L "$target" ]; then
+		current=$(readlink "$target")
+		if [ "$current" = "$source" ]; then
+			printf 'linked: %s\n' "$target"
+			return
+		fi
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/$name.previous-link"
+	elif [ -e "$target" ]; then
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/$name"
+	fi
+
+	ln -s "$source" "$target"
+	printf 'linked: %s -> %s\n' "$target" "$source"
+}
+
+link_agents
+
+link_skills() {
+	name=skills
+	source="$repo_dir/agent/$name"
+	target="$agent_dir/$name"
+
+	if [ -L "$target" ]; then
+		current=$(readlink "$target")
+		if [ "$current" = "$source" ]; then
+			printf 'linked: %s\n' "$target"
+			return
+		fi
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/$name.previous-link"
+	elif [ -e "$target" ]; then
+		mkdir -p "$backup_dir"
+		mv "$target" "$backup_dir/$name"
+	fi
+
+	ln -s "$source" "$target"
+	printf 'linked: %s -> %s\n' "$target" "$source"
+}
+
+link_skills
 
 cat <<'EOF'
 

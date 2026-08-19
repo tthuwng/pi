@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Home-wide FFF indexing can use more than a gigabyte of memory.
+export FFF_ENABLE_HOME_SCAN="${FFF_ENABLE_HOME_SCAN:-0}"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+export PI_CAFFEINATE_DISABLED="${PI_CAFFEINATE_DISABLED:-1}"
+
+pi_args=()
+if git rev-parse --show-toplevel >/dev/null 2>&1; then
+	pi_args+=(--extension npm:@ff-labs/pi-fff)
+fi
+
+exec /home/ec2-user/.nvm/versions/node/v22.23.0/bin/node \
+	/home/ec2-user/.nvm/versions/node/v22.23.0/bin/pi "${pi_args[@]}" "$@"
