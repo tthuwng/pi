@@ -14,6 +14,10 @@ Extensions and packages bundled with the Pi configuration repository.
   DevTools Protocol inspection, navigation, JavaScript, and screenshots.
 - [`../packages/pi-goal/`](../packages/pi-goal/) — verified persistent goals with
   optional ordered queues.
+- [`safety-floor.ts`](safety-floor.ts) — blocks catastrophic shell commands
+  before normal approval.
+- [`agent-memory.ts`](agent-memory.ts) — bounded explicit agent memory and
+  local `/recap` output.
 
 These packages are adapted from the upstream
 [`narumiruna/pi-extensions`](https://github.com/narumiruna/pi-extensions)
@@ -36,6 +40,10 @@ The root `settings.json` loads the repository package with this manifest:
 
 Credentials remain in Pi's local `~/.pi/agent/auth.json`; this repository must
 never contain tokens, account exports, or local auth state.
+
+`agent-memory.ts` stores explicit agent notes outside the repository in
+`~/.pi/agent/memory/MEMORY.md`. Use `agent_memory` for CRUD. Memory is injected
+once at session start.
 
 The account metadata and pool definitions are also local: `~/.pi/agent/multi-pass.json`.
 Use the generic example in [`../multi-pass.example.json`](../multi-pass.example.json)

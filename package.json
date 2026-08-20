@@ -8,7 +8,7 @@
     "pi-extension"
   ],
   "scripts": {
-    "test": "node extensions/multi-pass/tests/auth-compat-check.mjs && node extensions/multi-pass/tests/oauth-compat-check.mjs && node extensions/multi-pass/tests/statusline-check.mjs && node extensions/multi-pass/tests/upstream/pool-edit-check.mjs && node extensions/multi-pass/tests/upstream/project-aware-limits-check.mjs && node extensions/multi-pass/tests/upstream/project-restriction-check.mjs && node extensions/multi-pass/tests/upstream/runtime-failover-check.mjs && node extensions/multi-pass/tests/upstream/subs-switch-check.mjs && node extensions/multi-pass/tests/upstream/subscription-limits-check.mjs && node --test packages/pi-goal/test/*.test.cjs"
+    "test": "node extensions/multi-pass/tests/auth-compat-check.mjs && node extensions/multi-pass/tests/oauth-compat-check.mjs && node extensions/multi-pass/tests/statusline-check.mjs && node extensions/multi-pass/tests/upstream/pool-edit-check.mjs && node extensions/multi-pass/tests/upstream/project-aware-limits-check.mjs && node extensions/multi-pass/tests/upstream/project-restriction-check.mjs && node extensions/multi-pass/tests/upstream/runtime-failover-check.mjs && node extensions/multi-pass/tests/upstream/subs-switch-check.mjs && node extensions/multi-pass/tests/upstream/subscription-limits-check.mjs && node --test extensions/safety-floor.test.cjs extensions/agent-memory.test.cjs packages/pi-goal/test/*.test.cjs"
   },
   "pi": {
     "extensions": [
@@ -16,7 +16,9 @@
       "./packages/pi-chrome-devtools/src/index.ts",
       "./packages/pi-codex-compact/src/index.ts",
       "./packages/pi-goal/src/index.ts",
-      "./packages/pi-subagents/src/index.ts"
+      "./packages/pi-subagents/src/index.ts",
+      "./extensions/safety-floor.ts",
+      "./extensions/agent-memory.ts"
     ],
     "skills": [
       "skills"
